@@ -5,6 +5,8 @@ import Profile from '@/public/profile.png'
 import FacebookIcon from '@/components/svgIcons/FacebookIcon'
 import WhatsappIcon from '@/components/svgIcons/WhatsappIcon'
 import InstagramIcon from '@/components/svgIcons/InstagramIcon'
+import { Card, CardContent } from '@/components/ui/card'
+import { Avatar } from '@/components/ui/avatar'
 
 function page() {
     return (
@@ -34,13 +36,29 @@ function page() {
                     </div>
                 </div>
                 <div className='flex flex-row md:flex-col mt-6 gap-4'>
-                    <div className='flex items-center gap-3'><FacebookIcon/> <span className='rounded-full bg-[#F5F5F5] text-sm p-2'>www.facebook.com/Cassies-Kitchen</span></div>
-                    <div className='flex items-center gap-3'><WhatsappIcon/> <span className='rounded-full bg-[#F5F5F5] text-sm p-2'>wa.me/chat.whatsapp.com/2348093450098</span></div>
-                    <div className='flex items-center gap-3'><InstagramIcon/> <span className='rounded-full bg-[#F5F5F5] text-sm p-2'>www.instagram.com/cassies-kitchen</span></div>
+                    <div className='flex items-center gap-3'><FacebookIcon /> <span className='rounded-full bg-[#F5F5F5] text-sm p-2'>www.facebook.com/Cassies-Kitchen</span></div>
+                    <div className='flex items-center gap-3'><WhatsappIcon /> <span className='rounded-full bg-[#F5F5F5] text-sm p-2'>wa.me/chat.whatsapp.com/2348093450098</span></div>
+                    <div className='flex items-center gap-3'><InstagramIcon /> <span className='rounded-full bg-[#F5F5F5] text-sm p-2'>www.instagram.com/cassies-kitchen</span></div>
                 </div>
                 <div className='mt-6 flex justify-between items-center'>
                     <span>Reviews(420)</span>
-                    <span>See All</span>
+                    <span className='text-[#4FCA6A]'>See All</span>
+                </div>
+                <div>
+                    <Card className='shadow-none border-[#F5F5F5] dark:border-background mt-6'>
+                        <CardContent>
+                            <div className='flex items-center justify-between'>
+                                <div className='flex items-center gap-2'>
+                                    <Avatar>RE</Avatar>
+                                    <div className='flex flex-col'>
+                                        Anita Raine
+                                    </div>
+                                </div>
+                                <span className='text-xs text-[#A0A0A0]'>31 mins ago</span>
+                            </div>
+
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
             <div className='w-[55%]'>page</div>
