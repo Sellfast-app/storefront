@@ -149,13 +149,13 @@ function Page() {
         product.name.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    // Check if we're searching on mobile
+    // Check if we're searching on mobile (only hide content on mobile, not desktop)
     const isSearchingOnMobile = searchQuery.trim() !== ''
 
     return (
         <div className='flex flex-col'>
             {/* Mobile Search Header - Only visible on mobile */}
-            <div className='md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10'>
+            <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${isSearchingOnMobile ? 'block' : 'block'}`}>
                 <div className='flex items-center justify-between'>
                     <Logo />
                     <div className='flex gap-2'>
@@ -176,7 +176,7 @@ function Page() {
             {/* Main Content */}
             <div className='p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden'>
                 {/* Left Side - Profile Section */}
-                <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
+                <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full ${isSearchingOnMobile ? 'hidden md:block' : 'block'}`}>
                     <div className='relative'>
                         <Image src={Banner} alt='' className='w-full object-cover rounded-xl h-50 md:h-90' />
                         <div className='absolute bottom-[-30px] md:bottom-[-60px] left-1/2 -translate-x-1/2'>
