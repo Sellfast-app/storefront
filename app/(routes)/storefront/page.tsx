@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import React, { useState } from 'react'
 import Banner from '@/public/Banner.png'
 import Profile from '@/public/profile.png'
@@ -15,114 +16,13 @@ import SearchIcon from '@/components/svgIcons/SearchIcon'
 import { Button } from '@/components/ui/button'
 import CartIcon from '@/components/svgIcons/CartIcon'
 import FilterIcon from '@/components/svgIcons/FilterIcon'
-import Rice from '@/public/Rice.png'
+import { products, customerReviews } from '@/lib/mockdata'
 
-// Product data array
-const products = [
-    {
-        id: 1,
-        image: Rice,
-        name: 'Jollof Rice with Chicken',
-        price: 4500
-    },
-    {
-        id: 2,
-        image: Rice,
-        name: 'Fried Rice, Plantain & Chicken',
-        price: 5600
-    },
-    {
-        id: 3,
-        image: Rice,
-        name: 'Native Rice with Fish',
-        price: 4200
-    },
-    {
-        id: 4,
-        image: Rice,
-        name: 'Coconut Rice & Beef',
-        price: 5000
-    },
-    {
-        id: 5,
-        image: Rice,
-        name: 'White Rice & Stew with Turkey',
-        price: 6000
-    },
-    {
-        id: 6,
-        image: Rice,
-        name: 'Basmati Fried Rice Special',
-        price: 6500
-    },
-    {
-        id: 7,
-        image: Rice,
-        name: 'Ofada Rice & Ayamase Sauce',
-        price: 5500
-    },
-    {
-        id: 8,
-        image: Rice,
-        name: 'Chicken Fried Rice Combo',
-        price: 5800
-    },
-    {
-        id: 9,
-        image: Rice,
-        name: 'Jollof Rice Party Pack',
-        price: 7000
-    },
-    {
-        id: 10,
-        image: Rice,
-        name: 'Mixed Rice with Grilled Fish',
-        price: 6200
-    },
-    {
-        id: 11,
-        image: Rice,
-        name: 'Vegetable Fried Rice',
-        price: 4800
-    },
-    {
-        id: 12,
-        image: Rice,
-        name: 'Shrimp Fried Rice Deluxe',
-        price: 7500
-    }
-]
 
-// Reviews data array
-const reviews = [
-    {
-        id: 1,
-        name: 'Anita Raine',
-        initials: 'AR',
-        rating: 5,
-        timeAgo: '31 mins ago',
-        comment: 'I had a wonderful session with Dr. Kim. He was really honest, gave me insightful ideas on how to care of myself even in this delicate situation, and challenged me to find myself and take charge to becoming a better woman'
-    },
-    {
-        id: 2,
-        name: 'John Adebayo',
-        initials: 'JA',
-        rating: 4,
-        timeAgo: '2 hours ago',
-        comment: 'The jollof rice was absolutely delicious! Perfectly cooked with just the right amount of spice. Will definitely order again. Delivery was also very prompt.'
-    },
-    {
-        id: 3,
-        name: 'Sarah Okonkwo',
-        initials: 'SO',
-        rating: 3,
-        timeAgo: '1 day ago',
-        comment: 'Food was good but the portion size could be better for the price. The fried rice was tasty though and the chicken was well seasoned.'
-    }
-]
-
-// Star Rating Component
 const StarRating = ({ rating }: { rating: number }) => {
+    const fullStars = Math.floor(rating)
+    const hasHalfStar = rating % 1 !== 0
+
     return (
         <div className='flex gap-1 mt-1'>
             {[1, 2, 3, 4, 5].map((star) => (
@@ -131,9 +31,15 @@ const StarRating = ({ rating }: { rating: number }) => {
                     width="12"
                     height="12"
                     viewBox="0 0 24 24"
-                    fill={star <= rating ? '#FEA436' : '#FFE0BA'}
+                    fill={star <= fullStars ? '#FEA436' : star === fullStars + 1 && hasHalfStar ? 'url(#half)' : '#FFE0BA'}
                     xmlns="http://www.w3.org/2000/svg"
                 >
+                    <defs>
+                        <linearGradient id="half">
+                            <stop offset="50%" stopColor="#FEA436" />
+                            <stop offset="50%" stopColor="#FFE0BA" />
+                        </linearGradient>
+                    </defs>
                     <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
                 </svg>
             ))}
@@ -166,7 +72,7 @@ function Page() {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-8 pr-8 py-2 text-xs dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]" />
                             <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <FilterIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
+                            <FilterIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         </div>
                         <Button variant={"outline"}><CartIcon /></Button>
                     </div>
@@ -176,7 +82,7 @@ function Page() {
             {/* Main Content */}
             <div className='p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden'>
                 {/* Left Side - Profile Section */}
-                <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full ${isSearchingOnMobile ? 'hidden md:block' : 'block'}`}>
+                <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full md:block ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
                     <div className='relative'>
                         <Image src={Banner} alt='' className='w-full object-cover rounded-xl h-50 md:h-90' />
                         <div className='absolute bottom-[-30px] md:bottom-[-60px] left-1/2 -translate-x-1/2'>
@@ -205,15 +111,15 @@ function Page() {
                         <div className='flex items-center gap-3'><WhatsappIcon /> <span className='rounded-full bg-[#F5F5F5] text-sm p-2 hidden md:block'>wa.me/chat.whatsapp.com/2348093450098</span></div>
                         <div className='flex items-center gap-3'><InstagramIcon /> <span className='rounded-full bg-[#F5F5F5] text-sm p-2 hidden md:block'>www.instagram.com/cassies-kitchen</span></div>
                     </div>
-                    
+
                     {/* Reviews Section - Visible on desktop */}
                     <div className='hidden md:block'>
                         <div className='mt-6 flex justify-between items-center'>
-                            <span>Reviews({reviews.length})</span>
+                            <span>Reviews({customerReviews.length})</span>
                             <span className='text-[#4FCA6A]'>See All</span>
                         </div>
                         <div className='space-y-4'>
-                            {reviews.map((review) => (
+                            {customerReviews.slice(0, 3).map((review) => (
                                 <Card key={review.id} className='shadow-none border-[#F5F5F5] dark:border-background mt-6'>
                                     <CardContent>
                                         <div className='flex items-center justify-between'>
@@ -247,7 +153,7 @@ function Page() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="w-full sm:w-64 md:w-84 pl-8 pr-8 py-2 text-xs sm:text-sm dark:bg-background rounded-lg border-[#F5F5F5] dark:border-[#1F1F1F]" />
                                 <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <FilterIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"/>
+                                <FilterIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             </div>
                             <Button variant={"outline"}><CartIcon /></Button>
                         </div>
@@ -257,16 +163,18 @@ function Page() {
                     <div className='grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4'>
                         {filteredProducts.length > 0 ? (
                             filteredProducts.map((product) => (
-                                <div key={product.id} className='flex flex-col rounded-2xl border border-[#F5F5F5] dark:border-[#1F1F1F] hover:border-[#4FCA6A] transition-colors'>
-                                    <Image src={product.image} alt={product.name} className='object-cover w-full h-45 rounded-t-2xl'/>
-                                    <p className='text-xs mt-2 px-2'>{product.name}</p>
-                                    <div className='flex items-center justify-between mt-2 px-2 pb-3'>
-                                        <span>₦{product.price.toLocaleString()}</span>
-                                        <Button className='text-xs'>
-                                            Add to Cart
-                                        </Button>
+                                <Link href={`/storefront/${product.id}`} key={product.id}>
+                                    <div className='flex flex-col rounded-2xl border border-[#F5F5F5] dark:border-[#1F1F1F] hover:border-[#4FCA6A] transition-colors cursor-pointer'>
+                                        <Image src={product.image} alt={product.name} width={300} height={200} className='object-cover w-full h-45 rounded-t-2xl' />
+                                        <p className='text-xs mt-2 px-2'>{product.name}</p>
+                                        <div className='flex items-center justify-between mt-2 px-2 pb-3'>
+                                            <span>₦{product.price.toLocaleString()}</span>
+                                            <Button className='text-xs' onClick={(e) => e.preventDefault()}>
+                                                Add to Cart
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
+                                </Link>
                             ))
                         ) : (
                             <div className='col-span-2 lg:col-span-3 text-center py-8'>
@@ -280,11 +188,11 @@ function Page() {
             {/* Reviews Section - Only visible on mobile, below products */}
             <div className={`md:hidden p-6 ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
                 <div className='flex justify-between items-center'>
-                    <span>Reviews({reviews.length})</span>
+                    <span>Reviews({customerReviews.length})</span>
                     <span className='text-[#4FCA6A]'>See All</span>
                 </div>
                 <div className='space-y-4'>
-                    {reviews.map((review) => (
+                    {customerReviews.map((review) => (
                         <Card key={review.id} className='shadow-none border-[#F5F5F5] dark:border-background mt-6'>
                             <CardContent>
                                 <div className='flex items-center justify-between'>

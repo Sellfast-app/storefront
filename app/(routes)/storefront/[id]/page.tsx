@@ -1,15 +1,16 @@
 "use client";
 
 import React, { useState } from 'react'
+import { useParams } from 'next/navigation'
 import Banner from '@/public/Banner.png'
 import Image from 'next/image'
+import Link from 'next/link'
 import Logo from '@/components/svgIcons/Logo'
 import { Input } from '@/components/ui/input'
 import SearchIcon from '@/components/svgIcons/SearchIcon'
 import FilterIcon from '@/components/svgIcons/FilterIcon'
 import CartIcon from '@/components/svgIcons/CartIcon'
 import { Button } from '@/components/ui/button'
-import Rice from '@/public/Rice.png'
 import { PlusIcon } from 'lucide-react';
 import MinusIcon from '@/components/svgIcons/MinusIcon';
 import { Label } from '@/components/ui/label';
@@ -18,124 +19,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import GigIcon from '@/components/svgIcons/GigIcon';
 import { Progress } from '@/components/ui/progress';
 import { Avatar } from '@/components/ui/avatar';
+import { getProductById, products, ratingBreakdown, customerReviews } from '@/lib/mockdata'
 
-const products = [
-  {
-    id: 1,
-    image: Rice,
-    name: 'Jollof Rice with Chicken',
-    price: 4500
-  },
-  {
-    id: 2,
-    image: Rice,
-    name: 'Fried Rice, Plantain & Chicken',
-    price: 5600
-  },
-  {
-    id: 3,
-    image: Rice,
-    name: 'Native Rice with Fish',
-    price: 4200
-  },
-  {
-    id: 4,
-    image: Rice,
-    name: 'Coconut Rice & Beef',
-    price: 5000
-  },
-  {
-    id: 5,
-    image: Rice,
-    name: 'White Rice & Stew with Turkey',
-    price: 6000
-  },
-  {
-    id: 6,
-    image: Rice,
-    name: 'Basmati Fried Rice Special',
-    price: 6500
-  },
-  {
-    id: 7,
-    image: Rice,
-    name: 'Ofada Rice & Ayamase Sauce',
-    price: 5500
-  },
-  {
-    id: 8,
-    image: Rice,
-    name: 'Chicken Fried Rice Combo',
-    price: 5800
-  },
-  {
-    id: 9,
-    image: Rice,
-    name: 'Jollof Rice Party Pack',
-    price: 7000
-  },
-  {
-    id: 10,
-    image: Rice,
-    name: 'Mixed Rice with Grilled Fish',
-    price: 6200
-  },
-  {
-    id: 11,
-    image: Rice,
-    name: 'Vegetable Fried Rice',
-    price: 4800
-  },
-  {
-    id: 12,
-    image: Rice,
-    name: 'Shrimp Fried Rice Deluxe',
-    price: 7500
-  }
-]
-
-// Rating breakdown data
-const ratingBreakdown = [
-  { stars: 5, count: 8, percentage: 33.8 },
-  { stars: 4, count: 20, percentage: 84.4 },
-  { stars: 3, count: 56, percentage: 236.3 },
-  { stars: 2, count: 17, percentage: 71.7 },
-  { stars: 1, count: 3, percentage: 12.7 }
-]
-
-// Customer reviews data
-const customerReviews = [
-  {
-    id: 1,
-    name: 'Anita Raine',
-    rating: 4.5,
-    timeAgo: '31 mins ago',
-    comment: 'I had a wonderful session with Dr. Kim. He was really honest, gave me insightful ideas oon how to care of myself even in this delicate situation...'
-  },
-  {
-    id: 2,
-    name: 'Gracie James',
-    rating: 4.5,
-    timeAgo: 'Aug 15',
-    comment: 'This was truly a great experience. He gave me time to find perspective in things that mattered, to be prepared to take charge of narratives and become better'
-  },
-  {
-    id: 3,
-    name: 'Stacie Flein Grace',
-    rating: 3.5,
-    timeAgo: 'Aug 18',
-    comment: 'I had a wonderful session with Dr. Kim. He was really honest, gave me insightful ideas oon how to care of myself even in this delicate situation...'
-  },
-  {
-    id: 4,
-    name: 'Johanna Layina Ohioana',
-    rating: 4.5,
-    timeAgo: 'Aug 15',
-    comment: 'This was truly a great experience. He gave me time to find perspective in things that mattered, to be prepared to take char...'
-  }
-]
-
-// Star Rating Component for Overview (Green theme)
 const StarRatingGreen = ({ rating }: { rating: number }) => {
   const fullStars = Math.floor(rating)
   const hasHalfStar = rating % 1 !== 0
@@ -194,26 +79,52 @@ const StarRatingOrange = ({ rating }: { rating: number }) => {
 }
 
 function Page() {
+  const params = useParams()
+  const productId = Number(params.id)
+  const product = getProductById(productId)
+
   const [searchQuery, setSearchQuery] = useState('')
+  const [quantity, setQuantity] = useState(1)
 
-  // Filter products based on search query
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filter products based on search query (for related products)
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) && p.id !== productId
+  ).slice(0, 6)
 
-  // Check if we're searching on mobile (only hide content on mobile, not desktop)
+  // Check if we're searching on mobile
   const isSearchingOnMobile = searchQuery.trim() !== ''
 
   // Calculate totals
   const totalReviews = ratingBreakdown.reduce((sum, item) => sum + item.count, 0)
-  const averageRating = 4.5
+  const shippingFee = 1600
+  const totalPrice = product ? (product.price * quantity) + shippingFee : 0
+
+  // Handle quantity changes
+  const incrementQuantity = () => setQuantity(prev => prev + 1)
+  const decrementQuantity = () => setQuantity(prev => prev > 1 ? prev - 1 : 1)
+
+  // If product not found
+  if (!product) {
+    return (
+      <div className='flex items-center justify-center h-screen'>
+        <div className='text-center'>
+          <h2 className='text-2xl font-bold mb-4'>Product Not Found</h2>
+          <Link href="/storefront">
+            <Button>Back to Store</Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className='flex flex-col'>
       {/* Mobile Search Header - Only visible on mobile */}
       <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${isSearchingOnMobile ? 'block' : 'block'}`}>
         <div className='flex items-center justify-between'>
-          <Logo />
+          <Link href="/storefront">
+            <Logo />
+          </Link>
           <div className='flex gap-2'>
             <div className="relative flex items-center">
               <Input
@@ -228,6 +139,7 @@ function Page() {
           </div>
         </div>
       </div>
+      
       <div className='p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden'>
         <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full md:block ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
           <div className='flex gap-4'>
@@ -238,23 +150,30 @@ function Page() {
             </div>
             <Image src={Banner} alt='' className='w-full md:h-90 object-fit rounded-lg ' />
           </div>
+          
           <div className='mt-6'>
-            <span>Nigerian Jollof, Salad & Fried Chicken</span>
-            <div className='flex items-center justify-between '>
-              <h3 className='font-semibold'>₦5,600</h3>
-              <div className='flex items-center h-full jusify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
-                <PlusIcon className='w-4 h-4 pr-1' />
-                <span className='px-4 bg-card h-full'>1</span>
-                <MinusIcon className='w-4 h-4 pl-1' />
+            <span className='text-lg font-medium'>{product.name}</span>
+            <div className='flex items-center justify-between mt-2'>
+              <h3 className='font-semibold text-xl'>₦{product.price.toLocaleString()}</h3>
+              <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
+                <button onClick={incrementQuantity} className='p-1'>
+                  <PlusIcon className='w-4 h-4' />
+                </button>
+                <span className='px-4 bg-card h-full flex items-center'>{quantity}</span>
+                <button onClick={decrementQuantity} className='p-1'>
+                  <MinusIcon className='w-4 h-4' />
+                </button>
               </div>
             </div>
+            
             <div className='flex justify-between items-center mt-6'>
-              <div className='text-xs text-[#4FCA6A]'>(6 verified ratings)</div>
-              <div className='text-xs'>Est. Prod Days: 2 - 3 days</div>
+              <div className='text-xs text-[#4FCA6A]'>({product.verifiedRatings} verified ratings)</div>
+              <div className='text-xs'>Est. Prod Days: {product.estimatedDays}</div>
             </div>
+            
             <div className='mt-4'>
               <Label>Choose your location</Label>
-              <div className='flex items-center flex flex-col md:flex-row mt-2 gap-2'>
+              <div className='flex items-center flex-col md:flex-row mt-2 gap-2'>
                 <DropdownMenu>
                   <DropdownMenuTrigger className='w-full md:w-1/2 border rounded-lg p-2 text-xs text-left'>Select State</DropdownMenuTrigger>
                 </DropdownMenu>
@@ -262,42 +181,43 @@ function Page() {
                   <DropdownMenuTrigger className='w-full md:w-1/2 border rounded-lg p-2 text-xs text-left'>Select LGA</DropdownMenuTrigger>
                 </DropdownMenu>
               </div>
+              
               <Card className='mt-4 border border-[#F5F5F5] dark:border-[#1F1F1F]'>
-                <CardContent className='flex flex-col gap-4'>
+                <CardContent className='flex flex-col gap-4 pt-6'>
                   <div className='flex items-center gap-2'>
                     <GigIcon />
                     <div className='flex flex-col'>
-                      <h4>GIG Logistics - Shipping Fee</h4>
-                      <span>+₦1,600</span>
+                      <h4 className='text-sm font-medium'>GIG Logistics - Shipping Fee</h4>
+                      <span className='text-sm'>+₦{shippingFee.toLocaleString()}</span>
                     </div>
                   </div>
-                  <div className='flex items-center justify-between '>
+                  <div className='flex items-center justify-between'>
                     <div className='flex flex-col'>
-                      <span className='text-xs'>Total Price:</span>
-                      <h3>₦7,200</h3>
+                      <span className='text-xs text-gray-500'>Total Price:</span>
+                      <h3 className='text-xl font-bold'>₦{totalPrice.toLocaleString()}</h3>
                     </div>
-                    <Button> <CartIcon /> Add to Cart</Button>
+                    <Button className='gap-2'>
+                      <CartIcon /> Add to Cart
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
+              
               <Card className='mt-4 border-[#F5F5F5] dark:border-[#1F1F1F]'>
                 <CardHeader className='border-b border-[#F5F5F5] dark:border-[#1F1F1F] text-sm font-semibold'>
-                  <h3> Product Details</h3>
+                  <h3>Product Details</h3>
                 </CardHeader>
-                <CardContent className='flex flex-col gap-2'>
-                  <span className='text-sm'>
-                    Delight in the vibrant flavors of authentic Nigerian Jollof Rice, perfectly paired with a fresh, crisp salad and golden, crispy fried chicken.
-                    The accompanying fried chicken is meticulously seasoned and fried to a golden perfection, delivering juicy, tender meat with a flavorful, crispy coating. Complementing the main dishes is our hand-prepared salad a refreshing mix of fresh vegetables for a balanced, colorful, and satisfying meal .
-                    Perfect for individual meals, family gatherings, or special events, this trio combines traditional taste with modern presentation. Treat yourself to an unforgettable taste of Nigeria with every serving.
-                  </span>
-                  <span className='text-sm'>Key Features:</span>
+                <CardContent className='flex flex-col gap-2 pt-6'>
+                  <span className='text-sm'>{product.description}</span>
+                  <span className='text-sm font-semibold mt-2'>Key Features:</span>
                   <ul className="list-disc list-inside text-sm">
-                    <li>Authentic,rich,and smoky Nigerian Jollof rice</li>
-                    <li>Authentic,rich,and smoky Nigerian Jollof rice</li>
-                    <li>Authentic,rich,and smoky Nigerian Jollof rice</li>
+                    {product.keyFeatures.map((feature, index) => (
+                      <li key={index}>{feature}</li>
+                    ))}
                   </ul>
                 </CardContent>
               </Card>
+              
               <Card className='mt-4 border-[#F5F5F5] dark:border-[#1F1F1F]'>
                 <CardHeader className='border-b border-[#F5F5F5] dark:border-[#1F1F1F] flex flex-row items-center justify-between'>
                   <h3 className='font-semibold'>Customer Feedback</h3>
@@ -305,14 +225,12 @@ function Page() {
                 </CardHeader>
                 <CardContent className='pt-6 flex flex-col md:flex-row gap-3'>
                   <div className='flex flex-col gap-6 w-full md:w-[35%]'>
-                    {/* Left Side - Rating Summary with GREEN stars */}
                     <div className='w-full bg-[#F5F5F5] dark:bg-[#1F1F1F] rounded-lg p-6 flex flex-col items-center justify-center'>
-                      <h2 className='text-2xl font-bold text-[#4FCA6A]'>{averageRating}/5</h2>
-                      <StarRatingGreen rating={averageRating} />
+                      <h2 className='text-2xl font-bold text-[#4FCA6A]'>{product.averageRating}/5</h2>
+                      <StarRatingGreen rating={product.averageRating} />
                       <span className='text-sm mt-2'>{totalReviews} reviews</span>
                     </div>
 
-                    {/* Right Side - Rating Breakdown */}
                     <div className='w-full flex flex-col gap-2'>
                       {ratingBreakdown.map((item) => (
                         <div key={item.stars} className='flex items-center gap-3'>
@@ -332,11 +250,10 @@ function Page() {
                     </div>
                   </div>
 
-                  {/* Customer Reviews List with ORANGE stars */}
-                  <div className='mt-8 space-y-6 w-full md:w-[65%]'>
+                  <div className='mt-8 md:mt-0 space-y-6 w-full md:w-[65%]'>
                     {customerReviews.map((review) => (
                       <div key={review.id} className='flex gap-3'>
-                        <Avatar className='w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400' />
+                        <Avatar className='w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400'>{review.initials}</Avatar>
                         <div className='flex-1'>
                           <div className='flex items-start justify-between'>
                             <div>
@@ -355,10 +272,12 @@ function Page() {
             </div>
           </div>
         </div>
+        
         <div className='w-full md:w-[55%] md:overflow-y-auto md:h-full'>
-          {/* Desktop Search Header - Only visible on desktop */}
           <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-white dark:bg-background z-10 pb-4'>
-            <Logo />
+            <Link href="/storefront">
+              <Logo />
+            </Link>
             <div className='flex gap-2'>
               <div className="relative flex items-center">
                 <Input
@@ -373,30 +292,31 @@ function Page() {
             </div>
           </div>
 
-          {/* Products Grid */}
+          <h3 className='font-semibold mb-4'>Related Products</h3>
           <div className='grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4'>
             {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => (
-                <div key={product.id} className='flex flex-col rounded-2xl border border-[#F5F5F5] dark:border-[#1F1F1F] hover:border-[#4FCA6A] transition-colors'>
-                  <Image src={product.image} alt={product.name} className='object-cover w-full h-45 rounded-t-2xl' />
-                  <p className='text-xs mt-2 px-2'>{product.name}</p>
-                  <div className='flex items-center justify-between mt-2 px-2 pb-3'>
-                    <span>₦{product.price.toLocaleString()}</span>
-                    <Button className='text-xs'>
-                      Add to Cart
-                    </Button>
+              filteredProducts.map((prod) => (
+                <Link href={`/storefront/${prod.id}`} key={prod.id}>
+                  <div className='flex flex-col rounded-2xl border border-[#F5F5F5] dark:border-[#1F1F1F] hover:border-[#4FCA6A] transition-colors cursor-pointer'>
+                    <Image src={prod.image} alt={prod.name} width={300} height={200} className='object-cover w-full h-45 rounded-t-2xl' />
+                    <p className='text-xs mt-2 px-2'>{prod.name}</p>
+                    <div className='flex items-center justify-between mt-2 px-2 pb-3'>
+                      <span>₦{prod.price.toLocaleString()}</span>
+                      <Button className='text-xs' onClick={(e) => e.preventDefault()}>
+                        Add to Cart
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                </Link>
               ))
             ) : (
               <div className='col-span-2 lg:col-span-3 text-center py-8'>
-                <p className='text-gray-500'>No products found matching &quot;{searchQuery}&quot;</p>
+                <p className='text-gray-500'>No related products found</p>
               </div>
             )}
           </div>
         </div>
       </div>
-
     </div>
   )
 }
