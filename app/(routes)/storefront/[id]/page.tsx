@@ -1,3 +1,4 @@
+// storefront/[id]/page.tsx
 "use client";
 
 import React, { useState } from 'react'
@@ -20,6 +21,8 @@ import GigIcon from '@/components/svgIcons/GigIcon';
 import { Progress } from '@/components/ui/progress';
 import { Avatar } from '@/components/ui/avatar';
 import { getProductById, products, ratingBreakdown, customerReviews } from '@/lib/mockdata'
+import { useCart } from '@/context/CartContext'
+import CartButton from '@/components/CartButton'
 
 const StarRatingGreen = ({ rating }: { rating: number }) => {
   const fullStars = Math.floor(rating)
@@ -49,7 +52,6 @@ const StarRatingGreen = ({ rating }: { rating: number }) => {
   )
 }
 
-// Star Rating Component for Reviews (Orange theme)
 const StarRatingOrange = ({ rating }: { rating: number }) => {
   const fullStars = Math.floor(rating)
   const hasHalfStar = rating % 1 !== 0
@@ -82,28 +84,35 @@ function Page() {
   const params = useParams()
   const productId = Number(params.id)
   const product = getProductById(productId)
+  const { addToCart } = useCart()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [quantity, setQuantity] = useState(1)
 
-  // Filter products based on search query (for related products)
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) && p.id !== productId
   ).slice(0, 6)
 
-  // Check if we're searching on mobile
   const isSearchingOnMobile = searchQuery.trim() !== ''
 
-  // Calculate totals
   const totalReviews = ratingBreakdown.reduce((sum, item) => sum + item.count, 0)
   const shippingFee = 1600
   const totalPrice = product ? (product.price * quantity) + shippingFee : 0
 
-  // Handle quantity changes
   const incrementQuantity = () => setQuantity(prev => prev + 1)
   const decrementQuantity = () => setQuantity(prev => prev > 1 ? prev - 1 : 1)
 
-  // If product not found
+  const handleAddToCart = (e?: React.MouseEvent, prod?: typeof products[0], qty: number = 1) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    const productToAdd = prod || product
+    if (productToAdd) {
+      addToCart(productToAdd, qty)
+    }
+  }
+
   if (!product) {
     return (
       <div className='flex items-center justify-center h-screen'>
@@ -119,7 +128,6 @@ function Page() {
 
   return (
     <div className='flex flex-col'>
-      {/* Mobile Search Header - Only visible on mobile */}
       <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${isSearchingOnMobile ? 'block' : 'block'}`}>
         <div className='flex items-center justify-between'>
           <Link href="/storefront">
@@ -135,7 +143,7 @@ function Page() {
               <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <FilterIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             </div>
-            <Button variant={"outline"}><CartIcon /></Button>
+            <CartButton />
           </div>
         </div>
       </div>
@@ -156,11 +164,11 @@ function Page() {
             <div className='flex items-center justify-between mt-2'>
               <h3 className='font-semibold text-xl'>₦{product.price.toLocaleString()}</h3>
               <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
-                <button onClick={incrementQuantity} className='p-1'>
+                <button onClick={incrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
                   <PlusIcon className='w-4 h-4' />
                 </button>
                 <span className='px-4 bg-card h-full flex items-center'>{quantity}</span>
-                <button onClick={decrementQuantity} className='p-1'>
+                <button onClick={decrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
                   <MinusIcon className='w-4 h-4' />
                 </button>
               </div>
@@ -196,7 +204,7 @@ function Page() {
                       <span className='text-xs text-gray-500'>Total Price:</span>
                       <h3 className='text-xl font-bold'>₦{totalPrice.toLocaleString()}</h3>
                     </div>
-                    <Button className='gap-2'>
+                    <Button className='gap-2' onClick={() => handleAddToCart(undefined, product, quantity)}>
                       <CartIcon /> Add to Cart
                     </Button>
                   </div>
@@ -288,7 +296,7 @@ function Page() {
                 <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FilterIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
-              <Button variant={"outline"}><CartIcon /></Button>
+              <CartButton />
             </div>
           </div>
 
@@ -302,7 +310,10 @@ function Page() {
                     <p className='text-xs mt-2 px-2'>{prod.name}</p>
                     <div className='flex items-center justify-between mt-2 px-2 pb-3'>
                       <span>₦{prod.price.toLocaleString()}</span>
-                      <Button className='text-xs' onClick={(e) => e.preventDefault()}>
+                      <Button 
+                        className='text-xs' 
+                        onClick={(e) => handleAddToCart(e, prod, 1)}
+                      >
                         Add to Cart
                       </Button>
                     </div>
