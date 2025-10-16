@@ -3,6 +3,7 @@
 
 import React from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { PlusIcon } from 'lucide-react'
 import MinusIcon from '@/components/svgIcons/MinusIcon'
@@ -12,8 +13,14 @@ import SpeedafIcon from './svgIcons/SpeedafIcon'
 
 export default function CartView() {
   const { cart, updateQuantity, removeFromCart, getCartTotal } = useCart()
+  const router = useRouter()
 
   const subtotal = getCartTotal()
+
+  const handleCheckout = () => {
+    // Navigate to checkout page
+    router.push('/storefront/checkout')
+  }
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -50,7 +57,7 @@ export default function CartView() {
                       <h3 className="font-medium text-sm">{item.name}</h3>
                       <p className="text-xs text-gray-500 mt-1">Few units left</p>
                       <div className="flex items-center gap-1 mt-1">
-                      <SpeedafIcon/> 
+                        <SpeedafIcon/> 
                         <span className="text-xs text-gray-600">SpeedAf</span>
                       </div>
                     </div>
@@ -100,7 +107,10 @@ export default function CartView() {
             <span className="font-bold text-lg">₦{subtotal.toLocaleString()}</span>
           </div>
 
-          <Button className="w-full bg-[#4FCA6A] hover:bg-[#45b85e] text-white py-6">
+          <Button 
+            className="w-full bg-[#4FCA6A] hover:bg-[#45b85e] text-white py-6"
+            onClick={handleCheckout}
+          >
             Checkout (₦{subtotal.toLocaleString()})
           </Button>
         </div>

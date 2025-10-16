@@ -23,6 +23,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { getProductById, products, ratingBreakdown, customerReviews } from '@/lib/mockdata'
 import { useCart } from '@/context/CartContext'
 import CartButton from '@/components/CartButton'
+import CartView from '@/components/CartView'
 
 const StarRatingGreen = ({ rating }: { rating: number }) => {
   const fullStars = Math.floor(rating)
@@ -88,6 +89,7 @@ function Page() {
 
   const [searchQuery, setSearchQuery] = useState('')
   const [quantity, setQuantity] = useState(1)
+  const [showCart, setShowCart] = useState(false)
 
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) && p.id !== productId
@@ -113,6 +115,12 @@ function Page() {
     }
   }
 
+
+
+  const toggleCart = () => {
+    setShowCart(!showCart)
+  }
+
   if (!product) {
     return (
       <div className='flex items-center justify-center h-screen'>
@@ -127,7 +135,7 @@ function Page() {
   }
 
   return (
-    <div className='flex flex-col'>
+    <div className='flex flex-col bg-[#FCFCFC]'>
       <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${isSearchingOnMobile ? 'block' : 'block'}`}>
         <div className='flex items-center justify-between'>
           <Link href="/storefront">
@@ -143,146 +151,155 @@ function Page() {
               <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <FilterIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             </div>
-            <CartButton />
+            <CartButton onClick={toggleCart} />
           </div>
         </div>
       </div>
       
       <div className='p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden'>
         <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full md:block ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
-          <div className='flex gap-4'>
-            <div className='flex flex-col gap-2'>
-              <Image src={Banner} alt='' className='w-25 h-25 rounded-lg' />
-              <Image src={Banner} alt='' className='w-25 h-25 rounded-lg' />
-              <Image src={Banner} alt='' className='w-25 h-25 rounded-lg' />
-            </div>
-            <Image src={Banner} alt='' className='w-full md:h-90 object-fit rounded-lg ' />
-          </div>
-          
-          <div className='mt-6'>
-            <span className='text-lg font-medium'>{product.name}</span>
-            <div className='flex items-center justify-between mt-2'>
-              <h3 className='font-semibold text-xl'>₦{product.price.toLocaleString()}</h3>
-              <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
-                <button onClick={incrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
-                  <PlusIcon className='w-4 h-4' />
-                </button>
-                <span className='px-4 bg-card h-full flex items-center'>{quantity}</span>
-                <button onClick={decrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
-                  <MinusIcon className='w-4 h-4' />
-                </button>
-              </div>
-            </div>
-            
-            <div className='flex justify-between items-center mt-6'>
-              <div className='text-xs text-[#4FCA6A]'>({product.verifiedRatings} verified ratings)</div>
-              <div className='text-xs'>Est. Prod Days: {product.estimatedDays}</div>
-            </div>
-            
-            <div className='mt-4'>
-              <Label>Choose your location</Label>
-              <div className='flex items-center flex-col md:flex-row mt-2 gap-2'>
-                <DropdownMenu>
-                  <DropdownMenuTrigger className='w-full md:w-1/2 border rounded-lg p-2 text-xs text-left'>Select State</DropdownMenuTrigger>
-                </DropdownMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger className='w-full md:w-1/2 border rounded-lg p-2 text-xs text-left'>Select LGA</DropdownMenuTrigger>
-                </DropdownMenu>
+          {showCart ? (
+            <CartView />
+          ) : (
+            <>
+              <div className='flex gap-4'>
+                <div className='flex flex-col gap-2'>
+                  <Image src={Banner} alt='' className='w-25 h-25 rounded-lg' />
+                  <Image src={Banner} alt='' className='w-25 h-25 rounded-lg' />
+                  <Image src={Banner} alt='' className='w-25 h-25 rounded-lg' />
+                </div>
+                <Image src={Banner} alt='' className='w-full md:h-90 object-fit rounded-lg ' />
               </div>
               
-              <Card className='mt-4 border border-[#F5F5F5] dark:border-[#1F1F1F]'>
-                <CardContent className='flex flex-col gap-4 pt-6'>
-                  <div className='flex items-center gap-2'>
-                    <GigIcon />
-                    <div className='flex flex-col'>
-                      <h4 className='text-sm font-medium'>GIG Logistics - Shipping Fee</h4>
-                      <span className='text-sm'>+₦{shippingFee.toLocaleString()}</span>
-                    </div>
+              <div className='mt-6'>
+                <span className='text-lg font-medium'>{product.name}</span>
+                <div className='flex items-center justify-between mt-2'>
+                  <h3 className='font-semibold text-xl'>₦{product.price.toLocaleString()}</h3>
+                  <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
+                    <button onClick={incrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
+                      <PlusIcon className='w-4 h-4' />
+                    </button>
+                    <span className='px-4 bg-card h-full flex items-center'>{quantity}</span>
+                    <button onClick={decrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
+                      <MinusIcon className='w-4 h-4' />
+                    </button>
                   </div>
-                  <div className='flex items-center justify-between'>
-                    <div className='flex flex-col'>
-                      <span className='text-xs text-gray-500'>Total Price:</span>
-                      <h3 className='text-xl font-bold'>₦{totalPrice.toLocaleString()}</h3>
-                    </div>
-                    <Button className='gap-2' onClick={() => handleAddToCart(undefined, product, quantity)}>
-                      <CartIcon /> Add to Cart
-                    </Button>
+                </div>
+                
+                <div className='flex justify-between items-center mt-6'>
+                  <div className='text-xs text-[#4FCA6A]'>({product.verifiedRatings} verified ratings)</div>
+                  <div className='text-xs'>Est. Prod Days: {product.estimatedDays}</div>
+                </div>
+                
+                <div className='mt-4'>
+                  <Label>Choose your location</Label>
+                  <div className='flex items-center flex-col md:flex-row mt-2 gap-2'>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className='w-full md:w-1/2 border rounded-lg p-2 text-xs text-left'>Select State</DropdownMenuTrigger>
+                    </DropdownMenu>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className='w-full md:w-1/2 border rounded-lg p-2 text-xs text-left'>Select LGA</DropdownMenuTrigger>
+                    </DropdownMenu>
                   </div>
-                </CardContent>
-              </Card>
-              
-              <Card className='mt-4 border-[#F5F5F5] dark:border-[#1F1F1F]'>
-                <CardHeader className='border-b border-[#F5F5F5] dark:border-[#1F1F1F] text-sm font-semibold'>
-                  <h3>Product Details</h3>
-                </CardHeader>
-                <CardContent className='flex flex-col gap-2 pt-6'>
-                  <span className='text-sm'>{product.description}</span>
-                  <span className='text-sm font-semibold mt-2'>Key Features:</span>
-                  <ul className="list-disc list-inside text-sm">
-                    {product.keyFeatures.map((feature, index) => (
-                      <li key={index}>{feature}</li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-              
-              <Card className='mt-4 border-[#F5F5F5] dark:border-[#1F1F1F]'>
-                <CardHeader className='border-b border-[#F5F5F5] dark:border-[#1F1F1F] flex flex-row items-center justify-between'>
-                  <h3 className='font-semibold'>Customer Feedback</h3>
-                  <Button className='text-[#4FCA6A] p-0 h-auto' variant={"link"}>See all</Button>
-                </CardHeader>
-                <CardContent className='pt-6 flex flex-col md:flex-row gap-3'>
-                  <div className='flex flex-col gap-6 w-full md:w-[35%]'>
-                    <div className='w-full bg-[#F5F5F5] dark:bg-[#1F1F1F] rounded-lg p-6 flex flex-col items-center justify-center'>
-                      <h2 className='text-2xl font-bold text-[#4FCA6A]'>{product.averageRating}/5</h2>
-                      <StarRatingGreen rating={product.averageRating} />
-                      <span className='text-sm mt-2'>{totalReviews} reviews</span>
-                    </div>
-
-                    <div className='w-full flex flex-col gap-2'>
-                      {ratingBreakdown.map((item) => (
-                        <div key={item.stars} className='flex items-center gap-3'>
-                          <span className='text-sm w-2'>{item.stars}</span>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="#FEA436">
-                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                          </svg>
-                          <div className='flex-1'>
-                            <Progress 
-                              value={item.percentage} 
-                              className='h-2 bg-[#E8F5E9]'
-                            />
-                          </div>
-                          <span className='text-sm w-8 text-right'>({item.count})</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className='mt-8 md:mt-0 space-y-6 w-full md:w-[65%]'>
-                    {customerReviews.map((review) => (
-                      <div key={review.id} className='flex gap-3'>
-                        <Avatar className='w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400'>{review.initials}</Avatar>
-                        <div className='flex-1'>
-                          <div className='flex items-start justify-between'>
-                            <div>
-                              <h4 className='font-semibold text-sm'>{review.name}</h4>
-                              <StarRatingOrange rating={review.rating} />
-                            </div>
-                            <span className='text-xs text-gray-500'>{review.timeAgo}</span>
-                          </div>
-                          <p className='text-sm mt-2 text-gray-700 dark:text-gray-300 line-clamp-3'>{review.comment}</p>
+                  
+                  <Card className='mt-4 shadow-none border border-[#F5F5F5] dark:border-[#1F1F1F]'>
+                    <CardContent className='flex flex-col gap-4 pt-6'>
+                      <div className='flex items-center gap-2'>
+                        <GigIcon />
+                        <div className='flex flex-col'>
+                          <h4 className='text-sm font-medium'>GIG Logistics - Shipping Fee</h4>
+                          <span className='text-sm'>+₦{shippingFee.toLocaleString()}</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+                      <div className='flex justify-between'>
+                        <div className=''>
+                          <span className='text-xs text-gray-500'>Total Price:</span>
+                          <h3 className='text-xl font-bold'>₦{totalPrice.toLocaleString()}</h3>
+                        </div>
+                          <Button 
+                            className='' 
+                            onClick={() => handleAddToCart(undefined, product, quantity)}
+                          >
+                            <CartIcon /> Add to Cart
+                          </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className='mt-4 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
+                    <CardHeader className='border-b border-[#F5F5F5] dark:border-[#1F1F1F] text-sm font-semibold'>
+                      <h3>Product Details</h3>
+                    </CardHeader>
+                    <CardContent className='flex flex-col gap-2 pt-6'>
+                      <span className='text-sm'>{product.description}</span>
+                      <span className='text-sm font-semibold mt-2'>Key Features:</span>
+                      <ul className="list-disc list-inside text-sm">
+                        {product.keyFeatures.map((feature, index) => (
+                          <li key={index}>{feature}</li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className='mt-4 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
+                    <CardHeader className='border-b border-[#F5F5F5] dark:border-[#1F1F1F] flex flex-row items-center justify-between'>
+                      <h3 className='font-semibold'>Customer Feedback</h3>
+                      <Button className='text-[#4FCA6A] p-0 h-auto' variant={"link"}>See all</Button>
+                    </CardHeader>
+                    <CardContent className='pt-6 flex flex-col md:flex-row gap-3'>
+                      <div className='flex flex-col gap-6 w-full md:w-[35%]'>
+                        <div className='w-full bg-[#F5F5F5] dark:bg-[#1F1F1F] rounded-lg p-6 flex flex-col items-center justify-center'>
+                          <h2 className='text-2xl font-bold text-[#4FCA6A]'>{product.averageRating}/5</h2>
+                          <StarRatingGreen rating={product.averageRating} />
+                          <span className='text-sm mt-2'>{totalReviews} reviews</span>
+                        </div>
+
+                        <div className='w-full flex flex-col gap-2'>
+                          {ratingBreakdown.map((item) => (
+                            <div key={item.stars} className='flex items-center gap-3'>
+                              <span className='text-sm w-2'>{item.stars}</span>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="#FEA436">
+                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                              </svg>
+                              <div className='flex-1'>
+                                <Progress 
+                                  value={item.percentage} 
+                                  className='h-2 bg-[#E8F5E9]'
+                                />
+                              </div>
+                              <span className='text-sm w-8 text-right'>({item.count})</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className='mt-8 md:mt-0 space-y-6 w-full md:w-[65%]'>
+                        {customerReviews.map((review) => (
+                          <div key={review.id} className='flex gap-3'>
+                            <Avatar className='w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400'>{review.initials}</Avatar>
+                            <div className='flex-1'>
+                              <div className='flex items-start justify-between'>
+                                <div>
+                                  <h4 className='font-semibold text-sm'>{review.name}</h4>
+                                  <StarRatingOrange rating={review.rating} />
+                                </div>
+                                <span className='text-xs text-gray-500'>{review.timeAgo}</span>
+                              </div>
+                              <p className='text-sm mt-2 text-gray-700 dark:text-gray-300 line-clamp-3'>{review.comment}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </>
+          )}
         </div>
         
         <div className='w-full md:w-[55%] md:overflow-y-auto md:h-full'>
-          <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-white dark:bg-background z-10 pb-4'>
+          <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-[#FCFCFC] z-10 pb-4'>
             <Link href="/storefront">
               <Logo />
             </Link>
@@ -296,7 +313,7 @@ function Page() {
                 <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <FilterIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
-              <CartButton />
+              <CartButton onClick={toggleCart} />
             </div>
           </div>
 

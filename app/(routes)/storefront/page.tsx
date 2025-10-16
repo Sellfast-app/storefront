@@ -73,7 +73,7 @@ function Page() {
     }
 
     return (
-        <div className='flex flex-col'>
+        <div className='flex flex-col bg-[#FCFCFC]'>
             {/* Mobile Search Header - Only visible on mobile */}
             <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${isSearchingOnMobile ? 'block' : 'block'}`}>
                 <div className='flex items-center justify-between'>
