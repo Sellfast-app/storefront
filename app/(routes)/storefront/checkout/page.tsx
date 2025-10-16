@@ -97,7 +97,7 @@ export default function CheckoutPage() {
                             ) : (
                                 <div className='flex items-center gap-2'>
                                     <Button variant={"outline"} onClick={handleCancelEdit}>Cancel</Button>
-                                    <Button onClick={handleSaveAddress}><SaveIcon /> Save Changes</Button>
+                                    <Button onClick={handleSaveAddress}><SaveIcon /> <span className="hidden sm:inline ml-2">Save Changes</span> </Button>
                                 </div>
                             )}
                         </CardHeader>
