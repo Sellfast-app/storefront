@@ -11,14 +11,21 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Link from 'next/link'
 import React, { useState } from 'react'
 import Image from 'next/image'
 import { useCart } from '@/context/CartContext';
+import PickupStationModal, { PickupStation } from '@/components/PickupStationModal';
 
 export default function CheckoutPage() {
     const [searchQuery,] = useState('')
     const [isEditingAddress, setIsEditingAddress] = useState(false)
+    const [isEditingDelivery, setIsEditingDelivery] = useState(false)
+    const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'door'>('pickup')
+    const [selectedStation, setSelectedStation] = useState<PickupStation | null>(null)
+    const [isPickupModalOpen, setIsPickupModalOpen] = useState(false)
+    
     const { cart, getCartTotal } = useCart()
 
     const isSearchingOnMobile = searchQuery.trim() !== ''
@@ -28,18 +35,18 @@ export default function CheckoutPage() {
     const deliveryFee = 1700
     const total = itemsTotal + deliveryFee
 
-    const handleEditAddress = () => {
-        setIsEditingAddress(true)
-    }
+    const handleEditAddress = () => setIsEditingAddress(true)
+    const handleSaveAddress = () => setIsEditingAddress(false)
+    const handleCancelEdit = () => setIsEditingAddress(false)
 
-    const handleSaveAddress = () => {
-        setIsEditingAddress(false)
-        // Add logic to save address
-    }
+    const handleEditDelivery = () => setIsEditingDelivery(true)
+    const handleSaveDelivery = () => setIsEditingDelivery(false)
+    const handleCancelDeliveryEdit = () => setIsEditingDelivery(false)
 
-    const handleCancelEdit = () => {
-        setIsEditingAddress(false)
-        // Reset form values if needed
+    const handleOpenPickupModal = () => setIsPickupModalOpen(true)
+    
+    const handleSelectStation = (station: PickupStation) => {
+        setSelectedStation(station)
     }
 
     return (
@@ -87,6 +94,8 @@ export default function CheckoutPage() {
                             <CartButton />
                         </div>
                     </div>
+                    
+                    {/* Customer Address Card */}
                     <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                         <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
                             <h3 className='font-semibold'>1. CUSTOMER ADDRESS</h3>
@@ -105,29 +114,17 @@ export default function CheckoutPage() {
                             <div className='flex flex-col md:flex-row gap-4 justify-between items-center'>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>First Name </Label>
-                                    <Input
-                                        className='w-full'
-                                        disabled={!isEditingAddress}
-                                        defaultValue="John"
-                                    />
+                                    <Input className='w-full' disabled={!isEditingAddress} defaultValue="John" />
                                 </div>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Last Name </Label>
-                                    <Input
-                                        className='w-full'
-                                        disabled={!isEditingAddress}
-                                        defaultValue="Doe"
-                                    />
+                                    <Input className='w-full' disabled={!isEditingAddress} defaultValue="Doe" />
                                 </div>
                             </div>
                             <div className='flex flex-col mt-4 md:flex-row gap-4 justify-between items-center'>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Email </Label>
-                                    <Input
-                                        type='text'
-                                        disabled={!isEditingAddress}
-                                        defaultValue="john@example.com"
-                                    />
+                                    <Input type='text' disabled={!isEditingAddress} defaultValue="john@example.com" />
                                 </div>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Whatsapp Phone Number </Label>
@@ -141,24 +138,14 @@ export default function CheckoutPage() {
                                                 <SelectItem value="+233">+233</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <Input
-                                            type='number'
-                                            className='w-full'
-                                            disabled={!isEditingAddress}
-                                            defaultValue="8012345678"
-                                        />
+                                        <Input type='number' className='w-full' disabled={!isEditingAddress} defaultValue="8012345678" />
                                     </div>
                                 </div>
                             </div>
                             <div className='flex flex-col mt-4 md:flex-row gap-4 justify-between items-center'>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Delivery Address</Label>
-                                    <Input
-                                        type='text'
-                                        className='w-full'
-                                        disabled={!isEditingAddress}
-                                        defaultValue="123 Main Street, Lekki"
-                                    />
+                                    <Input type='text' className='w-full' disabled={!isEditingAddress} defaultValue="123 Main Street, Lekki" />
                                 </div>
                             </div>
                             <div className='flex flex-col mt-4 md:flex-row gap-4 justify-center items-center'>
@@ -166,12 +153,11 @@ export default function CheckoutPage() {
                                     <Label className='text-xs mb-1'>Country</Label>
                                     <Select disabled={!isEditingAddress}>
                                         <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select Country" />
+                                            <SelectValue placeholder="Nigeria" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="nigeria">Nigeria</SelectItem>
                                             <SelectItem value="ghana">Ghana</SelectItem>
-                                            <SelectItem value="kenya">Kenya</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -179,11 +165,10 @@ export default function CheckoutPage() {
                                     <Label className='text-xs mb-1'>State</Label>
                                     <Select disabled={!isEditingAddress}>
                                         <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select State" />
+                                            <SelectValue placeholder="Lagos" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="lagos">Lagos</SelectItem>
-                                            <SelectItem value="abuja">Abuja</SelectItem>
                                             <SelectItem value="rivers">Rivers</SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -194,12 +179,11 @@ export default function CheckoutPage() {
                                     <Label className='text-xs mb-1'>City</Label>
                                     <Select disabled={!isEditingAddress}>
                                         <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select City" />
+                                            <SelectValue placeholder="Lekki" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="portharcourt">Port Harcourt</SelectItem>
-                                            <SelectItem value="lagos">Lagos</SelectItem>
                                             <SelectItem value="lekki">Lekki</SelectItem>
+                                            <SelectItem value="lagos">Lagos</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -207,11 +191,10 @@ export default function CheckoutPage() {
                                     <Label className='text-xs mb-1'>LGA</Label>
                                     <Select disabled={!isEditingAddress}>
                                         <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select LGA" />
+                                            <SelectValue placeholder="Eti-osa" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="etiosa">Eti-osa</SelectItem>
-                                            <SelectItem value="oriade">Oriade</SelectItem>
                                             <SelectItem value="ibejulekki">Ibeju-Lekki</SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -219,60 +202,131 @@ export default function CheckoutPage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Delivery Details Card */}
                     <Card className='shadow-none mt-6 border-[#F5F5F5] dark:border-[#1F1F1F]'>
                         <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
                             <h3 className='font-semibold'>2. DELIVERY DETAILS</h3>
-                            <Button variant={"outline"} className='text-[#4FCA6A]'>Change <EditIcon /></Button>
+                            {!isEditingDelivery ? (
+                                <Button variant={"outline"} className='text-[#4FCA6A]' onClick={handleEditDelivery}>
+                                    Change <EditIcon />
+                                </Button>
+                            ) : (
+                                <div className='flex items-center gap-2'>
+                                    <Button variant={"outline"} onClick={handleCancelDeliveryEdit}>Cancel</Button>
+                                    <Button onClick={handleSaveDelivery}><SaveIcon /> <span className="hidden sm:inline ml-2">Save</span></Button>
+                                </div>
+                            )}
                         </CardHeader>
                         <CardContent className='pt-6'>
-                            <div>
-                                <p className='text-sm font-medium'>Pick-up Station</p>
-                                <p className='text-xs text-[#A0A0A0]'>Delivery between <span className='text-primary font-medium'>13 October</span> and <span className='text-primary font-medium'>16 October</span> </p>
-                            </div>
-
-                            <div className='mt-4 border border-[#E0E0E0] rounded-lg p-4'>
-                                <div className='flex items-center justify-between'>
-                                    <span className='text-xs'>Pick-up Station</span>
-                                    <Button variant={"ghost"} className='text-[#4FCA6A] text-xs h-auto p-1'>Change <EditIcon /></Button>
+                            <RadioGroup value={deliveryMethod} onValueChange={(value: 'pickup' | 'door') => setDeliveryMethod(value)} disabled={!isEditingDelivery}>
+                                {/* Pickup Station Option */}
+                                <div className='flex items-start gap-3 mb-4'>
+                                    <RadioGroupItem value="pickup" id="pickup" className='mt-1' />
+                                    <div className='flex-1'>
+                                        <Label htmlFor="pickup" className='text-sm font-medium cursor-pointer'>Pick-up Station</Label>
+                                        <p className='text-xs text-[#A0A0A0] mt-1'>Delivery between <span className='text-primary font-medium'>13 October</span> and <span className='text-primary font-medium'>16 October</span></p>
+                                    </div>
                                 </div>
-                                <div className='mt-2'>
-                                    <p className='text-sm font-medium'>SpeedAF Pickup Station</p>
-                                    <span className='text-xs text-[#A0A0A0]'>LEGAL HOUSE PLAZA, K/M 3 Owerri-Onitsha Road, Irete, Imo State, Beside Save More Supermarket | Imo - Owerri</span>
-                                </div>
-                            </div>
 
-                            {/* Horizontal Scrollable Shipments */}
-                            <div className='flex gap-4 overflow-x-auto mt-4 pb-2 scrollbar-hide'>
-                                {cart.map((item, index) => (
-                                    <div key={item.id} className='flex-shrink-0 w-[280px]'>
-                                        <div className='flex justify-between items-center'>
-                                            <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
-                                            <span className='text-xs text-[#A0A0A0]'>Fulfilled By Cassie&apos;s Kitchen</span>
+                                {/* Pickup Station Details - Only show when pickup is selected */}
+                                {deliveryMethod === 'pickup' && (
+                                    <>
+                                        <div className='mt-4 border border-[#E0E0E0] rounded-lg p-4 ml-7'>
+                                            <div className='flex items-center justify-between'>
+                                                <span className='text-xs font-medium'>Pick-up Station</span>
+                                                <Button 
+                                                    variant={"ghost"} 
+                                                    className='text-[#4FCA6A] text-xs h-auto p-1'
+                                                    onClick={handleOpenPickupModal}
+                                                >
+                                                    {selectedStation ? 'Change' : 'Select Pickup Station'} <EditIcon />
+                                                </Button>
+                                            </div>
+                                            <div className='mt-2'>
+                                                {selectedStation ? (
+                                                    <>
+                                                        <p className='text-sm font-medium'>{selectedStation.name}</p>
+                                                        <span className='text-xs text-[#A0A0A0]'>{selectedStation.address}</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <p className='text-sm font-medium'>No Pickup Station Selected</p>
+                                                        <span className='text-xs text-[#A0A0A0]'>To use this option, you will need to add a pickup station near your location.</span>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
-                                            <p className='text-sm font-medium'>Pickup Station</p>
-                                            <span className='text-xs text-[#A0A0A0]'>Delivery between 13 October and 16 October</span>
-                                            <div className='flex gap-3 mt-3'>
-                                                <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg'/>
-                                                <div className='flex flex-col justify-between'>
-                                                    <p className='text-sm'>{item.name}</p>
-                                                    <div className='flex items-center gap-2'>
-                                                        <span className='text-sm font-semibold'>₦{item.price.toLocaleString()}</span>
-                                                        <span className='text-xs text-[#A0A0A0]'>x{item.quantity}</span>
+
+                                        {/* Horizontal Scrollable Shipments */}
+                                        <div className='flex gap-4 overflow-x-auto mt-4 pb-2 scrollbar-hide ml-7'>
+                                            {cart.map((item, index) => (
+                                                <div key={item.id} className='flex-shrink-0 w-[280px]'>
+                                                    <div className='flex justify-between items-center'>
+                                                        <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
+                                                        <span className='text-xs text-[#A0A0A0]'>Fulfilled By Cassie&apos;s Kitchen</span>
+                                                    </div>
+                                                    <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
+                                                        <p className='text-sm font-medium'>Pickup Station</p>
+                                                        <span className='text-xs text-[#A0A0A0]'>Delivery between 13 October and 16 October</span>
+                                                        <div className='flex gap-3 mt-3'>
+                                                            <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg'/>
+                                                            <div className='flex flex-col justify-between'>
+                                                                <p className='text-sm line-clamp-2'>{item.name}</p>
+                                                                <div className='flex items-center gap-2'>
+                                                                    <span className='text-sm font-semibold'>₦{item.price.toLocaleString()}</span>
+                                                                    <span className='text-xs text-[#A0A0A0]'>x{item.quantity}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Door Delivery Option */}
+                                <div className='flex items-start gap-3 mt-6'>
+                                    <RadioGroupItem value="door" id="door" className='mt-1' />
+                                    <div className='flex-1'>
+                                        <Label htmlFor="door" className='text-sm font-medium cursor-pointer'>Door Delivery</Label>
+                                        <p className='text-xs text-[#A0A0A0] mt-1'>Delivery between <span className='text-primary font-medium'>13 October</span> and <span className='text-primary font-medium'>16 October</span></p>
+                                    </div>
+                                </div>
+
+                                {/* Door Delivery Shipments - Only show when door is selected */}
+                                {deliveryMethod === 'door' && (
+                                    <div className='flex gap-4 overflow-x-auto mt-4 pb-2 scrollbar-hide ml-7'>
+                                        {cart.map((item, index) => (
+                                            <div key={item.id} className='flex-shrink-0 w-[280px]'>
+                                                <div className='flex justify-between items-center'>
+                                                    <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
+                                                    <span className='text-xs text-[#A0A0A0]'>Fulfilled By Cassie&apos;s Kitchen</span>
+                                                </div>
+                                                <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
+                                                    <p className='text-sm font-medium'>Door Delivery</p>
+                                                    <span className='text-xs text-[#A0A0A0]'>Delivery between 13 October and 16 October</span>
+                                                    <div className='flex gap-3 mt-3'>
+                                                        <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg'/>
+                                                        <div className='flex flex-col justify-between'>
+                                                            <p className='text-sm line-clamp-2'>{item.name}</p>
+                                                            <div className='flex items-center gap-2'>
+                                                                <span className='text-sm font-semibold'>₦{item.price.toLocaleString()}</span>
+                                                                <span className='text-xs text-[#A0A0A0]'>x{item.quantity}</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-
-                            <div className='mt-6'>
-                                <p className='text-sm font-medium'>Door Delivery</p>
-                                <p className='text-xs text-[#A0A0A0]'>Delivery between <span className='text-primary font-medium'>13 October</span> and <span className='text-primary font-medium'>16 October</span> </p>
-                            </div>
+                                )}
+                            </RadioGroup>
                         </CardContent>
                     </Card>
+
+                    {/* Payment Method Card */}
                     <Card className='mt-6 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                         <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
                             <h3 className='font-semibold'>3. PAYMENT METHOD</h3>
@@ -289,6 +343,14 @@ export default function CheckoutPage() {
                     </Link>
                 </div>
             </div>
+
+            {/* Pickup Station Modal Component */}
+            <PickupStationModal
+                open={isPickupModalOpen}
+                onOpenChange={setIsPickupModalOpen}
+                onSelectStation={handleSelectStation}
+                selectedStation={selectedStation}
+            />
         </div>
     )
 }
