@@ -1,3 +1,4 @@
+// app/storefront/[storeId]/checkout/page.tsx
 "use client";
 
 import CartButton from '@/components/CartButton'
@@ -15,10 +16,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Link from 'next/link'
 import React, { useState } from 'react'
 import Image from 'next/image'
+import { useParams } from 'next/navigation'
 import { useCart } from '@/context/CartContext';
 import PickupStationModal, { PickupStation } from '@/components/PickupStationModal';
 
 export default function CheckoutPage() {
+    const params = useParams()
+    const storeId = params.storeId as string
+
     const [searchQuery,] = useState('')
     const [isEditingAddress, setIsEditingAddress] = useState(false)
     const [isEditingDelivery, setIsEditingDelivery] = useState(false)
@@ -53,7 +58,7 @@ export default function CheckoutPage() {
         <div className='flex flex-col bg-[#FCFCFC]'>
             <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${isSearchingOnMobile ? 'block' : 'block'}`}>
                 <div className='flex items-center justify-between'>
-                    <Link href="/storefront">
+                    <Link href={`/storefront/${storeId}`}>
                         <Logo />
                     </Link>
                     <div className='flex gap-2'>
@@ -87,7 +92,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className='w-full md:w-[55%] md:overflow-y-auto md:h-full'>
                     <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-[#FCFCFC] z-10 pb-4'>
-                        <Link href="/storefront">
+                        <Link href={`/storefront/${storeId}`}>
                             <Logo />
                         </Link>
                         <div className='flex gap-2'>
@@ -264,7 +269,7 @@ export default function CheckoutPage() {
                                                 <div key={item.id} className='flex-shrink-0 w-[280px]'>
                                                     <div className='flex justify-between items-center'>
                                                         <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
-                                                        <span className='text-xs text-[#A0A0A0]'>Fulfilled By Cassie&apos;s Kitchen</span>
+                                                        <span className='text-xs text-[#A0A0A0]'>Fulfilled By Vendor</span>
                                                     </div>
                                                     <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
                                                         <p className='text-sm font-medium'>Pickup Station</p>
@@ -302,7 +307,7 @@ export default function CheckoutPage() {
                                             <div key={item.id} className='flex-shrink-0 w-[280px]'>
                                                 <div className='flex justify-between items-center'>
                                                     <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
-                                                    <span className='text-xs text-[#A0A0A0]'>Fulfilled By Cassie&apos;s Kitchen</span>
+                                                    <span className='text-xs text-[#A0A0A0]'>Fulfilled By Vendor</span>
                                                 </div>
                                                 <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
                                                     <p className='text-sm font-medium'>Door Delivery</p>
@@ -338,7 +343,7 @@ export default function CheckoutPage() {
                         </CardContent>
                     </Card>
 
-                    <Link href={'/storefront'} className='flex text-sm items-center text-[#4FCA6A] mt-6 hover:underline'>
+                    <Link href={`/storefront/${storeId}`} className='flex text-sm items-center text-[#4FCA6A] mt-6 hover:underline'>
                         <ArrowIcon /> Go back & continue shopping
                     </Link>
                 </div>

@@ -3,7 +3,7 @@
 
 import React from 'react'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { PlusIcon } from 'lucide-react'
 import MinusIcon from '@/components/svgIcons/MinusIcon'
@@ -14,12 +14,18 @@ import SpeedafIcon from './svgIcons/SpeedafIcon'
 export default function CartView() {
   const { cart, updateQuantity, removeFromCart, getCartTotal } = useCart()
   const router = useRouter()
+  const params = useParams()
+  const storeId = params.storeId as string
 
   const subtotal = getCartTotal()
 
   const handleCheckout = () => {
-    // Navigate to checkout page
-    router.push('/storefront/checkout')
+    // Navigate to checkout page with storeId
+    if (storeId) {
+      router.push(`/storefront/${storeId}/checkout`)
+    } else {
+      console.error('Store ID not found')
+    }
   }
 
   return (
@@ -110,6 +116,7 @@ export default function CartView() {
           <Button 
             className="w-full bg-[#4FCA6A] hover:bg-[#45b85e] text-white py-6"
             onClick={handleCheckout}
+            disabled={!storeId}
           >
             Checkout (₦{subtotal.toLocaleString()})
           </Button>

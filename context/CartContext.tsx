@@ -2,17 +2,26 @@
 'use client'
 
 import React, { createContext, useContext, useState, ReactNode } from 'react'
-import { Product } from '@/lib/mockdata'
+import { StaticImageData } from 'next/image'
 
-interface CartItem extends Product {
+// Simplified Product type for cart - only what we need
+export interface CartProduct {
+  id: number | string
+  name: string
+  price: number
+  image: string | StaticImageData
+  description: string
+}
+
+interface CartItem extends CartProduct {
   quantity: number
 }
 
 interface CartContextType {
   cart: CartItem[]
-  addToCart: (product: Product, quantity?: number) => void
-  removeFromCart: (productId: number) => void
-  updateQuantity: (productId: number, quantity: number) => void
+  addToCart: (product: CartProduct, quantity?: number) => void
+  removeFromCart: (productId: number | string) => void
+  updateQuantity: (productId: number | string, quantity: number) => void
   clearCart: () => void
   getCartTotal: () => number
   getCartItemCount: () => number
@@ -23,7 +32,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([])
 
-  const addToCart = (product: Product, quantity: number = 1) => {
+  const addToCart = (product: CartProduct, quantity: number = 1) => {
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.id === product.id)
       
@@ -41,11 +50,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const removeFromCart = (productId: number) => {
+  const removeFromCart = (productId: number | string) => {
     setCart(prevCart => prevCart.filter(item => item.id !== productId))
   }
 
-  const updateQuantity = (productId: number, quantity: number) => {
+  const updateQuantity = (productId: number | string, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(productId)
       return

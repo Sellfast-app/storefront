@@ -1,7 +1,7 @@
-// storefront/[id]/page.tsx
+// app/storefront/[storeId]/product/[id]/page.tsx
 "use client";
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Banner from '@/public/Banner.png'
 import Image from 'next/image'
@@ -20,10 +20,28 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import GigIcon from '@/components/svgIcons/GigIcon';
 import { Progress } from '@/components/ui/progress';
 import { Avatar } from '@/components/ui/avatar';
-import { getProductById, products, ratingBreakdown, customerReviews } from '@/lib/mockdata'
+import { ratingBreakdown, customerReviews } from '@/lib/mockdata'
 import { useCart } from '@/context/CartContext'
 import CartButton from '@/components/CartButton'
 import CartView from '@/components/CartView'
+
+interface Product {
+  id: string;
+  store_id: string;
+  variants: string;
+  created_at: string;
+  updated_at: string;
+  product_sku: string;
+  product_name: string;
+  product_type: string;
+  product_price: number;
+  product_images: string[];
+  product_status: string;
+  est_prod_days_to: number;
+  product_quantity: number;
+  est_prod_days_from: number;
+  product_description: string;
+}
 
 const StarRatingGreen = ({ rating }: { rating: number }) => {
   const fullStars = Math.floor(rating)
@@ -83,50 +101,147 @@ const StarRatingOrange = ({ rating }: { rating: number }) => {
 
 function Page() {
   const params = useParams()
-  const productId = Number(params.id)
-  const product = getProductById(productId)
+  const storeId = params.storeId as string
+  const productId = params.id as string
+  
   const { addToCart } = useCart()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [showCart, setShowCart] = useState(false)
+  const [product, setProduct] = useState<Product | null>(null)
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingRelated, setIsLoadingRelated] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) && p.id !== productId
-  ).slice(0, 6)
+  // Fetch single product
+  useEffect(() => {
+    const fetchProduct = async () => {
+      if (!storeId || !productId) return
+
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetch(`/api/stores/${storeId}/products/${productId}`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch product')
+        }
+
+        const result = await response.json()
+        
+        if (result.status === 'success' && result.data) {
+          setProduct(result.data)
+        } else {
+          throw new Error('Product not found')
+        }
+        
+      } catch (err) {
+        console.error('Error fetching product:', err)
+        setError(err instanceof Error ? err.message : 'Product not found')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProduct()
+  }, [storeId, productId])
+
+  // Fetch related products
+  useEffect(() => {
+    const fetchRelatedProducts = async () => {
+      if (!storeId) return
+
+      setIsLoadingRelated(true)
+
+      try {
+        const queryParams = new URLSearchParams({
+          page: '1',
+          pageSize: '6',
+          status: 'ready',
+        })
+
+        const response = await fetch(`/api/stores/${storeId}/products?${queryParams.toString()}`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch related products')
+        }
+
+        const result = await response.json()
+        
+        if (result.status === 'success' && result.data) {
+          // Filter out the current product
+          const filtered = result.data.items.filter((p: Product) => p.id !== productId)
+          setRelatedProducts(filtered.slice(0, 6))
+        }
+        
+      } catch (err) {
+        console.error('Error fetching related products:', err)
+      } finally {
+        setIsLoadingRelated(false)
+      }
+    }
+
+    fetchRelatedProducts()
+  }, [storeId, productId])
+
+  const filteredProducts = relatedProducts.filter(p =>
+    p.product_name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   const isSearchingOnMobile = searchQuery.trim() !== ''
 
   const totalReviews = ratingBreakdown.reduce((sum, item) => sum + item.count, 0)
   const shippingFee = 1600
-  const totalPrice = product ? (product.price * quantity) + shippingFee : 0
+  const totalPrice = product ? (product.product_price * quantity) + shippingFee : 0
 
   const incrementQuantity = () => setQuantity(prev => prev + 1)
   const decrementQuantity = () => setQuantity(prev => prev > 1 ? prev - 1 : 1)
 
-  const handleAddToCart = (e?: React.MouseEvent, prod?: typeof products[0], qty: number = 1) => {
+  const handleAddToCart = (e?: React.MouseEvent, prod?: Product, qty: number = 1) => {
     if (e) {
       e.preventDefault()
       e.stopPropagation()
     }
     const productToAdd = prod || product
     if (productToAdd) {
-      addToCart(productToAdd, qty)
+      const cartProduct = {
+        id: parseInt(productToAdd.id) || 0,
+        name: productToAdd.product_name,
+        price: productToAdd.product_price,
+        image: productToAdd.product_images[0] || Banner,
+        description: productToAdd.product_description,
+      }
+      addToCart(cartProduct, qty)
     }
   }
-
-
 
   const toggleCart = () => {
     setShowCart(!showCart)
   }
 
-  if (!product) {
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className='flex items-center justify-center h-screen bg-[#FCFCFC]'>
+        <div className='text-center'>
+          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-[#4FCA6A] mx-auto mb-4'></div>
+          <p className='text-gray-600'>Loading product...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error || !product) {
     return (
       <div className='flex items-center justify-center h-screen'>
         <div className='text-center'>
           <h2 className='text-2xl font-bold mb-4'>Product Not Found</h2>
-          <Link href="/storefront">
+          <p className='text-gray-600 mb-6'>{error || 'The product you are looking for does not exist.'}</p>
+          <Link href={`/storefront/${storeId}`}>
             <Button>Back to Store</Button>
           </Link>
         </div>
@@ -138,7 +253,7 @@ function Page() {
     <div className='flex flex-col bg-[#FCFCFC]'>
       <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${isSearchingOnMobile ? 'block' : 'block'}`}>
         <div className='flex items-center justify-between'>
-          <Link href="/storefront">
+          <Link href={`/storefront/${storeId}`}>
             <Logo />
           </Link>
           <div className='flex gap-2'>
@@ -164,17 +279,17 @@ function Page() {
             <>
               <div className='flex gap-4'>
                 <div className='flex flex-col gap-2'>
-                  <Image src={Banner} alt='' className='w-25 h-25 rounded-lg' />
-                  <Image src={Banner} alt='' className='w-25 h-25 rounded-lg' />
-                  <Image src={Banner} alt='' className='w-25 h-25 rounded-lg' />
+                  {product.product_images.slice(1, 4).map((img, idx) => (
+                    <Image key={idx} src={img || Banner} alt='' width={100} height={100} className='w-25 h-25 rounded-lg object-cover' />
+                  ))}
                 </div>
-                <Image src={Banner} alt='' className='w-full md:h-90 object-fit rounded-lg ' />
+                <Image src={product.product_images[0] || Banner} alt={product.product_name} width={600} height={600} className='w-full md:h-90 object-cover rounded-lg' />
               </div>
               
               <div className='mt-6'>
-                <span className='text-lg font-medium'>{product.name}</span>
+                <span className='text-lg font-medium'>{product.product_name}</span>
                 <div className='flex items-center justify-between mt-2'>
-                  <h3 className='font-semibold text-xl'>₦{product.price.toLocaleString()}</h3>
+                  <h3 className='font-semibold text-xl'>₦{product.product_price.toLocaleString()}</h3>
                   <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
                     <button onClick={incrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
                       <PlusIcon className='w-4 h-4' />
@@ -187,8 +302,8 @@ function Page() {
                 </div>
                 
                 <div className='flex justify-between items-center mt-6'>
-                  <div className='text-xs text-[#4FCA6A]'>({product.verifiedRatings} verified ratings)</div>
-                  <div className='text-xs'>Est. Prod Days: {product.estimatedDays}</div>
+                  <div className='text-xs text-[#4FCA6A]'>SKU: {product.product_sku}</div>
+                  <div className='text-xs'>Est. {product.est_prod_days_from}-{product.est_prod_days_to} days</div>
                 </div>
                 
                 <div className='mt-4'>
@@ -231,13 +346,13 @@ function Page() {
                       <h3>Product Details</h3>
                     </CardHeader>
                     <CardContent className='flex flex-col gap-2 pt-6'>
-                      <span className='text-sm'>{product.description}</span>
-                      <span className='text-sm font-semibold mt-2'>Key Features:</span>
-                      <ul className="list-disc list-inside text-sm">
-                        {product.keyFeatures.map((feature, index) => (
-                          <li key={index}>{feature}</li>
-                        ))}
-                      </ul>
+                      <span className='text-sm'>{product.product_description}</span>
+                      <div className='mt-2 grid grid-cols-2 gap-2 text-xs'>
+                        <div><span className='font-semibold'>Type:</span> {product.product_type}</div>
+                        <div><span className='font-semibold'>Status:</span> {product.product_status}</div>
+                        <div><span className='font-semibold'>Quantity:</span> {product.product_quantity}</div>
+                        <div><span className='font-semibold'>SKU:</span> {product.product_sku}</div>
+                      </div>
                     </CardContent>
                   </Card>
                   
@@ -249,8 +364,8 @@ function Page() {
                     <CardContent className='pt-6 flex flex-col md:flex-row gap-3'>
                       <div className='flex flex-col gap-6 w-full md:w-[35%]'>
                         <div className='w-full bg-[#F5F5F5] dark:bg-[#1F1F1F] rounded-lg p-6 flex flex-col items-center justify-center'>
-                          <h2 className='text-2xl font-bold text-[#4FCA6A]'>{product.averageRating}/5</h2>
-                          <StarRatingGreen rating={product.averageRating} />
+                          <h2 className='text-2xl font-bold text-[#4FCA6A]'>4.5/5</h2>
+                          <StarRatingGreen rating={4.5} />
                           <span className='text-sm mt-2'>{totalReviews} reviews</span>
                         </div>
 
@@ -300,7 +415,7 @@ function Page() {
         
         <div className='w-full md:w-[55%] md:overflow-y-auto md:h-full'>
           <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-[#FCFCFC] z-10 pb-4'>
-            <Link href="/storefront">
+            <Link href={`/storefront/${storeId}`}>
               <Logo />
             </Link>
             <div className='flex gap-2'>
@@ -318,31 +433,40 @@ function Page() {
           </div>
 
           <h3 className='font-semibold mb-4'>Related Products</h3>
-          <div className='grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((prod) => (
-                <Link href={`/storefront/${prod.id}`} key={prod.id}>
-                  <div className='flex flex-col rounded-2xl border border-[#F5F5F5] dark:border-[#1F1F1F] hover:border-[#4FCA6A] transition-colors cursor-pointer'>
-                    <Image src={prod.image} alt={prod.name} width={300} height={200} className='object-cover w-full h-45 rounded-t-2xl' />
-                    <p className='text-xs mt-2 px-2'>{prod.name}</p>
-                    <div className='flex items-center justify-between mt-2 px-2 pb-3'>
-                      <span>₦{prod.price.toLocaleString()}</span>
-                      <Button 
-                        className='text-xs' 
-                        onClick={(e) => handleAddToCart(e, prod, 1)}
-                      >
-                        Add to Cart
-                      </Button>
-                    </div>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <div className='col-span-2 lg:col-span-3 text-center py-8'>
-                <p className='text-gray-500'>No related products found</p>
+          {isLoadingRelated ? (
+            <div className='flex items-center justify-center py-20'>
+              <div className='text-center'>
+                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#4FCA6A] mx-auto mb-2'></div>
+                <p className='text-sm text-gray-600'>Loading related products...</p>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className='grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((prod) => (
+                  <Link href={`/storefront/${storeId}/product/${prod.id}`} key={prod.id}>
+                    <div className='flex flex-col rounded-2xl border border-[#F5F5F5] dark:border-[#1F1F1F] hover:border-[#4FCA6A] transition-colors cursor-pointer'>
+                      <Image src={prod.product_images[0] || Banner} alt={prod.product_name} width={300} height={200} className='object-cover w-full h-45 rounded-t-2xl' />
+                      <p className='text-xs mt-2 px-2 line-clamp-2'>{prod.product_name}</p>
+                      <div className='flex items-center justify-between mt-2 px-2 pb-3'>
+                        <span className='text-sm font-semibold'>₦{prod.product_price.toLocaleString()}</span>
+                        <Button 
+                          className='text-xs' 
+                          onClick={(e) => handleAddToCart(e, prod, 1)}
+                        >
+                          Add to Cart
+                        </Button>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className='col-span-2 lg:col-span-3 text-center py-8'>
+                  <p className='text-gray-500'>No related products found</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
