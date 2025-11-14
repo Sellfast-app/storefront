@@ -1,4 +1,7 @@
 // app/page.tsx
+import { redirect } from 'next/navigation'
+
 export default function Home() {
-  return <div>Welcome to the Storefront</div>
+  // Redirect to the default storefront
+  redirect('/storefront')
 }
