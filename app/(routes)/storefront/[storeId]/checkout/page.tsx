@@ -19,6 +19,7 @@ import Image from 'next/image'
 import { useParams } from 'next/navigation'
 import { useCart } from '@/context/CartContext';
 import PickupStationModal, { PickupStation } from '@/components/PickupStationModal';
+import { toast } from 'sonner';
 
 export default function CheckoutPage() {
     const params = useParams()
@@ -30,14 +31,30 @@ export default function CheckoutPage() {
     const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'door'>('pickup')
     const [selectedStation, setSelectedStation] = useState<PickupStation | null>(null)
     const [isPickupModalOpen, setIsPickupModalOpen] = useState(false)
+    const [isProcessingPayment, setIsProcessingPayment] = useState(false)
     
-    const { cart, getCartTotal } = useCart()
+    // Customer details state
+    const [customerDetails, setCustomerDetails] = useState({
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phone: '8012345678',
+        phoneCode: '+234',
+        address: '123 Main Street, Lekki',
+        country: 'nigeria',
+        state: 'lagos',
+        city: 'lekki',
+        lga: 'etiosa'
+    })
+    
+    const { cart, getCartTotal, clearCart } = useCart()
 
     const isSearchingOnMobile = searchQuery.trim() !== ''
     
     // Calculate totals
     const itemsTotal = getCartTotal()
     const deliveryFee = 1700
+    const platformFeePercent = 3
     const total = itemsTotal + deliveryFee
 
     const handleEditAddress = () => setIsEditingAddress(true)
@@ -53,6 +70,118 @@ export default function CheckoutPage() {
     const handleSelectStation = (station: PickupStation) => {
         setSelectedStation(station)
     }
+
+    const handleInputChange = (field: string, value: string) => {
+        setCustomerDetails(prev => ({ ...prev, [field]: value }))
+    }
+
+    const validateCheckout = () => {
+        // Validate email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(customerDetails.email)) {
+            toast.error("Invalid Email - Please enter a valid email address")
+            return false
+        }
+
+        // Validate phone
+        if (customerDetails.phone.length < 10) {
+            toast.error("Invalid Phone - Please enter a valid phone number")
+            return false
+        }
+
+        // Validate cart
+        if (cart.length === 0) {
+            toast.error("Empty Cart - Your cart is empty. Please add items before checkout")
+            return false
+        }
+
+        // Validate pickup station if pickup method selected
+        if (deliveryMethod === 'pickup' && !selectedStation) {
+            toast.error("Pickup Station Required - Please select a pickup station")
+            return false
+        }
+
+        return true
+    }
+
+  // In your handleConfirmOrder function, update the API call part:
+const handleConfirmOrder = async () => {
+    if (!validateCheckout()) return
+
+    setIsProcessingPayment(true)
+
+    try {
+        // Generate a unique order ID
+        const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+        console.log('Initializing payment with:', {
+            store_id: storeId,
+            email: customerDetails.email,
+            amount: total,
+            order_id: orderId,
+            items_total: itemsTotal,
+            delivery_fee: deliveryFee
+        })
+
+        // Initialize payment
+        const paymentResponse = await fetch('/api/payments/initialize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // Add auth token here if user is logged in
+                // 'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                store_id: storeId,
+                email: customerDetails.email,
+                amount: total,
+                currency: 'NGN',
+                order_id: orderId,
+                items_total: itemsTotal,
+                delivery_fee: deliveryFee,
+                platform_fee_percent: platformFeePercent
+            })
+        })
+
+        const paymentData = await paymentResponse.json()
+
+        console.log('Payment API response:', paymentData)
+
+        if (!paymentResponse.ok) {
+            throw new Error(paymentData.message || `HTTP error! status: ${paymentResponse.status}`)
+        }
+
+        if (paymentData.status === 'success') {
+            // Redirect to payment gateway
+            if (paymentData.data && paymentData.data.authorization_url) {
+                // Save order details to localStorage before redirect
+                localStorage.setItem('pending_order', JSON.stringify({
+                    orderId,
+                    customerDetails,
+                    cart,
+                    total,
+                    deliveryMethod,
+                    selectedStation
+                }))
+
+                // Show success toast
+                toast.success("Payment initialized successfully! Redirecting...")
+                
+                // Redirect to Paystack payment page
+                window.location.href = paymentData.data.authorization_url
+            } else {
+                throw new Error('Payment authorization URL not found in response')
+            }
+        } else {
+            throw new Error(paymentData.message || 'Payment initialization failed')
+        }
+    } catch (error) {
+        console.error('Payment error:', error)
+        toast.error(`Payment Failed - ${error instanceof Error ? error.message : "Failed to initialize payment. Please try again."}`)
+    } finally {
+        setIsProcessingPayment(false)
+    }
+}
 
     return (
         <div className='flex flex-col bg-[#FCFCFC]'>
@@ -85,7 +214,13 @@ export default function CheckoutPage() {
                             </div>
                         </CardContent>
                         <CardFooter className='pt-4'>
-                            <Button className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'>Confirm Order</Button>
+                            <Button 
+                                className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
+                                onClick={handleConfirmOrder}
+                                disabled={isProcessingPayment || cart.length === 0}
+                            >
+                                {isProcessingPayment ? 'Processing...' : 'Confirm Order'}
+                            </Button>
                         </CardFooter>
                     </Card>
                     <p className='text-center text-sm mt-4'>By proceeding, you are automatically accepting the <a href="" className='text-[#4FCA6A]'>Terms & Conditions</a> </p>
@@ -119,46 +254,81 @@ export default function CheckoutPage() {
                             <div className='flex flex-col md:flex-row gap-4 justify-between items-center'>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>First Name </Label>
-                                    <Input className='w-full' disabled={!isEditingAddress} defaultValue="John" />
+                                    <Input 
+                                        className='w-full' 
+                                        disabled={!isEditingAddress} 
+                                        value={customerDetails.firstName}
+                                        onChange={(e) => handleInputChange('firstName', e.target.value)}
+                                    />
                                 </div>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Last Name </Label>
-                                    <Input className='w-full' disabled={!isEditingAddress} defaultValue="Doe" />
+                                    <Input 
+                                        className='w-full' 
+                                        disabled={!isEditingAddress} 
+                                        value={customerDetails.lastName}
+                                        onChange={(e) => handleInputChange('lastName', e.target.value)}
+                                    />
                                 </div>
                             </div>
                             <div className='flex flex-col mt-4 md:flex-row gap-4 justify-between items-center'>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Email </Label>
-                                    <Input type='text' disabled={!isEditingAddress} defaultValue="john@example.com" />
+                                    <Input 
+                                        type='email' 
+                                        disabled={!isEditingAddress} 
+                                        value={customerDetails.email}
+                                        onChange={(e) => handleInputChange('email', e.target.value)}
+                                    />
                                 </div>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Whatsapp Phone Number </Label>
                                     <div className='flex gap-1'>
-                                        <Select disabled={!isEditingAddress}>
+                                        <Select 
+                                            disabled={!isEditingAddress}
+                                            value={customerDetails.phoneCode}
+                                            onValueChange={(value) => handleInputChange('phoneCode', value)}
+                                        >
                                             <SelectTrigger className='w-20'>
-                                                <SelectValue placeholder="+234" />
+                                                <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="+234">+234</SelectItem>
                                                 <SelectItem value="+233">+233</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <Input type='number' className='w-full' disabled={!isEditingAddress} defaultValue="8012345678" />
+                                        <Input 
+                                            type='tel' 
+                                            className='w-full' 
+                                            disabled={!isEditingAddress} 
+                                            value={customerDetails.phone}
+                                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                                        />
                                     </div>
                                 </div>
                             </div>
                             <div className='flex flex-col mt-4 md:flex-row gap-4 justify-between items-center'>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Delivery Address</Label>
-                                    <Input type='text' className='w-full' disabled={!isEditingAddress} defaultValue="123 Main Street, Lekki" />
+                                    <Input 
+                                        type='text' 
+                                        className='w-full' 
+                                        disabled={!isEditingAddress} 
+                                        value={customerDetails.address}
+                                        onChange={(e) => handleInputChange('address', e.target.value)}
+                                    />
                                 </div>
                             </div>
                             <div className='flex flex-col mt-4 md:flex-row gap-4 justify-center items-center'>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Country</Label>
-                                    <Select disabled={!isEditingAddress}>
+                                    <Select 
+                                        disabled={!isEditingAddress}
+                                        value={customerDetails.country}
+                                        onValueChange={(value) => handleInputChange('country', value)}
+                                    >
                                         <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Nigeria" />
+                                            <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="nigeria">Nigeria</SelectItem>
@@ -168,9 +338,13 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>State</Label>
-                                    <Select disabled={!isEditingAddress}>
+                                    <Select 
+                                        disabled={!isEditingAddress}
+                                        value={customerDetails.state}
+                                        onValueChange={(value) => handleInputChange('state', value)}
+                                    >
                                         <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Lagos" />
+                                            <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="lagos">Lagos</SelectItem>
@@ -182,9 +356,13 @@ export default function CheckoutPage() {
                             <div className='flex flex-col mt-4 md:flex-row gap-4 justify-center items-center'>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>City</Label>
-                                    <Select disabled={!isEditingAddress}>
+                                    <Select 
+                                        disabled={!isEditingAddress}
+                                        value={customerDetails.city}
+                                        onValueChange={(value) => handleInputChange('city', value)}
+                                    >
                                         <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Lekki" />
+                                            <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="lekki">Lekki</SelectItem>
@@ -194,9 +372,13 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>LGA</Label>
-                                    <Select disabled={!isEditingAddress}>
+                                    <Select 
+                                        disabled={!isEditingAddress}
+                                        value={customerDetails.lga}
+                                        onValueChange={(value) => handleInputChange('lga', value)}
+                                    >
                                         <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Eti-osa" />
+                                            <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="etiosa">Eti-osa</SelectItem>
@@ -234,7 +416,7 @@ export default function CheckoutPage() {
                                     </div>
                                 </div>
 
-                                {/* Pickup Station Details - Only show when pickup is selected */}
+                                {/* Pickup Station Details */}
                                 {deliveryMethod === 'pickup' && (
                                     <>
                                         <div className='mt-4 border border-[#E0E0E0] rounded-lg p-4 ml-7'>
@@ -263,7 +445,6 @@ export default function CheckoutPage() {
                                             </div>
                                         </div>
 
-                                        {/* Horizontal Scrollable Shipments */}
                                         <div className='flex gap-4 overflow-x-auto mt-4 pb-2 scrollbar-hide ml-7'>
                                             {cart.map((item, index) => (
                                                 <div key={item.id} className='flex-shrink-0 w-[280px]'>
@@ -300,7 +481,6 @@ export default function CheckoutPage() {
                                     </div>
                                 </div>
 
-                                {/* Door Delivery Shipments - Only show when door is selected */}
                                 {deliveryMethod === 'door' && (
                                     <div className='flex gap-4 overflow-x-auto mt-4 pb-2 scrollbar-hide ml-7'>
                                         {cart.map((item, index) => (
@@ -335,7 +515,6 @@ export default function CheckoutPage() {
                     <Card className='mt-6 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                         <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
                             <h3 className='font-semibold'>3. PAYMENT METHOD</h3>
-                            <Button variant={"outline"} className='text-[#4FCA6A]'>Change <EditIcon /></Button>
                         </CardHeader>
                         <CardContent className='pt-6'>
                             <PaystackLogo />
@@ -349,7 +528,6 @@ export default function CheckoutPage() {
                 </div>
             </div>
 
-            {/* Pickup Station Modal Component */}
             <PickupStationModal
                 open={isPickupModalOpen}
                 onOpenChange={setIsPickupModalOpen}
