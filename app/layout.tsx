@@ -4,6 +4,7 @@ import { CartProvider } from "@/context/CartContext";
 import { Space_Grotesk } from 'next/font/google';
 import Script from 'next/script';
 import { Toaster } from 'sonner';
+import { Suspense } from "react"; 
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -49,6 +50,7 @@ export default function RootLayout({
         {/* End Google Tag Manager (noscript) */}
         
         <CartProvider>
+        <Suspense fallback={null}>
           {children}
           <Toaster 
             position="top-right"
@@ -56,6 +58,7 @@ export default function RootLayout({
             closeButton
             theme="system"
           />
+          </Suspense>
         </CartProvider>
       </body>
     </html>

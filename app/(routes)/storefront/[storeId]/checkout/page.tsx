@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Link from 'next/link'
 import React, { useState } from 'react'
@@ -33,18 +32,16 @@ export default function CheckoutPage() {
     const [isPickupModalOpen, setIsPickupModalOpen] = useState(false)
     const [isProcessingPayment, setIsProcessingPayment] = useState(false)
     
-    // Customer details state
+    // Customer details state - EMPTY INITIAL STATE
     const [customerDetails, setCustomerDetails] = useState({
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john@example.com',
-        phone: '8012345678',
-        phoneCode: '+234',
-        address: '123 Main Street, Lekki',
-        country: 'nigeria',
-        state: 'lagos',
-        city: 'lekki',
-        lga: 'etiosa'
+        name: '',
+        email: '',
+        phone: '',
+        address: '',
+        city: '',
+        state: '',
+        post_code: '',
+        country: 'NG' // Default to Nigeria since it's likely the primary market
     })
     
     const { cart, getCartTotal, clearCart } = useCart()
@@ -53,9 +50,8 @@ export default function CheckoutPage() {
     
     // Calculate totals
     const itemsTotal = getCartTotal()
-    const deliveryFee = 1700
     const platformFeePercent = 3
-    const total = itemsTotal + deliveryFee
+    const total = itemsTotal
 
     const handleEditAddress = () => setIsEditingAddress(true)
     const handleSaveAddress = () => setIsEditingAddress(false)
@@ -89,6 +85,32 @@ export default function CheckoutPage() {
             return false
         }
 
+        // Validate required fields
+        if (!customerDetails.name.trim()) {
+            toast.error("Name is required")
+            return false
+        }
+
+        if (!customerDetails.address.trim()) {
+            toast.error("Address is required")
+            return false
+        }
+
+        if (!customerDetails.city.trim()) {
+            toast.error("City is required")
+            return false
+        }
+
+        if (!customerDetails.state.trim()) {
+            toast.error("State is required")
+            return false
+        }
+
+        if (!customerDetails.post_code.trim()) {
+            toast.error("Post Code is required")
+            return false
+        }
+
         // Validate cart
         if (cart.length === 0) {
             toast.error("Empty Cart - Your cart is empty. Please add items before checkout")
@@ -104,84 +126,113 @@ export default function CheckoutPage() {
         return true
     }
 
-  // In your handleConfirmOrder function, update the API call part:
-const handleConfirmOrder = async () => {
-    if (!validateCheckout()) return
-
-    setIsProcessingPayment(true)
-
-    try {
-        // Generate a unique order ID
-        const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-        console.log('Initializing payment with:', {
-            store_id: storeId,
-            email: customerDetails.email,
-            amount: total,
-            order_id: orderId,
-            items_total: itemsTotal,
-            delivery_fee: deliveryFee
-        })
-
-        // Initialize payment
-        const paymentResponse = await fetch('/api/payments/initialize', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // Add auth token here if user is logged in
-                // 'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify({
+    const createOrder = async (orderId: string) => {
+        try {
+            // Prepare order data according to API structure
+            const orderData = {
                 store_id: storeId,
-                email: customerDetails.email,
-                amount: total,
-                currency: 'NGN',
-                order_id: orderId,
-                items_total: itemsTotal,
-                delivery_fee: deliveryFee,
-                platform_fee_percent: platformFeePercent
-            })
-        })
+                items: cart.map(item => ({
+                    product_id: item.id,
+                    quantity: item.quantity,
+                    price: item.price,
+                    discount: 0,
+                    name: item.name
+                })),
+                total_amount: total,
+                total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
+                payment_method: "paystack",
+                customer_info: {
+                    name: customerDetails.name,
+                    email: customerDetails.email,
+                    phone: customerDetails.phone,
+                    address: customerDetails.address,
+                    city: customerDetails.city,
+                    state: customerDetails.state,
+                    post_code: customerDetails.post_code,
+                    country: customerDetails.country
+                },
+                notes: deliveryMethod === 'pickup' && selectedStation 
+                    ? `Pickup at ${selectedStation.name}: ${selectedStation.address}` 
+                    : "Door delivery requested"
+            };
 
-        const paymentData = await paymentResponse.json()
+            console.log('📦 Creating order with data:', orderData);
 
-        console.log('Payment API response:', paymentData)
+            const response = await fetch('/api/orders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(orderData)
+            });
 
-        if (!paymentResponse.ok) {
-            throw new Error(paymentData.message || `HTTP error! status: ${paymentResponse.status}`)
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || `Failed to create order: ${response.status}`);
+            }
+
+            if (result.status === 'success') {
+                console.log('✅ Order created successfully:', result);
+                return result;
+            } else {
+                throw new Error(result.message || 'Order creation failed');
+            }
+        } catch (error) {
+            console.error('❌ Order creation error:', error);
+            throw error;
         }
+    }
 
-        if (paymentData.status === 'success') {
-            // Redirect to payment gateway
-            if (paymentData.data && paymentData.data.authorization_url) {
+    const handleConfirmOrder = async () => {
+        if (!validateCheckout()) return;
+    
+        setIsProcessingPayment(true);
+    
+        try {
+            // Generate a unique order ID
+            const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+            console.log('🔄 Starting order creation and payment process...');
+    
+            // Create the order - this already returns payment URL
+            const orderResult = await createOrder(orderId);
+            
+            console.log('✅ Order created successfully:', orderResult);
+    
+            // Check if we have a payment URL directly from order creation
+            const paymentUrl = orderResult.data?.payment?.authorization_url;
+    
+            if (paymentUrl) {
+                console.log('🔗 Using payment URL from order creation:', paymentUrl);
+                
                 // Save order details to localStorage before redirect
                 localStorage.setItem('pending_order', JSON.stringify({
-                    orderId,
+                    orderId: orderResult.data.order.order_number, // Use the actual order number from backend
                     customerDetails,
                     cart,
-                    total,
+                    total: parseFloat(orderResult.data.order.order_total), // Use actual total from backend
                     deliveryMethod,
-                    selectedStation
-                }))
-
+                    selectedStation,
+                    orderData: orderResult
+                }));
+    
                 // Show success toast
-                toast.success("Payment initialized successfully! Redirecting...")
+                toast.success("Order created successfully! Redirecting to payment...");
                 
-                // Redirect to Paystack payment page
-                window.location.href = paymentData.data.authorization_url
+                // Redirect directly to Paystack payment page
+                window.location.href = paymentUrl;
             } else {
-                throw new Error('Payment authorization URL not found in response')
+                console.error('❌ No payment URL found in order creation response');
+                throw new Error('Payment authorization URL not found in order creation response');
             }
-        } else {
-            throw new Error(paymentData.message || 'Payment initialization failed')
+        } catch (error) {
+            console.error('❌ Order creation error:', error);
+            toast.error(`Checkout Failed - ${error instanceof Error ? error.message : "Failed to process checkout. Please try again."}`);
+        } finally {
+            setIsProcessingPayment(false);
         }
-    } catch (error) {
-        console.error('Payment error:', error)
-        toast.error(`Payment Failed - ${error instanceof Error ? error.message : "Failed to initialize payment. Please try again."}`)
-    } finally {
-        setIsProcessingPayment(false)
-    }
-}
+    };
 
     return (
         <div className='flex flex-col bg-[#FCFCFC]'>
@@ -203,10 +254,6 @@ const handleConfirmOrder = async () => {
                             <div className='flex items-center justify-between'>
                                 <span className='text-sm'>Item&apos;s total({cart.length})</span>
                                 <span className='text-sm'>₦{itemsTotal.toLocaleString()}</span>
-                            </div>
-                            <div className='flex items-center justify-between'>
-                                <span className='text-sm'>Delivery fee</span>
-                                <span className='text-sm'>₦{deliveryFee.toLocaleString()}</span>
                             </div>
                             <div className='flex items-center justify-between'>
                                 <span className='text-sm font-semibold'>Total</span>
@@ -235,7 +282,7 @@ const handleConfirmOrder = async () => {
                         </div>
                     </div>
                     
-                    {/* Customer Address Card */}
+                    {/* Customer Address Card - EMPTY FIELDS READY FOR USER INPUT */}
                     <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                         <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
                             <h3 className='font-semibold'>1. CUSTOMER ADDRESS</h3>
@@ -251,146 +298,107 @@ const handleConfirmOrder = async () => {
                             )}
                         </CardHeader>
                         <CardContent className='pt-6'>
-                            <div className='flex flex-col md:flex-row gap-4 justify-between items-center'>
+                            {/* Full Name - Single Input */}
+                            <div className='w-full mb-4'>
+                                <Label className='text-xs mb-1'>Full Name *</Label>
+                                <Input 
+                                    className='w-full' 
+                                    disabled={!isEditingAddress} 
+                                    value={customerDetails.name}
+                                    onChange={(e) => handleInputChange('name', e.target.value)}
+                                    placeholder="Enter your full name"
+                                />
+                            </div>
+
+                            {/* Email */}
+                            <div className='w-full mb-4'>
+                                <Label className='text-xs mb-1'>Email *</Label>
+                                <Input 
+                                    type='email' 
+                                    className='w-full' 
+                                    disabled={!isEditingAddress} 
+                                    value={customerDetails.email}
+                                    onChange={(e) => handleInputChange('email', e.target.value)}
+                                    placeholder="your@email.com"
+                                />
+                            </div>
+
+                            {/* Phone Number */}
+                            <div className='w-full mb-4'>
+                                <Label className='text-xs mb-1'>Phone Number *</Label>
+                                <Input 
+                                    type='tel' 
+                                    className='w-full' 
+                                    disabled={!isEditingAddress} 
+                                    value={customerDetails.phone}
+                                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                                    placeholder="+2348012345678"
+                                />
+                            </div>
+
+                            {/* Delivery Address */}
+                            <div className='w-full mb-4'>
+                                <Label className='text-xs mb-1'>Delivery Address *</Label>
+                                <Input 
+                                    type='text' 
+                                    className='w-full' 
+                                    disabled={!isEditingAddress} 
+                                    value={customerDetails.address}
+                                    onChange={(e) => handleInputChange('address', e.target.value)}
+                                    placeholder="Enter your complete address"
+                                />
+                            </div>
+
+                            {/* City, State, Post Code, Country - All as Inputs */}
+                            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                                 <div className='w-full'>
-                                    <Label className='text-xs mb-1'>First Name </Label>
+                                    <Label className='text-xs mb-1'>City *</Label>
                                     <Input 
                                         className='w-full' 
                                         disabled={!isEditingAddress} 
-                                        value={customerDetails.firstName}
-                                        onChange={(e) => handleInputChange('firstName', e.target.value)}
-                                    />
-                                </div>
-                                <div className='w-full'>
-                                    <Label className='text-xs mb-1'>Last Name </Label>
-                                    <Input 
-                                        className='w-full' 
-                                        disabled={!isEditingAddress} 
-                                        value={customerDetails.lastName}
-                                        onChange={(e) => handleInputChange('lastName', e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className='flex flex-col mt-4 md:flex-row gap-4 justify-between items-center'>
-                                <div className='w-full'>
-                                    <Label className='text-xs mb-1'>Email </Label>
-                                    <Input 
-                                        type='email' 
-                                        disabled={!isEditingAddress} 
-                                        value={customerDetails.email}
-                                        onChange={(e) => handleInputChange('email', e.target.value)}
-                                    />
-                                </div>
-                                <div className='w-full'>
-                                    <Label className='text-xs mb-1'>Whatsapp Phone Number </Label>
-                                    <div className='flex gap-1'>
-                                        <Select 
-                                            disabled={!isEditingAddress}
-                                            value={customerDetails.phoneCode}
-                                            onValueChange={(value) => handleInputChange('phoneCode', value)}
-                                        >
-                                            <SelectTrigger className='w-20'>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="+234">+234</SelectItem>
-                                                <SelectItem value="+233">+233</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <Input 
-                                            type='tel' 
-                                            className='w-full' 
-                                            disabled={!isEditingAddress} 
-                                            value={customerDetails.phone}
-                                            onChange={(e) => handleInputChange('phone', e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className='flex flex-col mt-4 md:flex-row gap-4 justify-between items-center'>
-                                <div className='w-full'>
-                                    <Label className='text-xs mb-1'>Delivery Address</Label>
-                                    <Input 
-                                        type='text' 
-                                        className='w-full' 
-                                        disabled={!isEditingAddress} 
-                                        value={customerDetails.address}
-                                        onChange={(e) => handleInputChange('address', e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className='flex flex-col mt-4 md:flex-row gap-4 justify-center items-center'>
-                                <div className='w-full'>
-                                    <Label className='text-xs mb-1'>Country</Label>
-                                    <Select 
-                                        disabled={!isEditingAddress}
-                                        value={customerDetails.country}
-                                        onValueChange={(value) => handleInputChange('country', value)}
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="nigeria">Nigeria</SelectItem>
-                                            <SelectItem value="ghana">Ghana</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className='w-full'>
-                                    <Label className='text-xs mb-1'>State</Label>
-                                    <Select 
-                                        disabled={!isEditingAddress}
-                                        value={customerDetails.state}
-                                        onValueChange={(value) => handleInputChange('state', value)}
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="lagos">Lagos</SelectItem>
-                                            <SelectItem value="rivers">Rivers</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                            <div className='flex flex-col mt-4 md:flex-row gap-4 justify-center items-center'>
-                                <div className='w-full'>
-                                    <Label className='text-xs mb-1'>City</Label>
-                                    <Select 
-                                        disabled={!isEditingAddress}
                                         value={customerDetails.city}
-                                        onValueChange={(value) => handleInputChange('city', value)}
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="lekki">Lekki</SelectItem>
-                                            <SelectItem value="lagos">Lagos</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                        onChange={(e) => handleInputChange('city', e.target.value)}
+                                        placeholder="e.g., Lagos"
+                                    />
                                 </div>
                                 <div className='w-full'>
-                                    <Label className='text-xs mb-1'>LGA</Label>
-                                    <Select 
-                                        disabled={!isEditingAddress}
-                                        value={customerDetails.lga}
-                                        onValueChange={(value) => handleInputChange('lga', value)}
-                                    >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="etiosa">Eti-osa</SelectItem>
-                                            <SelectItem value="ibejulekki">Ibeju-Lekki</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <Label className='text-xs mb-1'>State *</Label>
+                                    <Input 
+                                        className='w-full' 
+                                        disabled={!isEditingAddress} 
+                                        value={customerDetails.state}
+                                        onChange={(e) => handleInputChange('state', e.target.value)}
+                                        placeholder="e.g., Lagos State"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mt-4'>
+                                <div className='w-full'>
+                                    <Label className='text-xs mb-1'>Post Code *</Label>
+                                    <Input 
+                                        className='w-full' 
+                                        disabled={!isEditingAddress} 
+                                        value={customerDetails.post_code}
+                                        onChange={(e) => handleInputChange('post_code', e.target.value)}
+                                        placeholder="e.g., 100001"
+                                    />
+                                </div>
+                                <div className='w-full'>
+                                    <Label className='text-xs mb-1'>Country *</Label>
+                                    <Input 
+                                        className='w-full' 
+                                        disabled={!isEditingAddress} 
+                                        value={customerDetails.country}
+                                        onChange={(e) => handleInputChange('country', e.target.value)}
+                                        placeholder="e.g., NG"
+                                    />
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Delivery Details Card */}
+                    {/* Delivery Details Card - UNCHANGED */}
                     <Card className='shadow-none mt-6 border-[#F5F5F5] dark:border-[#1F1F1F]'>
                         <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
                             <h3 className='font-semibold'>2. DELIVERY DETAILS</h3>
@@ -511,7 +519,7 @@ const handleConfirmOrder = async () => {
                         </CardContent>
                     </Card>
 
-                    {/* Payment Method Card */}
+                    {/* Payment Method Card - UNCHANGED */}
                     <Card className='mt-6 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                         <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
                             <h3 className='font-semibold'>3. PAYMENT METHOD</h3>
