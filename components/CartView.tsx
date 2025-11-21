@@ -53,7 +53,7 @@ export default function CartView() {
                       alt={item.name}
                       width={96}
                       height={96}
-                      className="object-cover rounded-lg"
+                      className="h-24 w-24 object-cover rounded-lg"
                     />
                   </div>
 
@@ -62,10 +62,6 @@ export default function CartView() {
                     <div>
                       <h3 className="font-medium text-sm">{item.name}</h3>
                       <p className="text-xs text-gray-500 mt-1">Few units left</p>
-                      <div className="flex items-center gap-1 mt-1">
-                        <SpeedafIcon/> 
-                        <span className="text-xs text-gray-600">SpeedAf</span>
-                      </div>
                     </div>
                     <p className="font-semibold">₦{item.price.toLocaleString()}</p>
                   </div>

@@ -11,14 +11,211 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link'
 import React, { useState } from 'react'
 import Image from 'next/image'
 import { useParams } from 'next/navigation'
 import { useCart } from '@/context/CartContext';
-import PickupStationModal, { PickupStation } from '@/components/PickupStationModal';
 import { toast } from 'sonner';
+
+// Country to code mapping
+const countryToCode: Record<string, string> = {
+  "Afghanistan": "AF",
+  "Albania": "AL",
+  "Algeria": "DZ",
+  "Andorra": "AD",
+  "Angola": "AO",
+  "Antigua and Barbuda": "AG",
+  "Argentina": "AR",
+  "Armenia": "AM",
+  "Australia": "AU",
+  "Austria": "AT",
+  "Azerbaijan": "AZ",
+  "Bahamas": "BS",
+  "Bahrain": "BH",
+  "Bangladesh": "BD",
+  "Barbados": "BB",
+  "Belarus": "BY",
+  "Belgium": "BE",
+  "Belize": "BZ",
+  "Benin": "BJ",
+  "Bhutan": "BT",
+  "Bolivia": "BO",
+  "Bosnia and Herzegovina": "BA",
+  "Botswana": "BW",
+  "Brazil": "BR",
+  "Brunei": "BN",
+  "Bulgaria": "BG",
+  "Burkina Faso": "BF",
+  "Burundi": "BI",
+  "Cabo Verde": "CV",
+  "Cambodia": "KH",
+  "Cameroon": "CM",
+  "Canada": "CA",
+  "Central African Republic": "CF",
+  "Chad": "TD",
+  "Chile": "CL",
+  "China": "CN",
+  "Colombia": "CO",
+  "Comoros": "KM",
+  "Congo (Congo-Brazzaville)": "CG",
+  "Costa Rica": "CR",
+  "Croatia": "HR",
+  "Cuba": "CU",
+  "Cyprus": "CY",
+  "Czechia": "CZ",
+  "Democratic Republic of the Congo": "CD",
+  "Denmark": "DK",
+  "Djibouti": "DJ",
+  "Dominica": "DM",
+  "Dominican Republic": "DO",
+  "Ecuador": "EC",
+  "Egypt": "EG",
+  "El Salvador": "SV",
+  "Equatorial Guinea": "GQ",
+  "Eritrea": "ER",
+  "Estonia": "EE",
+  "Eswatini": "SZ",
+  "Ethiopia": "ET",
+  "Fiji": "FJ",
+  "Finland": "FI",
+  "France": "FR",
+  "Gabon": "GA",
+  "Gambia": "GM",
+  "Georgia": "GE",
+  "Germany": "DE",
+  "Ghana": "GH",
+  "Greece": "GR",
+  "Grenada": "GD",
+  "Guatemala": "GT",
+  "Guinea": "GN",
+  "Guinea-Bissau": "GW",
+  "Guyana": "GY",
+  "Haiti": "HT",
+  "Honduras": "HN",
+  "Hungary": "HU",
+  "Iceland": "IS",
+  "India": "IN",
+  "Indonesia": "ID",
+  "Iran": "IR",
+  "Iraq": "IQ",
+  "Ireland": "IE",
+  "Israel": "IL",
+  "Italy": "IT",
+  "Jamaica": "JM",
+  "Japan": "JP",
+  "Jordan": "JO",
+  "Kazakhstan": "KZ",
+  "Kenya": "KE",
+  "Kiribati": "KI",
+  "Kuwait": "KW",
+  "Kyrgyzstan": "KG",
+  "Laos": "LA",
+  "Latvia": "LV",
+  "Lebanon": "LB",
+  "Lesotho": "LS",
+  "Liberia": "LR",
+  "Libya": "LY",
+  "Liechtenstein": "LI",
+  "Lithuania": "LT",
+  "Luxembourg": "LU",
+  "Madagascar": "MG",
+  "Malawi": "MW",
+  "Malaysia": "MY",
+  "Maldives": "MV",
+  "Mali": "ML",
+  "Malta": "MT",
+  "Marshall Islands": "MH",
+  "Mauritania": "MR",
+  "Mauritius": "MU",
+  "Mexico": "MX",
+  "Micronesia": "FM",
+  "Moldova": "MD",
+  "Monaco": "MC",
+  "Mongolia": "MN",
+  "Montenegro": "ME",
+  "Morocco": "MA",
+  "Mozambique": "MZ",
+  "Myanmar": "MM",
+  "Namibia": "NA",
+  "Nauru": "NR",
+  "Nepal": "NP",
+  "Netherlands": "NL",
+  "New Zealand": "NZ",
+  "Nicaragua": "NI",
+  "Niger": "NE",
+  "Nigeria": "NG",
+  "North Korea": "KP",
+  "North Macedonia": "MK",
+  "Norway": "NO",
+  "Oman": "OM",
+  "Pakistan": "PK",
+  "Palau": "PW",
+  "Panama": "PA",
+  "Papua New Guinea": "PG",
+  "Paraguay": "PY",
+  "Peru": "PE",
+  "Philippines": "PH",
+  "Poland": "PL",
+  "Portugal": "PT",
+  "Qatar": "QA",
+  "Romania": "RO",
+  "Russia": "RU",
+  "Rwanda": "RW",
+  "Saint Kitts and Nevis": "KN",
+  "Saint Lucia": "LC",
+  "Saint Vincent and the Grenadines": "VC",
+  "Samoa": "WS",
+  "San Marino": "SM",
+  "Sao Tome and Principe": "ST",
+  "Saudi Arabia": "SA",
+  "Senegal": "SN",
+  "Serbia": "RS",
+  "Seychelles": "SC",
+  "Sierra Leone": "SL",
+  "Singapore": "SG",
+  "Slovakia": "SK",
+  "Slovenia": "SI",
+  "Solomon Islands": "SB",
+  "Somalia": "SO",
+  "South Africa": "ZA",
+  "South Korea": "KR",
+  "South Sudan": "SS",
+  "Spain": "ES",
+  "Sri Lanka": "LK",
+  "Sudan": "SD",
+  "Suriname": "SR",
+  "Sweden": "SE",
+  "Switzerland": "CH",
+  "Syria": "SY",
+  "Taiwan": "TW",
+  "Tajikistan": "TJ",
+  "Tanzania": "TZ",
+  "Thailand": "TH",
+  "Timor-Leste": "TL",
+  "Togo": "TG",
+  "Tonga": "TO",
+  "Trinidad and Tobago": "TT",
+  "Tunisia": "TN",
+  "Turkey": "TR",
+  "Turkmenistan": "TM",
+  "Tuvalu": "TV",
+  "Uganda": "UG",
+  "Ukraine": "UA",
+  "United Arab Emirates": "AE",
+  "United Kingdom": "GB",
+  "United States": "US",
+  "Uruguay": "UY",
+  "Uzbekistan": "UZ",
+  "Vanuatu": "VU",
+  "Vatican City": "VA",
+  "Venezuela": "VE",
+  "Vietnam": "VN",
+  "Yemen": "YE",
+  "Zambia": "ZM",
+  "Zimbabwe": "ZW"
+};
 
 export default function CheckoutPage() {
     const params = useParams()
@@ -27,12 +224,10 @@ export default function CheckoutPage() {
     const [searchQuery,] = useState('')
     const [isEditingAddress, setIsEditingAddress] = useState(false)
     const [isEditingDelivery, setIsEditingDelivery] = useState(false)
-    const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'door'>('pickup')
-    const [selectedStation, setSelectedStation] = useState<PickupStation | null>(null)
-    const [isPickupModalOpen, setIsPickupModalOpen] = useState(false)
     const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+    const [deliveryNotes, setDeliveryNotes] = useState('')
     
-    // Customer details state - EMPTY INITIAL STATE
+    // Customer details state
     const [customerDetails, setCustomerDetails] = useState({
         name: '',
         email: '',
@@ -41,7 +236,7 @@ export default function CheckoutPage() {
         city: '',
         state: '',
         post_code: '',
-        country: 'NG' // Default to Nigeria since it's likely the primary market
+        country: 'NG'
     })
     
     const { cart, getCartTotal, clearCart } = useCart()
@@ -60,15 +255,16 @@ export default function CheckoutPage() {
     const handleEditDelivery = () => setIsEditingDelivery(true)
     const handleSaveDelivery = () => setIsEditingDelivery(false)
     const handleCancelDeliveryEdit = () => setIsEditingDelivery(false)
-
-    const handleOpenPickupModal = () => setIsPickupModalOpen(true)
     
-    const handleSelectStation = (station: PickupStation) => {
-        setSelectedStation(station)
-    }
-
     const handleInputChange = (field: string, value: string) => {
         setCustomerDetails(prev => ({ ...prev, [field]: value }))
+    }
+
+    const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value
+        if (value.length <= 200) {
+            setDeliveryNotes(value)
+        }
     }
 
     const validateCheckout = () => {
@@ -117,12 +313,6 @@ export default function CheckoutPage() {
             return false
         }
 
-        // Validate pickup station if pickup method selected
-        if (deliveryMethod === 'pickup' && !selectedStation) {
-            toast.error("Pickup Station Required - Please select a pickup station")
-            return false
-        }
-
         return true
     }
 
@@ -151,9 +341,7 @@ export default function CheckoutPage() {
                     post_code: customerDetails.post_code,
                     country: customerDetails.country
                 },
-                notes: deliveryMethod === 'pickup' && selectedStation 
-                    ? `Pickup at ${selectedStation.name}: ${selectedStation.address}` 
-                    : "Door delivery requested"
+                notes: deliveryNotes || "No delivery notes provided"
             };
 
             console.log('📦 Creating order with data:', orderData);
@@ -190,37 +378,30 @@ export default function CheckoutPage() {
         setIsProcessingPayment(true);
     
         try {
-            // Generate a unique order ID
             const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
             console.log('🔄 Starting order creation and payment process...');
     
-            // Create the order - this already returns payment URL
             const orderResult = await createOrder(orderId);
             
             console.log('✅ Order created successfully:', orderResult);
     
-            // Check if we have a payment URL directly from order creation
             const paymentUrl = orderResult.data?.payment?.authorization_url;
     
             if (paymentUrl) {
                 console.log('🔗 Using payment URL from order creation:', paymentUrl);
                 
-                // Save order details to localStorage before redirect
                 localStorage.setItem('pending_order', JSON.stringify({
-                    orderId: orderResult.data.order.order_number, // Use the actual order number from backend
+                    orderId: orderResult.data.order.order_number,
                     customerDetails,
                     cart,
-                    total: parseFloat(orderResult.data.order.order_total), // Use actual total from backend
-                    deliveryMethod,
-                    selectedStation,
+                    total: parseFloat(orderResult.data.order.order_total),
+                    deliveryNotes,
                     orderData: orderResult
                 }));
     
-                // Show success toast
                 toast.success("Order created successfully! Redirecting to payment...");
                 
-                // Redirect directly to Paystack payment page
                 window.location.href = paymentUrl;
             } else {
                 console.error('❌ No payment URL found in order creation response');
@@ -282,7 +463,7 @@ export default function CheckoutPage() {
                         </div>
                     </div>
                     
-                    {/* Customer Address Card - EMPTY FIELDS READY FOR USER INPUT */}
+                    {/* Customer Address Card */}
                     <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                         <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
                             <h3 className='font-semibold'>1. CUSTOMER ADDRESS</h3>
@@ -298,7 +479,6 @@ export default function CheckoutPage() {
                             )}
                         </CardHeader>
                         <CardContent className='pt-6'>
-                            {/* Full Name - Single Input */}
                             <div className='w-full mb-4'>
                                 <Label className='text-xs mb-1'>Full Name *</Label>
                                 <Input 
@@ -310,7 +490,6 @@ export default function CheckoutPage() {
                                 />
                             </div>
 
-                            {/* Email */}
                             <div className='w-full mb-4'>
                                 <Label className='text-xs mb-1'>Email *</Label>
                                 <Input 
@@ -323,7 +502,6 @@ export default function CheckoutPage() {
                                 />
                             </div>
 
-                            {/* Phone Number */}
                             <div className='w-full mb-4'>
                                 <Label className='text-xs mb-1'>Phone Number *</Label>
                                 <Input 
@@ -336,7 +514,6 @@ export default function CheckoutPage() {
                                 />
                             </div>
 
-                            {/* Delivery Address */}
                             <div className='w-full mb-4'>
                                 <Label className='text-xs mb-1'>Delivery Address *</Label>
                                 <Input 
@@ -349,7 +526,6 @@ export default function CheckoutPage() {
                                 />
                             </div>
 
-                            {/* City, State, Post Code, Country - All as Inputs */}
                             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>City *</Label>
@@ -386,19 +562,28 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Country *</Label>
-                                    <Input 
-                                        className='w-full' 
-                                        disabled={!isEditingAddress} 
+                                    <Select 
+                                        disabled={!isEditingAddress}
                                         value={customerDetails.country}
-                                        onChange={(e) => handleInputChange('country', e.target.value)}
-                                        placeholder="e.g., NG"
-                                    />
+                                        onValueChange={(value) => handleInputChange('country', value)}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select country" />
+                                        </SelectTrigger>
+                                        <SelectContent className="max-h-[200px]">
+                                            {Object.entries(countryToCode).map(([countryName, code]) => (
+                                                <SelectItem key={code} value={code}>
+                                                    {countryName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Delivery Details Card - UNCHANGED */}
+                    {/* Delivery Details Card */}
                     <Card className='shadow-none mt-6 border-[#F5F5F5] dark:border-[#1F1F1F]'>
                         <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
                             <h3 className='font-semibold'>2. DELIVERY DETAILS</h3>
@@ -414,112 +599,53 @@ export default function CheckoutPage() {
                             )}
                         </CardHeader>
                         <CardContent className='pt-6'>
-                            <RadioGroup value={deliveryMethod} onValueChange={(value: 'pickup' | 'door') => setDeliveryMethod(value)} disabled={!isEditingDelivery}>
-                                {/* Pickup Station Option */}
-                                <div className='flex items-start gap-3 mb-4'>
-                                    <RadioGroupItem value="pickup" id="pickup" className='mt-1' />
-                                    <div className='flex-1'>
-                                        <Label htmlFor="pickup" className='text-sm font-medium cursor-pointer'>Pick-up Station</Label>
-                                        <p className='text-xs text-[#A0A0A0] mt-1'>Delivery between <span className='text-primary font-medium'>13 October</span> and <span className='text-primary font-medium'>16 October</span></p>
-                                    </div>
+                            {/* Delivery Notes Textarea */}
+                            <div className='mb-4'>
+                                <Label className='text-xs mb-1'>Delivery Notes (Optional)</Label>
+                                <div className='relative'>
+                                    <textarea
+                                        className='w-full min-h-[100px] px-3 py-2 text-sm border border-[#E0E0E0] rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#4FCA6A] focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed'
+                                        disabled={!isEditingDelivery}
+                                        value={deliveryNotes}
+                                        onChange={handleNotesChange}
+                                        placeholder="Add any special instructions for delivery (e.g., Call me when you arrive, Leave at the gate, etc.)"
+                                        maxLength={200}
+                                    />
+                                    <span className='absolute bottom-2 right-3 text-xs text-[#A0A0A0]'>
+                                        {deliveryNotes.length}/200
+                                    </span>
                                 </div>
+                            </div>
 
-                                {/* Pickup Station Details */}
-                                {deliveryMethod === 'pickup' && (
-                                    <>
-                                        <div className='mt-4 border border-[#E0E0E0] rounded-lg p-4 ml-7'>
-                                            <div className='flex items-center justify-between'>
-                                                <span className='text-xs font-medium'>Pick-up Station</span>
-                                                <Button 
-                                                    variant={"ghost"} 
-                                                    className='text-[#4FCA6A] text-xs h-auto p-1'
-                                                    onClick={handleOpenPickupModal}
-                                                >
-                                                    {selectedStation ? 'Change' : 'Select Pickup Station'} <EditIcon />
-                                                </Button>
-                                            </div>
-                                            <div className='mt-2'>
-                                                {selectedStation ? (
-                                                    <>
-                                                        <p className='text-sm font-medium'>{selectedStation.name}</p>
-                                                        <span className='text-xs text-[#A0A0A0]'>{selectedStation.address}</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <p className='text-sm font-medium'>No Pickup Station Selected</p>
-                                                        <span className='text-xs text-[#A0A0A0]'>To use this option, you will need to add a pickup station near your location.</span>
-                                                    </>
-                                                )}
+                            {/* Product Shipment Cards */}
+                            <div className='flex gap-4 overflow-x-auto pb-2 scrollbar-hide'>
+                                {cart.map((item, index) => (
+                                    <div key={item.id} className='flex-shrink-0 w-[280px]'>
+                                        <div className='flex justify-between items-center'>
+                                            <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
+                                            <span className='text-xs text-[#A0A0A0]'>Fulfilled By Vendor</span>
+                                        </div>
+                                        <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
+                                            <p className='text-sm font-medium'>Door Delivery</p>
+                                            <span className='text-xs text-[#A0A0A0]'>Delivery between 13 October and 16 October</span>
+                                            <div className='flex gap-3 mt-3'>
+                                                <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg'/>
+                                                <div className='flex flex-col justify-between'>
+                                                    <p className='text-sm line-clamp-2'>{item.name}</p>
+                                                    <div className='flex items-center gap-2'>
+                                                        <span className='text-sm font-semibold'>₦{item.price.toLocaleString()}</span>
+                                                        <span className='text-xs text-[#A0A0A0]'>x{item.quantity}</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
-
-                                        <div className='flex gap-4 overflow-x-auto mt-4 pb-2 scrollbar-hide ml-7'>
-                                            {cart.map((item, index) => (
-                                                <div key={item.id} className='flex-shrink-0 w-[280px]'>
-                                                    <div className='flex justify-between items-center'>
-                                                        <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
-                                                        <span className='text-xs text-[#A0A0A0]'>Fulfilled By Vendor</span>
-                                                    </div>
-                                                    <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
-                                                        <p className='text-sm font-medium'>Pickup Station</p>
-                                                        <span className='text-xs text-[#A0A0A0]'>Delivery between 13 October and 16 October</span>
-                                                        <div className='flex gap-3 mt-3'>
-                                                            <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg'/>
-                                                            <div className='flex flex-col justify-between'>
-                                                                <p className='text-sm line-clamp-2'>{item.name}</p>
-                                                                <div className='flex items-center gap-2'>
-                                                                    <span className='text-sm font-semibold'>₦{item.price.toLocaleString()}</span>
-                                                                    <span className='text-xs text-[#A0A0A0]'>x{item.quantity}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* Door Delivery Option */}
-                                <div className='flex items-start gap-3 mt-6'>
-                                    <RadioGroupItem value="door" id="door" className='mt-1' />
-                                    <div className='flex-1'>
-                                        <Label htmlFor="door" className='text-sm font-medium cursor-pointer'>Door Delivery</Label>
-                                        <p className='text-xs text-[#A0A0A0] mt-1'>Delivery between <span className='text-primary font-medium'>13 October</span> and <span className='text-primary font-medium'>16 October</span></p>
                                     </div>
-                                </div>
-
-                                {deliveryMethod === 'door' && (
-                                    <div className='flex gap-4 overflow-x-auto mt-4 pb-2 scrollbar-hide ml-7'>
-                                        {cart.map((item, index) => (
-                                            <div key={item.id} className='flex-shrink-0 w-[280px]'>
-                                                <div className='flex justify-between items-center'>
-                                                    <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
-                                                    <span className='text-xs text-[#A0A0A0]'>Fulfilled By Vendor</span>
-                                                </div>
-                                                <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
-                                                    <p className='text-sm font-medium'>Door Delivery</p>
-                                                    <span className='text-xs text-[#A0A0A0]'>Delivery between 13 October and 16 October</span>
-                                                    <div className='flex gap-3 mt-3'>
-                                                        <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg'/>
-                                                        <div className='flex flex-col justify-between'>
-                                                            <p className='text-sm line-clamp-2'>{item.name}</p>
-                                                            <div className='flex items-center gap-2'>
-                                                                <span className='text-sm font-semibold'>₦{item.price.toLocaleString()}</span>
-                                                                <span className='text-xs text-[#A0A0A0]'>x{item.quantity}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </RadioGroup>
+                                ))}
+                            </div>
                         </CardContent>
                     </Card>
 
-                    {/* Payment Method Card - UNCHANGED */}
+                    {/* Payment Method Card */}
                     <Card className='mt-6 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                         <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
                             <h3 className='font-semibold'>3. PAYMENT METHOD</h3>
@@ -535,13 +661,6 @@ export default function CheckoutPage() {
                     </Link>
                 </div>
             </div>
-
-            <PickupStationModal
-                open={isPickupModalOpen}
-                onOpenChange={setIsPickupModalOpen}
-                onSelectStation={handleSelectStation}
-                selectedStation={selectedStation}
-            />
         </div>
     )
 }
