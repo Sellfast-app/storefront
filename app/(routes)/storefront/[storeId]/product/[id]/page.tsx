@@ -14,16 +14,23 @@ import CartIcon from '@/components/svgIcons/CartIcon'
 import { Button } from '@/components/ui/button'
 import { PlusIcon } from 'lucide-react';
 import MinusIcon from '@/components/svgIcons/MinusIcon';
-import { Label } from '@/components/ui/label';
-import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import GigIcon from '@/components/svgIcons/GigIcon';
 import { Progress } from '@/components/ui/progress';
 import { Avatar } from '@/components/ui/avatar';
 import { ratingBreakdown, customerReviews } from '@/lib/mockdata'
 import { useCart } from '@/context/CartContext'
 import CartButton from '@/components/CartButton'
 import CartView from '@/components/CartView'
+
+// Import Swiper React components
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Thumbs } from 'swiper/modules';
+
+// Import Swiper styles
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import 'swiper/css/thumbs';
 
 interface Product {
   id: string;
@@ -104,16 +111,18 @@ function Page() {
   const storeId = params.storeId as string
   const productId = params.id as string
   
-  const { addToCart } = useCart()
+  const { addToCart, cart } = useCart()
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [quantity, setQuantity] = useState(1)
   const [showCart, setShowCart] = useState(false)
   const [product, setProduct] = useState<Product | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingRelated, setIsLoadingRelated] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [thumbsSwiper, setThumbsSwiper] = useState<any>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Fetch single product
   useEffect(() => {
@@ -194,28 +203,88 @@ function Page() {
   const isSearchingOnMobile = searchQuery.trim() !== ''
 
   const totalReviews = ratingBreakdown.reduce((sum, item) => sum + item.count, 0)
-  const shippingFee = 1600
-  const totalPrice = product ? (product.product_price * quantity) + shippingFee : 0
 
-  const incrementQuantity = () => setQuantity(prev => prev + 1)
-  const decrementQuantity = () => setQuantity(prev => prev > 1 ? prev - 1 : 1)
+  // Get current product quantity from cart
+  const getCurrentQuantity = () => {
+    if (!product) return 0
+    const cartItem = cart.find(item => item.id === product.id)
+    return cartItem ? cartItem.quantity : 0
+  }
 
-  const handleAddToCart = (e?: React.MouseEvent, prod?: Product, qty: number = 1) => {
+  const currentQuantity = getCurrentQuantity()
+  const totalPrice = product ? (product.product_price * currentQuantity) : 0
+
+  // Add one to cart
+  const incrementQuantity = () => {
+    if (product) {
+      const cartProduct = {
+        id: product.id,
+        name: product.product_name,
+        price: product.product_price,
+        image: product.product_images[0] || Banner,
+        description: product.product_description,
+      }
+      addToCart(cartProduct, 1)
+      console.log('➕ Added 1 to cart:', cartProduct)
+    }
+  }
+
+  // Remove one from cart (but keep minimum of 0)
+  const decrementQuantity = () => {
+    if (product && currentQuantity > 0) {
+      const cartProduct = {
+        id: product.id,
+        name: product.product_name,
+        price: product.product_price,
+        image: product.product_images[0] || Banner,
+        description: product.product_description,
+      }
+      // Add -1 quantity (your cart context handles this by adding negative quantity)
+      addToCart(cartProduct, -1)
+      console.log('➖ Removed 1 from cart:', cartProduct)
+    }
+  }
+
+  // Simple handleAddToCart function that matches the storefront page
+  const handleAddToCart = (e?: React.MouseEvent, prod?: Product) => {
     if (e) {
       e.preventDefault()
       e.stopPropagation()
     }
+    
     const productToAdd = prod || product
     if (productToAdd) {
       const cartProduct = {
-        id: parseInt(productToAdd.id) || 0,
+        id: productToAdd.id,
         name: productToAdd.product_name,
         price: productToAdd.product_price,
         image: productToAdd.product_images[0] || Banner,
         description: productToAdd.product_description,
       }
-      addToCart(cartProduct, qty)
+      
+      // Add to cart with quantity 1 (if not already in cart)
+      addToCart(cartProduct, 1)
+      
+      console.log('🛒 Added to cart:', cartProduct)
     }
+  }
+
+  // Handle related product add to cart (always quantity 1 like in storefront)
+  const handleRelatedProductAddToCart = (e: React.MouseEvent, prod: Product) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const cartProduct = {
+      id: prod.id,
+      name: prod.product_name,
+      price: prod.product_price,
+      image: prod.product_images[0] || Banner,
+      description: prod.product_description,
+    }
+    
+    addToCart(cartProduct, 1)
+    
+    console.log('🛒 Added related product to cart:', cartProduct)
   }
 
   const toggleCart = () => {
@@ -277,13 +346,67 @@ function Page() {
             <CartView />
           ) : (
             <>
-              <div className='flex gap-4'>
-                <div className='flex flex-col gap-2'>
-                  {product.product_images.slice(1, 4).map((img, idx) => (
-                    <Image key={idx} src={img || Banner} alt='' width={100} height={100} className='w-25 h-25 rounded-lg object-cover' />
+              {/* Product Images Swiper */}
+              <div className='mb-6'>
+                {/* Main Image Swiper */}
+                <Swiper
+                  modules={[Navigation, Pagination, Thumbs]}
+                  spaceBetween={10}
+                  navigation={true}
+                  pagination={{ 
+                    clickable: true,
+                    type: product.product_images.length > 1 ? 'bullets' : 'fraction'
+                  }}
+                  thumbs={{ swiper: thumbsSwiper }}
+                  onSlideChange={(swiper) => setActiveImageIndex(swiper.activeIndex)}
+                  className="w-full h-auto mb-4 rounded-lg"
+                >
+                  {product.product_images.map((image, index) => (
+                    <SwiperSlide key={index}>
+                      <div className="relative w-full h-80 md:h-96">
+                        <Image
+                          src={image || Banner}
+                          alt={`${product.product_name} - Image ${index + 1}`}
+                          fill
+                          className="object-cover rounded-lg"
+                          priority={index === 0}
+                        />
+                      </div>
+                    </SwiperSlide>
                   ))}
-                </div>
-                <Image src={product.product_images[0] || Banner} alt={product.product_name} width={600} height={600} className='w-full md:h-90 object-cover rounded-lg' />
+                </Swiper>
+
+                {/* Thumbnail Swiper */}
+                {product.product_images.length > 1 && (
+                  <Swiper
+                    modules={[Thumbs]}
+                    watchSlidesProgress
+                    onSwiper={setThumbsSwiper}
+                    spaceBetween={8}
+                    slidesPerView={4}
+                    freeMode={true}
+                    className="w-full thumbs-swiper"
+                  >
+                    {product.product_images.map((image, index) => (
+                      <SwiperSlide key={index}>
+                        <div 
+                          className={`relative w-full h-20 cursor-pointer border-2 rounded-lg transition-all ${
+                            activeImageIndex === index 
+                              ? 'border-[#4FCA6A]' 
+                              : 'border-transparent'
+                          }`}
+                        >
+                          <Image
+                            src={image || Banner}
+                            alt={`${product.product_name} - Thumbnail ${index + 1}`}
+                            fill
+                            className="object-cover rounded-lg"
+                          />
+                        </div>
+                      </SwiperSlide>
+                    ))}
+                  </Swiper>
+                )}
               </div>
               
               <div className='mt-6'>
@@ -291,11 +414,20 @@ function Page() {
                 <div className='flex items-center justify-between mt-2'>
                   <h3 className='font-semibold text-xl'>₦{product.product_price.toLocaleString()}</h3>
                   <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
-                    <button onClick={incrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
+                    <button 
+                      onClick={incrementQuantity} 
+                      className='p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed'
+                    >
                       <PlusIcon className='w-4 h-4' />
                     </button>
-                    <span className='px-4 bg-card h-full flex items-center'>{quantity}</span>
-                    <button onClick={decrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
+                    <span className='px-4 bg-card h-full flex items-center'>
+                      {currentQuantity}
+                    </span>
+                    <button 
+                      onClick={decrementQuantity} 
+                      className='p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed'
+                      disabled={currentQuantity === 0}
+                    >
                       <MinusIcon className='w-4 h-4' />
                     </button>
                   </div>
@@ -307,40 +439,32 @@ function Page() {
                 </div>
                 
                 <div className='mt-4'>
-                  <Label>Choose your location</Label>
-                  <div className='flex items-center flex-col md:flex-row mt-2 gap-2'>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className='w-full md:w-1/2 border rounded-lg p-2 text-xs text-left'>Select State</DropdownMenuTrigger>
-                    </DropdownMenu>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className='w-full md:w-1/2 border rounded-lg p-2 text-xs text-left'>Select LGA</DropdownMenuTrigger>
-                    </DropdownMenu>
-                  </div>
-                  
                   <Card className='mt-4 shadow-none border border-[#F5F5F5] dark:border-[#1F1F1F]'>
                     <CardContent className='flex flex-col gap-4 pt-6'>
-                      <div className='flex items-center gap-2'>
-                        <GigIcon />
-                        <div className='flex flex-col'>
-                          <h4 className='text-sm font-medium'>GIG Logistics - Shipping Fee</h4>
-                          <span className='text-sm'>+₦{shippingFee.toLocaleString()}</span>
-                        </div>
-                      </div>
+                    
                       <div className='flex justify-between'>
                         <div className=''>
                           <span className='text-xs text-gray-500'>Total Price:</span>
                           <h3 className='text-xl font-bold'>₦{totalPrice.toLocaleString()}</h3>
                         </div>
-                          <Button 
-                            className='' 
-                            onClick={() => handleAddToCart(undefined, product, quantity)}
-                          >
-                            <CartIcon /> Add to Cart
-                          </Button>
+                        <Button 
+                          className='' 
+                          onClick={() => handleAddToCart()}
+                          disabled={currentQuantity > 0}
+                        >
+                          <CartIcon /> 
+                          {currentQuantity > 0 ? 'In Cart' : 'Add to Cart'}
+                        </Button>
                       </div>
+                      {currentQuantity > 0 && (
+                        <div className='text-xs text-green-600 text-center'>
+                          ✓ {currentQuantity} item{currentQuantity > 1 ? 's' : ''} in cart • Use +/- to adjust quantity
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                   
+                  {/* Rest of the product details and reviews sections remain the same */}
                   <Card className='mt-4 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                     <CardHeader className='border-b border-[#F5F5F5] dark:border-[#1F1F1F] text-sm font-semibold'>
                       <h3>Product Details</h3>
@@ -413,6 +537,7 @@ function Page() {
           )}
         </div>
         
+        {/* Right side with related products remains the same */}
         <div className='w-full md:w-[55%] md:overflow-y-auto md:h-full'>
           <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-[#FCFCFC] z-10 pb-4'>
             <Link href={`/storefront/${storeId}`}>
@@ -452,7 +577,7 @@ function Page() {
                         <span className='text-sm font-semibold'>₦{prod.product_price.toLocaleString()}</span>
                         <Button 
                           className='text-xs' 
-                          onClick={(e) => handleAddToCart(e, prod, 1)}
+                          onClick={(e) => handleRelatedProductAddToCart(e, prod)}
                         >
                           Add to Cart
                         </Button>
