@@ -117,6 +117,20 @@ const getRelativeTime = (dateString: string): string => {
     return `${Math.floor(diffInSeconds / 86400)}d ago`;
 }
 
+// Helper function to construct absolute URLs for images
+const getImageUrl = (imagePath: string | null): string | null => {
+    if (!imagePath) return null;
+    
+    // If it's already an absolute URL, return as is
+    if (imagePath.startsWith('http')) {
+        return imagePath;
+    }
+    
+    // If it's a relative path, construct absolute URL using your API base URL
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.swiftree.app';
+    return `${API_BASE_URL}${imagePath}`;
+}
+
 function Page() {
     const params = useParams()
     const storeId = params.storeId as string
@@ -149,6 +163,10 @@ function Page() {
                 }
 
                 const result = await response.json()
+                
+                console.log('📦 Storefront - Store data received:', result);
+                console.log('📦 Storefront - Logo URL:', result.data?.storeDetails?.logo);
+                console.log('📦 Storefront - Banner URL:', result.data?.storeDetails?.banner);
                 
                 if (result.status === 'success' && result.data) {
                     setStoreDetails(result.data.storeDetails)
@@ -236,6 +254,13 @@ function Page() {
         ? storeReviews.reduce((sum, review) => sum + review.rating, 0) / storeReviews.length
         : 0
 
+    // Get logo and banner URLs
+    const logoUrl = storeDetails?.logo ? getImageUrl(storeDetails.logo) : null;
+    const bannerUrl = storeDetails?.banner ? getImageUrl(storeDetails.banner) : null;
+
+    console.log('🖼️ Storefront - Final logo URL:', logoUrl);
+    console.log('🖼️ Storefront - Final banner URL:', bannerUrl);
+
     // Loading state
     if (isLoading) {
         return (
@@ -293,16 +318,44 @@ function Page() {
                     ) : (
                         <>
                             <div className='relative'>
-                                {storeDetails.banner ? (
-                                    <Image src={storeDetails.banner} alt='' width={800} height={400} className='w-full object-cover rounded-xl h-50 md:h-90' />
+                                {bannerUrl ? (
+                                    <Image 
+                                        src={bannerUrl} 
+                                        alt={`${storeDetails.store_name} banner`} 
+                                        width={800} 
+                                        height={400} 
+                                        className='w-full object-cover rounded-xl h-50 md:h-90' 
+                                        onError={(e) => {
+                                            console.error('❌ Failed to load banner:', bannerUrl);
+                                            e.currentTarget.src = Banner.src;
+                                        }}
+                                    />
                                 ) : (
-                                    <Image src={Banner} alt='' className='w-full object-cover rounded-xl h-50 md:h-90' />
+                                    <Image 
+                                        src={Banner} 
+                                        alt='Default banner' 
+                                        className='w-full object-cover rounded-xl h-50 md:h-90' 
+                                    />
                                 )}
                                 <div className='absolute bottom-[-30px] md:bottom-[-60px] left-1/2 -translate-x-1/2'>
-                                    {storeDetails.logo ? (
-                                        <Image src={storeDetails.logo} alt='' width={160} height={160} className='rounded-full w-20 h-20 md:w-40 md:h-40 border-6 border-white object-cover' />
+                                    {logoUrl ? (
+                                        <Image 
+                                            src={logoUrl} 
+                                            alt={`${storeDetails.store_name} logo`} 
+                                            width={160} 
+                                            height={160} 
+                                            className='rounded-full w-20 h-20 md:w-40 md:h-40 border-6 border-white object-cover' 
+                                            onError={(e) => {
+                                                console.error('❌ Failed to load logo:', logoUrl);
+                                                e.currentTarget.src = Profile.src;
+                                            }}
+                                        />
                                     ) : (
-                                        <Image src={Profile} alt='' className='rounded-full w-20 h-20 md:w-40 md:h-40 border-6 border-white' />
+                                        <Image 
+                                            src={Profile} 
+                                            alt='Default profile' 
+                                            className='rounded-full w-20 h-20 md:w-40 md:h-40 border-6 border-white object-cover' 
+                                        />
                                     )}
                                 </div>
                             </div>
