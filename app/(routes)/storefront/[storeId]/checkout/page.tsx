@@ -217,6 +217,26 @@ const countryToCode: Record<string, string> = {
   "Zimbabwe": "ZW"
 };
 
+// Nigerian states mapping
+const nigerianStates = [
+  "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", 
+  "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo", 
+  "Ekiti", "Enugu", "Federal Capital Territory", "Gombe", "Imo", 
+  "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", 
+  "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", 
+  "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara"
+];
+
+interface OrderData {
+  orderId: string;
+  orderNumber: string;
+  itemsTotal: number;
+  deliveryFee: number;
+  platformFee: number;
+  totalAmount: number;
+  paymentUrl: string;
+}
+
 export default function CheckoutPage() {
     const params = useParams()
     const storeId = params.storeId as string
@@ -224,8 +244,10 @@ export default function CheckoutPage() {
     const [searchQuery,] = useState('')
     const [isEditingAddress, setIsEditingAddress] = useState(false)
     const [isEditingDelivery, setIsEditingDelivery] = useState(false)
+    const [isProcessingOrder, setIsProcessingOrder] = useState(false)
     const [isProcessingPayment, setIsProcessingPayment] = useState(false)
     const [deliveryNotes, setDeliveryNotes] = useState('')
+    const [orderData, setOrderData] = useState<OrderData | null>(null)
     
     // Customer details state
     const [customerDetails, setCustomerDetails] = useState({
@@ -236,17 +258,17 @@ export default function CheckoutPage() {
         city: '',
         state: '',
         post_code: '',
-        country: 'NG'
+        country: 'NG' // Default to Nigeria
     })
     
-    const { cart, getCartTotal, clearCart } = useCart()
+    const { cart, getCartTotal } = useCart()
 
     const isSearchingOnMobile = searchQuery.trim() !== ''
     
-    // Calculate totals
+    // Simplified totals - let backend handle all fees
     const itemsTotal = getCartTotal()
-    const platformFeePercent = 3
-    const total = itemsTotal
+    const deliveryFee = orderData?.deliveryFee || 0
+    const total = orderData ? orderData.totalAmount : itemsTotal
 
     const handleEditAddress = () => setIsEditingAddress(true)
     const handleSaveAddress = () => setIsEditingAddress(false)
@@ -316,10 +338,10 @@ export default function CheckoutPage() {
         return true
     }
 
-    const createOrder = async (orderId: string) => {
+    const createOrder = async () => {
         try {
-            // Prepare order data according to API structure
-            const orderData = {
+            // Simple order data - let backend handle all calculations
+            const orderPayload = {
                 store_id: storeId,
                 items: cart.map(item => ({
                     product_id: item.id,
@@ -328,7 +350,7 @@ export default function CheckoutPage() {
                     discount: 0,
                     name: item.name
                 })),
-                total_amount: total,
+                total_amount: itemsTotal, // Just send items total, backend will calculate fees
                 total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
                 payment_method: "paystack",
                 customer_info: {
@@ -344,14 +366,14 @@ export default function CheckoutPage() {
                 notes: deliveryNotes || "No delivery notes provided"
             };
 
-            console.log('📦 Creating order with data:', orderData);
+            console.log('📦 Creating order with payload:', orderPayload);
 
             const response = await fetch('/api/orders', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(orderData)
+                body: JSON.stringify(orderPayload)
             });
 
             const result = await response.json();
@@ -374,42 +396,78 @@ export default function CheckoutPage() {
 
     const handleConfirmOrder = async () => {
         if (!validateCheckout()) return;
-    
-        setIsProcessingPayment(true);
-    
+
+        setIsProcessingOrder(true);
+
         try {
-            const orderId = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-            console.log('🔄 Starting order creation and payment process...');
-    
-            const orderResult = await createOrder(orderId);
+            console.log('🔄 Creating order...');
+
+            const orderResult = await createOrder();
             
-            console.log('✅ Order created successfully:', orderResult);
-    
-            const paymentUrl = orderResult.data?.payment?.authorization_url;
-    
-            if (paymentUrl) {
-                console.log('🔗 Using payment URL from order creation:', paymentUrl);
+            console.log('✅ Order created successfully');
+
+            // Extract order details from API response
+            const orderDetails = orderResult.data?.order;
+            const paymentDetails = orderResult.data?.payment;
+            
+            if (orderDetails && paymentDetails) {
+                // Use the actual amounts from the API response
+                const deliveryFee = Number(orderDetails.delivery_fee) || 0;
+                const paystackAmount = Number(paymentDetails.total_paid) || Number(orderDetails.order_total);
+
+                const orderData: OrderData = {
+                    orderId: orderDetails.id,
+                    orderNumber: orderDetails.order_number,
+                    itemsTotal: itemsTotal,
+                    deliveryFee: deliveryFee,
+                    totalAmount: paystackAmount, // Use the actual Paystack amount
+                    paymentUrl: paymentDetails.authorization_url,
+                    platformFee: Number(orderDetails.platform_fee) 
+                };
                 
+                console.log('📋 Final Order Data:', orderData);
+                
+                setOrderData(orderData);
+                
+                // Store order data in localStorage for payment completion
                 localStorage.setItem('pending_order', JSON.stringify({
-                    orderId: orderResult.data.order.order_number,
+                    orderId: orderDetails.order_number,
                     customerDetails,
                     cart,
-                    total: parseFloat(orderResult.data.order.order_total),
+                    total: paystackAmount,
                     deliveryNotes,
                     orderData: orderResult
                 }));
-    
-                toast.success("Order created successfully! Redirecting to payment...");
                 
-                window.location.href = paymentUrl;
+                toast.success("Order created! Review the total including delivery and fees.");
             } else {
-                console.error('❌ No payment URL found in order creation response');
-                throw new Error('Payment authorization URL not found in order creation response');
+                throw new Error('Order details not found in response');
             }
         } catch (error) {
             console.error('❌ Order creation error:', error);
-            toast.error(`Checkout Failed - ${error instanceof Error ? error.message : "Failed to process checkout. Please try again."}`);
+            toast.error(`Order Creation Failed - ${error instanceof Error ? error.message : "Failed to create order. Please try again."}`);
+        } finally {
+            setIsProcessingOrder(false);
+        }
+    };
+
+    const handleProceedToPayment = async () => {
+        if (!orderData) return;
+        
+        setIsProcessingPayment(true);
+        
+        try {
+            console.log('🔗 Redirecting to payment...');
+            
+            if (orderData.paymentUrl) {
+                toast.success("Redirecting to payment...");
+                window.location.href = orderData.paymentUrl;
+            } else {
+                throw new Error('Payment URL not available');
+            }
+        } catch (error) {
+            console.error('❌ Payment redirection error:', error);
+            toast.error(`Payment Failed - ${error instanceof Error ? error.message : "Failed to proceed to payment. Please try again."}`);
         } finally {
             setIsProcessingPayment(false);
         }
@@ -436,19 +494,46 @@ export default function CheckoutPage() {
                                 <span className='text-sm'>Item&apos;s total({cart.length})</span>
                                 <span className='text-sm'>₦{itemsTotal.toLocaleString()}</span>
                             </div>
-                            <div className='flex items-center justify-between'>
-                                <span className='text-sm font-semibold'>Total</span>
+                            
+                            {/* Delivery Fee - Only show after order creation */}
+                            {orderData && (
+                                <div className='flex items-center justify-between'>
+                                    <span className='text-sm'>Delivery Fee</span>
+                                    <span className='text-sm'>₦{deliveryFee.toLocaleString()}</span>
+                                </div>
+                            )}
+                            
+                            {/* Additional Fees Note */}
+                            {orderData && (
+                                <div className='flex items-center justify-between text-xs text-gray-500'>
+                                    <span>Platform fee & processing fees</span>
+                                    <span>Included</span>
+                                </div>
+                            )}
+                            
+                            <div className='flex items-center justify-between border-t pt-2'>
+                                <span className='text-sm font-semibold'>Total Amount</span>
                                 <h4 className='font-bold'>₦{total.toLocaleString()}</h4>
                             </div>
                         </CardContent>
                         <CardFooter className='pt-4'>
-                            <Button 
-                                className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
-                                onClick={handleConfirmOrder}
-                                disabled={isProcessingPayment || cart.length === 0}
-                            >
-                                {isProcessingPayment ? 'Processing...' : 'Confirm Order'}
-                            </Button>
+                            {!orderData ? (
+                                <Button 
+                                    className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
+                                    onClick={handleConfirmOrder}
+                                    disabled={isProcessingOrder || cart.length === 0}
+                                >
+                                    {isProcessingOrder ? 'Creating Order...' : 'Confirm Order'}
+                                </Button>
+                            ) : (
+                                <Button 
+                                    className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
+                                    onClick={handleProceedToPayment}
+                                    disabled={isProcessingPayment}
+                                >
+                                    {isProcessingPayment ? 'Redirecting...' : 'Proceed to Payment'}
+                                </Button>
+                            )}
                         </CardFooter>
                     </Card>
                     <p className='text-center text-sm mt-4'>By proceeding, you are automatically accepting the <a href="" className='text-[#4FCA6A]'>Terms & Conditions</a> </p>
@@ -483,7 +568,7 @@ export default function CheckoutPage() {
                                 <Label className='text-xs mb-1'>Full Name *</Label>
                                 <Input 
                                     className='w-full' 
-                                    disabled={!isEditingAddress} 
+                                    disabled={!isEditingAddress || !!orderData} 
                                     value={customerDetails.name}
                                     onChange={(e) => handleInputChange('name', e.target.value)}
                                     placeholder="Enter your full name"
@@ -495,7 +580,7 @@ export default function CheckoutPage() {
                                 <Input 
                                     type='email' 
                                     className='w-full' 
-                                    disabled={!isEditingAddress} 
+                                    disabled={!isEditingAddress || !!orderData} 
                                     value={customerDetails.email}
                                     onChange={(e) => handleInputChange('email', e.target.value)}
                                     placeholder="your@email.com"
@@ -507,7 +592,7 @@ export default function CheckoutPage() {
                                 <Input 
                                     type='tel' 
                                     className='w-full' 
-                                    disabled={!isEditingAddress} 
+                                    disabled={!isEditingAddress || !!orderData} 
                                     value={customerDetails.phone}
                                     onChange={(e) => handleInputChange('phone', e.target.value)}
                                     placeholder="+2348012345678"
@@ -519,7 +604,7 @@ export default function CheckoutPage() {
                                 <Input 
                                     type='text' 
                                     className='w-full' 
-                                    disabled={!isEditingAddress} 
+                                    disabled={!isEditingAddress || !!orderData} 
                                     value={customerDetails.address}
                                     onChange={(e) => handleInputChange('address', e.target.value)}
                                     placeholder="Enter your complete address"
@@ -531,7 +616,7 @@ export default function CheckoutPage() {
                                     <Label className='text-xs mb-1'>City *</Label>
                                     <Input 
                                         className='w-full' 
-                                        disabled={!isEditingAddress} 
+                                        disabled={!isEditingAddress || !!orderData} 
                                         value={customerDetails.city}
                                         onChange={(e) => handleInputChange('city', e.target.value)}
                                         placeholder="e.g., Lagos"
@@ -539,13 +624,22 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>State *</Label>
-                                    <Input 
-                                        className='w-full' 
-                                        disabled={!isEditingAddress} 
+                                    <Select 
+                                        disabled={!isEditingAddress || !!orderData}
                                         value={customerDetails.state}
-                                        onChange={(e) => handleInputChange('state', e.target.value)}
-                                        placeholder="e.g., Lagos State"
-                                    />
+                                        onValueChange={(value) => handleInputChange('state', value)}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select state" />
+                                        </SelectTrigger>
+                                        <SelectContent className="max-h-[200px]">
+                                            {nigerianStates.map((state) => (
+                                                <SelectItem key={state} value={state}>
+                                                    {state}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
 
@@ -554,7 +648,7 @@ export default function CheckoutPage() {
                                     <Label className='text-xs mb-1'>Post Code *</Label>
                                     <Input 
                                         className='w-full' 
-                                        disabled={!isEditingAddress} 
+                                        disabled={!isEditingAddress || !!orderData} 
                                         value={customerDetails.post_code}
                                         onChange={(e) => handleInputChange('post_code', e.target.value)}
                                         placeholder="e.g., 100001"
@@ -563,7 +657,7 @@ export default function CheckoutPage() {
                                 <div className='w-full'>
                                     <Label className='text-xs mb-1'>Country *</Label>
                                     <Select 
-                                        disabled={!isEditingAddress}
+                                        disabled={!isEditingAddress || !!orderData}
                                         value={customerDetails.country}
                                         onValueChange={(value) => handleInputChange('country', value)}
                                     >
@@ -605,7 +699,7 @@ export default function CheckoutPage() {
                                 <div className='relative'>
                                     <textarea
                                         className='w-full min-h-[100px] px-3 py-2 text-sm border border-[#E0E0E0] rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#4FCA6A] focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed'
-                                        disabled={!isEditingDelivery}
+                                        disabled={!isEditingDelivery || !!orderData}
                                         value={deliveryNotes}
                                         onChange={handleNotesChange}
                                         placeholder="Add any special instructions for delivery (e.g., Call me when you arrive, Leave at the gate, etc.)"
