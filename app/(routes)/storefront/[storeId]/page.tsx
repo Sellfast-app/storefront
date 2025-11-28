@@ -458,10 +458,10 @@ function Page() {
                                                 className='object-cover w-full h-45 rounded-t-2xl' 
                                             />
                                             <p className='text-xs mt-2 px-2 line-clamp-2'>{product.product_name}</p>
-                                            <div className='flex items-center justify-between mt-2 px-2 pb-3'>
+                                            <div className='flex flex-col md:flex-row items-center justify-between mt-2 px-2 pb-3'>
                                                 <span className='text-sm font-semibold'>₦{product.product_price.toLocaleString()}</span>
                                                 <Button 
-                                                    className='text-xs' 
+                                                    className='text-xs w-full md:w-[50%]' 
                                                     onClick={(e) => handleAddToCart(e, product)}
                                                 >
                                                     Add to Cart
