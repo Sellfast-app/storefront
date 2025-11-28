@@ -480,7 +480,7 @@ function Page() {
                     </CardContent>
                   </Card>
                   
-                  <Card className='mt-4 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
+                  {/* <Card className='mt-4 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                     <CardHeader className='border-b border-[#F5F5F5] dark:border-[#1F1F1F] flex flex-row items-center justify-between'>
                       <h3 className='font-semibold'>Customer Feedback</h3>
                       <Button className='text-[#4FCA6A] p-0 h-auto' variant={"link"}>See all</Button>
@@ -530,7 +530,7 @@ function Page() {
                         ))}
                       </div>
                     </CardContent>
-                  </Card>
+                  </Card> */}
                 </div>
               </div>
             </>
