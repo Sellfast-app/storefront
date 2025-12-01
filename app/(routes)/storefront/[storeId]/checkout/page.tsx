@@ -19,6 +19,7 @@ import { useParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
 import StateRegionSelect from '@/components/stateRegionSelect'; // ← Your reusable component
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 // Country to code mapping (ISO 3166-1 alpha-2)
 const countryToCode: Record<string, string> = {
@@ -89,6 +90,7 @@ export default function CheckoutPage() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [orderData, setOrderData] = useState<OrderData | null>(null);
+  const [deliveryMethod, setDeliveryMethod] = useState<'sendbox' | 'pickup'>('sendbox');
 
   const [customerDetails, setCustomerDetails] = useState({
     name: '',
@@ -170,6 +172,7 @@ export default function CheckoutPage() {
         total_amount: itemsTotal,
         total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
         payment_method: "paystack",
+        delivery_method: deliveryMethod, // Add this line
         customer_info: {
           name: customerDetails.name,
           email: customerDetails.email,
@@ -182,17 +185,19 @@ export default function CheckoutPage() {
         },
         notes: deliveryNotes || "No delivery notes provided"
       };
-
+  
+      console.log('📦 Order payload with delivery method:', orderPayload); // For debugging
+  
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderPayload)
       });
-
+  
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || `Failed to create order: ${response.status}`);
       if (result.status !== 'success') throw new Error(result.message || 'Order creation failed');
-
+  
       return result;
     } catch (error) {
       console.error('Order creation error:', error);
@@ -256,6 +261,42 @@ export default function CheckoutPage() {
     }
   };
 
+  const DeliveryMethodSection = () => (
+    <div className='mb-6'>
+      <Label className='text-xs mb-3 block'>Delivery Method *</Label>
+      <RadioGroup 
+        value={deliveryMethod} 
+        onValueChange={(value: 'sendbox' | 'pickup') => setDeliveryMethod(value)}
+        className="space-y-3"
+        disabled={!!orderData}
+      >
+        <div className="flex items-center space-x-2">
+          <RadioGroupItem value="sendbox" id="sendbox" />
+          <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
+            Door Delivery
+          </Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <RadioGroupItem value="pickup" id="pickup" />
+          <Label htmlFor="pickup" className="text-sm font-normal cursor-pointer">
+            Pick Up
+          </Label>
+        </div>
+      </RadioGroup>
+      
+      {/* Delivery method descriptions */}
+      {deliveryMethod === 'sendbox' && (
+        <p className="text-xs text-[#A0A0A0] mt-2">
+          Your order will be delivered to your specified address
+        </p>
+      )}
+      {deliveryMethod === 'pickup' && (
+        <p className="text-xs text-[#A0A0A0] mt-2">
+          You&apos;ll pick up your order from the store location
+        </p>
+      )}
+    </div>
+  );
   return (
     <div className='flex flex-col bg-[#FCFCFC]'>
       {/* Header */}
@@ -435,6 +476,7 @@ export default function CheckoutPage() {
             </CardHeader>
 
             <CardContent className='pt-6'>
+            <DeliveryMethodSection />
               <div className='mb-4'>
                 <Label className='text-xs mb-1'>Delivery Notes (Optional)</Label>
                 <div className='relative'>
