@@ -78,6 +78,7 @@ interface OrderData {
   platformFee: number;
   totalAmount: number;
   paymentUrl: string;
+  paymentReference?: string; 
 }
 
 export default function CheckoutPage() {
@@ -205,61 +206,78 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleConfirmOrder = async () => {
-    if (!validateCheckout()) return;
-    setIsProcessingOrder(true);
-    try {
-      const orderResult = await createOrder();
-      const orderDetails = orderResult.data?.order;
-      const paymentDetails = orderResult.data?.payment;
+ // In your handleConfirmOrder function, update this section:
+const handleConfirmOrder = async () => {
+  if (!validateCheckout()) return;
+  setIsProcessingOrder(true);
+  try {
+    const orderResult = await createOrder();
+    const orderDetails = orderResult.data?.order;
+    const paymentDetails = orderResult.data?.payment;
+    const transactionDetails = orderResult.data?.transaction; // Get transaction details
 
-      if (orderDetails && paymentDetails) {
-        const deliveryFee = Number(orderDetails.delivery_fee) || 0;
-        const paystackAmount = Number(paymentDetails.total_paid) || Number(orderDetails.order_total);
+    if (orderDetails && paymentDetails) {
+      const deliveryFee = Number(orderDetails.delivery_fee) || 0;
+      const paystackAmount = Number(paymentDetails.total_paid) || Number(orderDetails.order_total);
 
-        const newOrderData: OrderData = {
-          orderId: orderDetails.id,
-          orderNumber: orderDetails.order_number,
-          itemsTotal,
-          deliveryFee,
-          totalAmount: paystackAmount,
-          paymentUrl: paymentDetails.authorization_url,
-          platformFee: Number(orderDetails.platform_fee)
-        };
+      const newOrderData: OrderData = {
+        orderId: orderDetails.id,
+        orderNumber: orderDetails.order_number,
+        itemsTotal,
+        deliveryFee,
+        totalAmount: paystackAmount,
+        paymentUrl: paymentDetails.authorization_url,
+        platformFee: Number(orderDetails.platform_fee)
+      };
 
-        setOrderData(newOrderData);
-        localStorage.setItem('pending_order', JSON.stringify({
-          orderId: orderDetails.order_number,
-          customerDetails,
-          cart,
-          total: paystackAmount,
-          deliveryNotes,
-          orderData: orderResult
-        }));
-
-        toast.success("Order created! Review the total including delivery and fees.");
-      } else {
-        throw new Error('Order details not found in response');
+      setOrderData(newOrderData);
+      
+      // Store order data with payment reference
+      const paymentReference = transactionDetails?.reference || paymentDetails.reference;
+      
+      localStorage.setItem('pending_order', JSON.stringify({
+        orderId: orderDetails.order_number,
+        customerDetails,
+        cart,
+        total: paystackAmount,
+        deliveryNotes,
+        orderData: orderResult,
+        paymentReference: paymentReference // Store payment reference
+      }));
+      
+      // ⭐⭐⭐ CRITICAL: Store store ID for use after payment ⭐⭐⭐
+      localStorage.setItem('current_store_id', storeId);
+      
+      // Also store payment reference separately for easy access
+      if (paymentReference) {
+        localStorage.setItem('payment_reference', paymentReference);
       }
-    } catch (error) {
-      toast.error(`Order Creation Failed - ${error instanceof Error ? error.message : "Please try again."}`);
-    } finally {
-      setIsProcessingOrder(false);
-    }
-  };
 
-  const handleProceedToPayment = async () => {
-    if (!orderData?.paymentUrl) return;
-    setIsProcessingPayment(true);
-    try {
-      toast.success("Redirecting to payment...");
-      window.location.href = orderData.paymentUrl;
-    } catch (error) {
-      toast.error("Failed to redirect to payment.");
-    } finally {
-      setIsProcessingPayment(false);
+      toast.success("Order created! Review the total including delivery and fees.");
+    } else {
+      throw new Error('Order details not found in response');
     }
-  };
+  } catch (error) {
+    toast.error(`Order Creation Failed - ${error instanceof Error ? error.message : "Please try again."}`);
+  } finally {
+    setIsProcessingOrder(false);
+  }
+};
+
+const handleProceedToPayment = async () => {
+  if (!orderData?.paymentUrl) return;
+  setIsProcessingPayment(true);
+  try {
+    localStorage.setItem('current_store_id', storeId);
+    
+    toast.success("Redirecting to payment...");
+    window.location.href = orderData.paymentUrl;
+  } catch (error) {
+    toast.error("Failed to redirect to payment.");
+  } finally {
+    setIsProcessingPayment(false);
+  }
+};
 
   const DeliveryMethodSection = () => (
     <div className='mb-6'>
