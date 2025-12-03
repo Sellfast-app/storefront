@@ -1,18 +1,17 @@
-// app/api/tracking/[code]/route.ts
+// app/api/tracking/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL = "https://api.swiftree.app";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ code: string }> } // params is now a Promise
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { code } = await params; // Await the params
+    // Extract code from query parameters
+    const searchParams = request.nextUrl.searchParams;
+    const code = searchParams.get('code');
 
     if (!code) {
       return NextResponse.json(
-        { status: "error", message: "Tracking code is required" },
+        { status: "error", message: "Tracking code is required. Use ?code=YOUR_TRACKING_CODE" },
         { status: 400 }
       );
     }
@@ -61,9 +60,9 @@ export async function GET(
     console.log('✅ Tracking data retrieved successfully');
     return NextResponse.json(result);
 
-  }// eslint-disable-next-line @typescript-eslint/no-explicit-any 
+  } // eslint-disable-next-line @typescript-eslint/no-explicit-any 
   catch (error: any) {
-    console.error("Error fetching tracking info:", error);
+    console.error("❌ Error fetching tracking info:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error" },
       { status: 500 }

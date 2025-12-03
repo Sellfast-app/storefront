@@ -60,7 +60,8 @@ const TrackingPage = () => {
     setError('');
     
     try {
-      const response = await fetch(`/api/tracking/${code}`);
+      // Updated to use query parameter instead of path parameter
+      const response = await fetch(`/api/tracking?code=${encodeURIComponent(code)}`);
       const result = await response.json();
 
       if (!response.ok || result.status !== 'success') {
@@ -131,14 +132,14 @@ const TrackingPage = () => {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-lg font-bold text-foreground">Track Your Order</h1>
-          <p className="text-muted-foreground text-sm">Enter your tracking code to see real-time updates</p>
+          <h1 className="text-3xl font-bold text-foreground">Track Your Order</h1>
+          <p className="text-muted-foreground">Enter your tracking code to see real-time updates</p>
         </div>
 
         {/* Search Form */}
         <Card className="shadow-lg">
           <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-2">
+            <div className="flex gap-2">
               <Input
                 type="text"
                 placeholder="Enter tracking code (e.g., 0016517549)"
