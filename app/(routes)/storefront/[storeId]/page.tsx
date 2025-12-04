@@ -193,7 +193,7 @@ function Page() {
         if (result.status === "success" && result.data) {
           setStoreDetails(result.data.storeDetails);
           setStoreReviews(result.data.reviews.reviews || []);
-          setListings(result.data.listings || 0);
+          setListings(result.data.total_listings || 0);
           setRatings(result.data.ratings || 0);
         } else {
           throw new Error(result.message || "Failed to load store details");
