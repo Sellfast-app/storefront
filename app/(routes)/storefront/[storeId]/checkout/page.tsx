@@ -13,13 +13,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
-import StateRegionSelect from '@/components/stateRegionSelect'; // ← Your reusable component
+import StateRegionSelect from '@/components/stateRegionSelect';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { InfoIcon } from 'lucide-react';
 
 // Country to code mapping (ISO 3166-1 alpha-2)
 const countryToCode: Record<string, string> = {
@@ -106,10 +108,19 @@ export default function CheckoutPage() {
 
   const { cart, getCartTotal } = useCart();
   const isSearchingOnMobile = searchQuery.trim() !== '';
+  const isNigeria = customerDetails.country === 'NG';
 
   const itemsTotal = getCartTotal();
   const deliveryFee = orderData?.deliveryFee || 0;
   const total = orderData ? orderData.totalAmount : itemsTotal;
+
+  // Auto-set pickup for non-Nigeria countries
+  useEffect(() => {
+    if (!isNigeria && deliveryMethod === 'sendbox') {
+      setDeliveryMethod('pickup');
+      toast.info("Delivery method changed to Pickup for international orders");
+    }
+  }, [customerDetails.country, isNigeria, deliveryMethod]);
 
   const handleEditAddress = () => setIsEditingAddress(true);
   const handleSaveAddress = () => setIsEditingAddress(false);
@@ -173,7 +184,7 @@ export default function CheckoutPage() {
         total_amount: itemsTotal,
         total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
         payment_method: "paystack",
-        delivery_method: deliveryMethod, // Add this line
+        delivery_method: deliveryMethod,
         customer_info: {
           name: customerDetails.name,
           email: customerDetails.email,
@@ -187,7 +198,7 @@ export default function CheckoutPage() {
         notes: deliveryNotes || "No delivery notes provided"
       };
   
-      console.log('📦 Order payload with delivery method:', orderPayload); // For debugging
+      console.log('📦 Order payload with delivery method:', orderPayload);
   
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -206,115 +217,132 @@ export default function CheckoutPage() {
     }
   };
 
- // In your handleConfirmOrder function, update this section:
-const handleConfirmOrder = async () => {
-  if (!validateCheckout()) return;
-  setIsProcessingOrder(true);
-  try {
-    const orderResult = await createOrder();
-    const orderDetails = orderResult.data?.order;
-    const paymentDetails = orderResult.data?.payment;
-    const transactionDetails = orderResult.data?.transaction; // Get transaction details
+  const handleConfirmOrder = async () => {
+    if (!validateCheckout()) return;
+    setIsProcessingOrder(true);
+    try {
+      const orderResult = await createOrder();
+      const orderDetails = orderResult.data?.order;
+      const paymentDetails = orderResult.data?.payment;
+      const transactionDetails = orderResult.data?.transaction;
 
-    if (orderDetails && paymentDetails) {
-      const deliveryFee = Number(orderDetails.delivery_fee) || 0;
-      const paystackAmount = Number(paymentDetails.total_paid) || Number(orderDetails.order_total);
+      if (orderDetails && paymentDetails) {
+        const deliveryFee = Number(orderDetails.delivery_fee) || 0;
+        const paystackAmount = Number(paymentDetails.total_paid) || Number(orderDetails.order_total);
 
-      const newOrderData: OrderData = {
-        orderId: orderDetails.id,
-        orderNumber: orderDetails.order_number,
-        itemsTotal,
-        deliveryFee,
-        totalAmount: paystackAmount,
-        paymentUrl: paymentDetails.authorization_url,
-        platformFee: Number(orderDetails.platform_fee)
-      };
+        const newOrderData: OrderData = {
+          orderId: orderDetails.id,
+          orderNumber: orderDetails.order_number,
+          itemsTotal,
+          deliveryFee,
+          totalAmount: paystackAmount,
+          paymentUrl: paymentDetails.authorization_url,
+          platformFee: Number(orderDetails.platform_fee)
+        };
 
-      setOrderData(newOrderData);
-      
-      // Store order data with payment reference
-      const paymentReference = transactionDetails?.reference || paymentDetails.reference;
-      
-      localStorage.setItem('pending_order', JSON.stringify({
-        orderId: orderDetails.order_number,
-        customerDetails,
-        cart,
-        total: paystackAmount,
-        deliveryNotes,
-        orderData: orderResult,
-        paymentReference: paymentReference // Store payment reference
-      }));
-      
-      // ⭐⭐⭐ CRITICAL: Store store ID for use after payment ⭐⭐⭐
+        setOrderData(newOrderData);
+        
+        const paymentReference = transactionDetails?.reference || paymentDetails.reference;
+        
+        localStorage.setItem('pending_order', JSON.stringify({
+          orderId: orderDetails.order_number,
+          customerDetails,
+          cart,
+          total: paystackAmount,
+          deliveryNotes,
+          orderData: orderResult,
+          paymentReference: paymentReference
+        }));
+        
+        localStorage.setItem('current_store_id', storeId);
+        
+        if (paymentReference) {
+          localStorage.setItem('payment_reference', paymentReference);
+        }
+
+        toast.success("Order created! Review the total including delivery and fees.");
+      } else {
+        throw new Error('Order details not found in response');
+      }
+    } catch (error) {
+      toast.error(`Order Creation Failed - ${error instanceof Error ? error.message : "Please try again."}`);
+    } finally {
+      setIsProcessingOrder(false);
+    }
+  };
+
+  const handleProceedToPayment = async () => {
+    if (!orderData?.paymentUrl) return;
+    setIsProcessingPayment(true);
+    try {
       localStorage.setItem('current_store_id', storeId);
       
-      // Also store payment reference separately for easy access
-      if (paymentReference) {
-        localStorage.setItem('payment_reference', paymentReference);
-      }
-
-      toast.success("Order created! Review the total including delivery and fees.");
-    } else {
-      throw new Error('Order details not found in response');
+      toast.success("Redirecting to payment...");
+      window.location.href = orderData.paymentUrl;
+    } catch (error) {
+      toast.error("Failed to redirect to payment.");
+    } finally {
+      setIsProcessingPayment(false);
     }
-  } catch (error) {
-    toast.error(`Order Creation Failed - ${error instanceof Error ? error.message : "Please try again."}`);
-  } finally {
-    setIsProcessingOrder(false);
-  }
-};
-
-const handleProceedToPayment = async () => {
-  if (!orderData?.paymentUrl) return;
-  setIsProcessingPayment(true);
-  try {
-    localStorage.setItem('current_store_id', storeId);
-    
-    toast.success("Redirecting to payment...");
-    window.location.href = orderData.paymentUrl;
-  } catch (error) {
-    toast.error("Failed to redirect to payment.");
-  } finally {
-    setIsProcessingPayment(false);
-  }
-};
+  };
 
   const DeliveryMethodSection = () => (
     <div className='mb-6'>
       <Label className='text-xs mb-3 block'>Delivery Method *</Label>
+      
+      {/* International Order Disclaimer */}
+      {!isNigeria && (
+        <Alert className="mb-4 border-blue-200 bg-blue-50">
+          <InfoIcon className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-sm text-blue-800">
+            <strong>International Order Notice:</strong> For orders outside Nigeria, pickup is the only available delivery method. 
+            Delivery arrangements and instructions will be sent to your email address after payment confirmation.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <RadioGroup 
         value={deliveryMethod} 
         onValueChange={(value: 'sendbox' | 'pickup') => setDeliveryMethod(value)}
         className="space-y-3"
         disabled={!!orderData}
       >
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="sendbox" id="sendbox" />
-          <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
-            Door Delivery
-          </Label>
-        </div>
+        {/* Door Delivery - Only for Nigeria */}
+        {isNigeria && (
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="sendbox" id="sendbox" />
+            <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
+              Door Delivery
+            </Label>
+          </div>
+        )}
+        
+        {/* Pickup - Available for all countries */}
         <div className="flex items-center space-x-2">
           <RadioGroupItem value="pickup" id="pickup" />
           <Label htmlFor="pickup" className="text-sm font-normal cursor-pointer">
-            Pick Up
+            Pick Up {!isNigeria && <span className="text-blue-600">(International Orders)</span>}
           </Label>
         </div>
       </RadioGroup>
       
       {/* Delivery method descriptions */}
-      {deliveryMethod === 'sendbox' && (
+      {deliveryMethod === 'sendbox' && isNigeria && (
         <p className="text-xs text-[#A0A0A0] mt-2">
-          Your order will be delivered to your specified address
+          Your order will be delivered to your specified address within Nigeria
         </p>
       )}
       {deliveryMethod === 'pickup' && (
         <p className="text-xs text-[#A0A0A0] mt-2">
-          You&apos;ll pick up your order from the store location
+          {isNigeria 
+            ? "You'll pick up your order from the store location"
+            : "Pickup and delivery instructions will be sent to your email after payment"
+          }
         </p>
       )}
     </div>
   );
+
   return (
     <div className='flex flex-col bg-[#FCFCFC]'>
       {/* Header */}
@@ -494,7 +522,7 @@ const handleProceedToPayment = async () => {
             </CardHeader>
 
             <CardContent className='pt-6'>
-            <DeliveryMethodSection />
+              <DeliveryMethodSection />
               <div className='mb-4'>
                 <Label className='text-xs mb-1'>Delivery Notes (Optional)</Label>
                 <div className='relative'>
@@ -520,8 +548,15 @@ const handleProceedToPayment = async () => {
                       <span className='text-xs text-[#A0A0A0]'>Fulfilled By Vendor</span>
                     </div>
                     <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
-                      <p className='text-sm font-medium'>Door Delivery</p>
-                      <span className='text-xs text-[#A0A0A0]'>Delivery between 13 October and 16 October</span>
+                      <p className='text-sm font-medium'>
+                        {isNigeria && deliveryMethod === 'sendbox' ? 'Door Delivery' : 'Pick Up'}
+                      </p>
+                      <span className='text-xs text-[#A0A0A0]'>
+                        {isNigeria 
+                          ? 'Delivery between 13 October and 16 October'
+                          : 'Delivery details will be sent to your email'
+                        }
+                      </span>
                       <div className='flex gap-3 mt-3'>
                         <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg' />
                         <div className='flex flex-col justify-between'>
