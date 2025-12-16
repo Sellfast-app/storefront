@@ -308,14 +308,14 @@ export default function CheckoutPage() {
         disabled={!!orderData}
       >
         {/* Door Delivery - Only for Nigeria */}
-        {isNigeria && (
+        {/* {isNigeria && (
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="sendbox" id="sendbox" />
             <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
               Door Delivery
             </Label>
           </div>
-        )}
+        )} */}
         
         {/* Pickup - Available for all countries */}
         <div className="flex items-center space-x-2">
@@ -329,7 +329,7 @@ export default function CheckoutPage() {
       {/* Delivery method descriptions */}
       {deliveryMethod === 'sendbox' && isNigeria && (
         <p className="text-xs text-[#A0A0A0] mt-2">
-          Your order will be delivered to your specified address within Nigeria
+          {/* Your order will be delivered to your specified address within Nigeria */}
         </p>
       )}
       {deliveryMethod === 'pickup' && (
