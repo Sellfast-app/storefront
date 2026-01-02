@@ -418,7 +418,7 @@ const handleProceedToPayment = async () => {
                 <Input type='email' disabled={!isEditingAddress || !!orderData} value={customerDetails.email}
                   onChange={e => handleInputChange('email', e.target.value)} placeholder="your@email.com" />
               </div>
-{/* happy new year */}
+
               <div>
                 <Label className='text-xs mb-1'>Phone Number *</Label>
                 <Input type='tel' disabled={!isEditingAddress || !!orderData} value={customerDetails.phone}
