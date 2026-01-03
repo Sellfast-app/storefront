@@ -412,7 +412,7 @@ const handleProceedToPayment = async () => {
                 <Input disabled={!isEditingAddress || !!orderData} value={customerDetails.name}
                   onChange={e => handleInputChange('name', e.target.value)} placeholder="Enter your full name" />
               </div>
-
+{/*  */}
               <div>
                 <Label className='text-xs mb-1'>Email *</Label>
                 <Input type='email' disabled={!isEditingAddress || !!orderData} value={customerDetails.email}
