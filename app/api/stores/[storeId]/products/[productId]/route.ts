@@ -12,7 +12,7 @@ export async function GET(
   try {
     // Fetch all products and find the specific one
     const response = await fetch(
-      `${API_BASE_URL}/api/products/store/global/${storeId}?page=1&pageSize=100&status=ready`,
+      `${API_BASE_URL}/api/products/store/global/${storeId}?page=1&pageSize=100`,
       {
         method: 'GET',
         headers: {
