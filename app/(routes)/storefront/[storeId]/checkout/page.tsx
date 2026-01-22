@@ -521,7 +521,7 @@ const handleProceedToPayment = async () => {
                     </div>
                     <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
                       <p className='text-sm font-medium'>Door Delivery</p>
-                      <span className='text-xs text-[#A0A0A0]'>Delivery between 13 October and 16 October</span>
+                      {/* <span className='text-xs text-[#A0A0A0]'>Delivery between 13 October and 16 October</span> */}
                       <div className='flex gap-3 mt-3'>
                         <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg' />
                         <div className='flex flex-col justify-between'>
