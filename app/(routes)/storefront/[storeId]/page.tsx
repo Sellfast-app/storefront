@@ -37,11 +37,22 @@ interface StoreDetails {
   doctype: string | null;
   cert_media: string | null;
   metadata: {
+    city: string;
+    phone: string;
+    state: string;
+    bot_qr: string;
+    address: string;
+    country: string;
+    latitude: number;
+    longitude: number;
+    post_code: string;
+    owner_name: string;
     brand_color: {
       accent: string;
       primary: string;
       secondary: string;
     };
+    address_line_2: string;
   };
   updated_at: string;
   subaccount_code: string | null;
@@ -92,8 +103,8 @@ const StarRating = ({ rating }: { rating: number }) => {
             star <= fullStars
               ? "#FEA436"
               : star === fullStars + 1 && hasHalfStar
-              ? "url(#half)"
-              : "#FFE0BA"
+                ? "url(#half)"
+                : "#FFE0BA"
           }
           xmlns="http://www.w3.org/2000/svg"
         >
@@ -296,6 +307,25 @@ function Page() {
     );
   }
 
+  // Add this function with your other helper functions
+  const getWhatsAppUrl = (phoneNumber: string): string => {
+    // Clean the phone number: remove spaces, dashes, parentheses, etc.
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+
+    // If it starts with '0', replace with country code for Nigeria (234)
+    let formattedPhone = cleanPhone;
+    if (formattedPhone.startsWith('0')) {
+      formattedPhone = '234' + formattedPhone.substring(1);
+    }
+
+    // If it doesn't start with a country code, assume it's Nigerian and add 234
+    if (!formattedPhone.startsWith('234') && !formattedPhone.startsWith('+')) {
+      formattedPhone = '234' + formattedPhone;
+    }
+
+    return `https://wa.me/${formattedPhone}`;
+  };
+
   // Error state
   if (error || !storeDetails) {
     return (
@@ -319,9 +349,8 @@ function Page() {
     <div className="flex flex-col bg-[#FCFCFC]">
       {/* Mobile Search Header */}
       <div
-        className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${
-          isSearchingOnMobile ? "block" : "block"
-        }`}
+        className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${isSearchingOnMobile ? "block" : "block"
+          }`}
       >
         <div className="flex items-center justify-between">
           <Logo />
@@ -345,9 +374,8 @@ function Page() {
       <div className="p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden">
         {/* Left Side - Profile Section OR Cart View */}
         <div
-          className={`w-full md:w-[45%] md:overflow-y-auto md:h-full md:block ${
-            isSearchingOnMobile ? "hidden" : "block"
-          }`}
+          className={`w-full md:w-[45%] md:overflow-y-auto md:h-full md:block ${isSearchingOnMobile ? "hidden" : "block"
+            }`}
         >
           {showCart ? (
             <CartView />
@@ -420,24 +448,31 @@ function Page() {
                 </div>
               </div>
               <div className="flex flex-row md:flex-col justify-center md:justify-normal mt-6 gap-4">
-                <div className="flex items-center gap-3">
+                {/* <div className="flex items-center gap-3">
                   <FacebookIcon />{" "}
                   <span className="rounded-full bg-[#F5F5F5] text-sm p-2 hidden md:block">
                     www.facebook.com
                   </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <WhatsappIcon />{" "}
-                  <span className="rounded-full bg-[#F5F5F5] text-sm p-2 hidden md:block">
-                    wa.me/chat.whatsapp.com
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
+                </div> */}
+                {storeDetails?.metadata?.phone && (
+                  <a
+                    href={getWhatsAppUrl(storeDetails.metadata.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                  >
+                    <WhatsappIcon />{" "}
+                    <span className="rounded-full bg-[#F5F5F5] text-sm p-2 hidden md:block">
+                      {storeDetails.metadata.phone}
+                    </span>
+                  </a>
+                )}
+                {/* <div className="flex items-center gap-3">
                   <InstagramIcon />{" "}
                   <span className="rounded-full bg-[#F5F5F5] text-sm p-2 hidden md:block">
                     www.instagram.com
                   </span>
-                </div>
+                </div> */}
               </div>
 
               {/* Reviews Section - Visible on desktop */}
