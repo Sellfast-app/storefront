@@ -1,7 +1,7 @@
 // app/storefront/[storeId]/product/[id]/page.tsx
 "use client";
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Banner from '@/public/Banner.png'
 import Image from 'next/image'
@@ -110,7 +110,7 @@ function Page() {
   const params = useParams()
   const storeId = params.storeId as string
   const productId = params.id as string
-  
+
   const { addToCart, cart } = useCart()
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -123,6 +123,7 @@ function Page() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [thumbsSwiper, setThumbsSwiper] = useState<any>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Fetch single product
   useEffect(() => {
@@ -134,19 +135,19 @@ function Page() {
 
       try {
         const response = await fetch(`/api/stores/${storeId}/products/${productId}`)
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch product')
         }
 
         const result = await response.json()
-        
+
         if (result.status === 'success' && result.data) {
           setProduct(result.data)
         } else {
           throw new Error('Product not found')
         }
-        
+
       } catch (err) {
         console.error('Error fetching product:', err)
         setError(err instanceof Error ? err.message : 'Product not found')
@@ -173,19 +174,19 @@ function Page() {
         })
 
         const response = await fetch(`/api/stores/${storeId}/products?${queryParams.toString()}`)
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch related products')
         }
 
         const result = await response.json()
-        
+
         if (result.status === 'success' && result.data) {
           // Filter out the current product
           const filtered = result.data.items.filter((p: Product) => p.id !== productId)
           setRelatedProducts(filtered.slice(0, 6))
         }
-        
+
       } catch (err) {
         console.error('Error fetching related products:', err)
       } finally {
@@ -195,6 +196,19 @@ function Page() {
 
     fetchRelatedProducts()
   }, [storeId, productId])
+
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (thumbsSwiper && thumbsSwiper.destroy) {
+        thumbsSwiper.destroy(true, true);
+      }
+    };
+  }, [showCart, thumbsSwiper]);
 
   const filteredProducts = relatedProducts.filter(p =>
     p.product_name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -251,7 +265,7 @@ function Page() {
       e.preventDefault()
       e.stopPropagation()
     }
-    
+
     const productToAdd = prod || product
     if (productToAdd) {
       const cartProduct = {
@@ -261,10 +275,10 @@ function Page() {
         image: productToAdd.product_images[0] || Banner,
         description: productToAdd.product_description,
       }
-      
+
       // Add to cart with quantity 1 (if not already in cart)
       addToCart(cartProduct, 1)
-      
+
       console.log('🛒 Added to cart:', cartProduct)
     }
   }
@@ -273,7 +287,7 @@ function Page() {
   const handleRelatedProductAddToCart = (e: React.MouseEvent, prod: Product) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     const cartProduct = {
       id: prod.id,
       name: prod.product_name,
@@ -281,15 +295,20 @@ function Page() {
       image: prod.product_images[0] || Banner,
       description: prod.product_description,
     }
-    
+
     addToCart(cartProduct, 1)
-    
+
     console.log('🛒 Added related product to cart:', cartProduct)
   }
 
   const toggleCart = () => {
-    setShowCart(!showCart)
-  }
+    setShowCart(!showCart);
+
+    // Scroll to top when opening cart on mobile
+    if (!showCart && window.innerWidth < 768) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Loading state
   if (isLoading) {
@@ -339,7 +358,7 @@ function Page() {
           </div>
         </div>
       </div>
-      
+
       <div className='p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden'>
         <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full md:block ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
           {showCart ? (
@@ -347,75 +366,76 @@ function Page() {
           ) : (
             <>
               {/* Product Images Swiper */}
-              <div className='mb-6'>
-                {/* Main Image Swiper */}
-                <Swiper
-                  modules={[Navigation, Pagination, Thumbs]}
-                  spaceBetween={10}
-                  navigation={true}
-                  pagination={{ 
-                    clickable: true,
-                    type: product.product_images.length > 1 ? 'bullets' : 'fraction'
-                  }}
-                  thumbs={{ swiper: thumbsSwiper }}
-                  onSlideChange={(swiper) => setActiveImageIndex(swiper.activeIndex)}
-                  className="w-full h-auto mb-4 rounded-lg"
-                >
-                  {product.product_images.map((image, index) => (
-                    <SwiperSlide key={index}>
-                      <div className="relative w-full h-80 md:h-96">
-                        <Image
-                          src={image || Banner}
-                          alt={`${product.product_name} - Image ${index + 1}`}
-                          fill
-                          className="object-cover rounded-lg"
-                          priority={index === 0}
-                        />
-                      </div>
-                    </SwiperSlide>
-                  ))}
-                </Swiper>
-
-                {/* Thumbnail Swiper */}
-                {product.product_images.length > 1 && (
+              {isMounted && (
+                <div className='mb-6'>
+                  {/* Main Image Swiper */}
                   <Swiper
-                    modules={[Thumbs]}
-                    watchSlidesProgress
-                    onSwiper={setThumbsSwiper}
-                    spaceBetween={8}
-                    slidesPerView={4}
-                    freeMode={true}
-                    className="w-full thumbs-swiper"
+                    modules={[Navigation, Pagination, Thumbs]}
+                    spaceBetween={10}
+                    navigation={true}
+                    pagination={{
+                      clickable: true,
+                      type: product.product_images.length > 1 ? 'bullets' : 'fraction'
+                    }}
+                    thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
+                    onSlideChange={(swiper) => setActiveImageIndex(swiper.activeIndex)}
+                    className="w-full h-auto mb-4 rounded-lg"
                   >
                     {product.product_images.map((image, index) => (
                       <SwiperSlide key={index}>
-                        <div 
-                          className={`relative w-full h-20 cursor-pointer border-2 rounded-lg transition-all ${
-                            activeImageIndex === index 
-                              ? 'border-[#4FCA6A]' 
-                              : 'border-transparent'
-                          }`}
-                        >
+                        <div className="relative w-full h-80 md:h-96">
                           <Image
                             src={image || Banner}
-                            alt={`${product.product_name} - Thumbnail ${index + 1}`}
+                            alt={`${product.product_name} - Image ${index + 1}`}
                             fill
                             className="object-cover rounded-lg"
+                            priority={index === 0}
                           />
                         </div>
                       </SwiperSlide>
                     ))}
                   </Swiper>
-                )}
-              </div>
-              
+
+                  {/* Thumbnail Swiper */}
+                  {product.product_images.length > 1 && (
+                    <Swiper
+                      modules={[Thumbs]}
+                      watchSlidesProgress
+                      onSwiper={setThumbsSwiper}
+                      spaceBetween={8}
+                      slidesPerView={4}
+                      freeMode={true}
+                      className="w-full thumbs-swiper"
+                    >
+                      {product.product_images.map((image, index) => (
+                        <SwiperSlide key={index}>
+                          <div
+                            className={`relative w-full h-20 cursor-pointer border-2 rounded-lg transition-all ${activeImageIndex === index
+                                ? 'border-[#4FCA6A]'
+                                : 'border-transparent'
+                              }`}
+                          >
+                            <Image
+                              src={image || Banner}
+                              alt={`${product.product_name} - Thumbnail ${index + 1}`}
+                              fill
+                              className="object-cover rounded-lg"
+                            />
+                          </div>
+                        </SwiperSlide>
+                      ))}
+                    </Swiper>
+                  )}
+                </div>
+              )}
+
               <div className='mt-6'>
                 <span className='text-lg font-medium'>{product.product_name}</span>
                 <div className='flex items-center justify-between mt-2'>
                   <h3 className='font-semibold text-xl'>₦{product.product_price.toLocaleString()}</h3>
                   <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
-                    <button 
-                      onClick={incrementQuantity} 
+                    <button
+                      onClick={incrementQuantity}
                       className='p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed'
                     >
                       <PlusIcon className='w-4 h-4' />
@@ -423,8 +443,8 @@ function Page() {
                     <span className='px-4 bg-card h-full flex items-center'>
                       {currentQuantity}
                     </span>
-                    <button 
-                      onClick={decrementQuantity} 
+                    <button
+                      onClick={decrementQuantity}
                       className='p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed'
                       disabled={currentQuantity === 0}
                     >
@@ -432,27 +452,27 @@ function Page() {
                     </button>
                   </div>
                 </div>
-                
+
                 <div className='flex justify-between items-center mt-6'>
                   <div className='text-xs text-[#4FCA6A]'>SKU: {product.product_sku}</div>
                   <div className='text-xs'>Est. {product.est_prod_days_from}-{product.est_prod_days_to} days</div>
                 </div>
-                
+
                 <div className='mt-4'>
                   <Card className='mt-4 shadow-none border border-[#F5F5F5] dark:border-[#1F1F1F]'>
                     <CardContent className='flex flex-col gap-4 pt-6'>
-                    
+
                       <div className='flex justify-between'>
                         <div className=''>
                           <span className='text-xs text-gray-500'>Total Price:</span>
                           <h3 className='text-xl font-bold'>₦{totalPrice.toLocaleString()}</h3>
                         </div>
-                        <Button 
-                          className='' 
+                        <Button
+                          className=''
                           onClick={() => handleAddToCart()}
                           disabled={currentQuantity > 0}
                         >
-                          <CartIcon /> 
+                          <CartIcon />
                           {currentQuantity > 0 ? 'In Cart' : 'Add to Cart'}
                         </Button>
                       </div>
@@ -463,7 +483,7 @@ function Page() {
                       )}
                     </CardContent>
                   </Card>
-                  
+
                   {/* Rest of the product details and reviews sections remain the same */}
                   <Card className='mt-4 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                     <CardHeader className='border-b border-[#F5F5F5] dark:border-[#1F1F1F] text-sm font-semibold'>
@@ -479,7 +499,7 @@ function Page() {
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   {/* <Card className='mt-4 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
                     <CardHeader className='border-b border-[#F5F5F5] dark:border-[#1F1F1F] flex flex-row items-center justify-between'>
                       <h3 className='font-semibold'>Customer Feedback</h3>
@@ -536,7 +556,7 @@ function Page() {
             </>
           )}
         </div>
-        
+
         {/* Right side with related products remains the same */}
         <div className='w-full md:w-[55%] md:overflow-y-auto md:h-full'>
           <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-[#FCFCFC] z-10 pb-4'>
@@ -575,8 +595,8 @@ function Page() {
                       <p className='text-xs mt-2 px-2 line-clamp-2'>{prod.product_name}</p>
                       <div className='flex items-center justify-between mt-2 px-2 pb-3'>
                         <span className='text-sm font-semibold'>₦{prod.product_price.toLocaleString()}</span>
-                        <Button 
-                          className='text-xs' 
+                        <Button
+                          className='text-xs'
                           onClick={(e) => handleRelatedProductAddToCart(e, prod)}
                         >
                           Add to Cart

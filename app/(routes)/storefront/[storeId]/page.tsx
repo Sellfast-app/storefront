@@ -284,6 +284,11 @@ function Page() {
 
   const toggleCart = () => {
     setShowCart(!showCart);
+    
+    // Scroll to top when opening cart on mobile
+    if (!showCart && window.innerWidth < 768) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // Get logo and banner URLs
