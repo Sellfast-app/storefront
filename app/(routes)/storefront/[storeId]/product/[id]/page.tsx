@@ -32,6 +32,12 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import 'swiper/css/thumbs';
 
+interface ProductVariant {
+  size: string;
+  quantity: number;
+  color: string;
+}
+
 interface Product {
   id: string;
   store_id: string;
@@ -124,6 +130,9 @@ function Page() {
   const [thumbsSwiper, setThumbsSwiper] = useState<any>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [parsedVariants, setParsedVariants] = useState<ProductVariant[]>([]);
+
 
   // Fetch single product
   useEffect(() => {
@@ -210,6 +219,31 @@ function Page() {
     };
   }, [showCart, thumbsSwiper]);
 
+  useEffect(() => {
+    if (product && product.variants) {
+      try {
+        const variants = typeof product.variants === 'string'
+          ? JSON.parse(product.variants)
+          : product.variants;
+
+        if (Array.isArray(variants) && variants.length > 0) {
+          setParsedVariants(variants);
+          // Auto-select first variant
+          setSelectedVariant(variants[0]);
+        } else {
+          setParsedVariants([]);
+          setSelectedVariant(null);
+        }
+      } catch (error) {
+        console.error('Error parsing variants:', error);
+        setParsedVariants([]);
+        setSelectedVariant(null);
+      }
+    }
+  }, [product]);
+
+  const hasVariants = parsedVariants.length > 0;
+
   const filteredProducts = relatedProducts.filter(p =>
     p.product_name.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -268,20 +302,38 @@ function Page() {
 
     const productToAdd = prod || product
     if (productToAdd) {
+      // Check if product has variants and if one is selected
+      if (hasVariants && !selectedVariant) {
+        console.warn('Please select a variant first');
+        return;
+      }
+
+      // Check variant stock
+      if (hasVariants && selectedVariant && selectedVariant.quantity === 0) {
+        console.warn('Selected variant is out of stock');
+        return;
+      }
+
       const cartProduct = {
         id: productToAdd.id,
         name: productToAdd.product_name,
         price: productToAdd.product_price,
         image: productToAdd.product_images[0] || Banner,
         description: productToAdd.product_description,
+        // Add variant info if exists
+        ...(hasVariants && selectedVariant && {
+          variant: {
+            size: selectedVariant.size,
+            color: selectedVariant.color
+          }
+        })
       }
 
-      // Add to cart with quantity 1 (if not already in cart)
       addToCart(cartProduct, 1)
-
       console.log('🛒 Added to cart:', cartProduct)
     }
   }
+
 
   // Handle related product add to cart (always quantity 1 like in storefront)
   const handleRelatedProductAddToCart = (e: React.MouseEvent, prod: Product) => {
@@ -411,8 +463,8 @@ function Page() {
                         <SwiperSlide key={index}>
                           <div
                             className={`relative w-full h-20 cursor-pointer border-2 rounded-lg transition-all ${activeImageIndex === index
-                                ? 'border-[#4FCA6A]'
-                                : 'border-transparent'
+                              ? 'border-[#4FCA6A]'
+                              : 'border-transparent'
                               }`}
                           >
                             <Image
@@ -430,32 +482,104 @@ function Page() {
               )}
 
               <div className='mt-6'>
-                <span className='text-lg font-medium'>{product.product_name}</span>
-                <div className='flex items-center justify-between mt-2'>
-                  <h3 className='font-semibold text-xl'>₦{product.product_price.toLocaleString()}</h3>
-                  <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
-                    <button
-                      onClick={incrementQuantity}
-                      className='p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed'
-                    >
-                      <PlusIcon className='w-4 h-4' />
-                    </button>
-                    <span className='px-4 bg-card h-full flex items-center'>
-                      {currentQuantity}
-                    </span>
-                    <button
-                      onClick={decrementQuantity}
-                      className='p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed'
-                      disabled={currentQuantity === 0}
-                    >
-                      <MinusIcon className='w-4 h-4' />
-                    </button>
-                  </div>
-                </div>
 
-                <div className='flex justify-between items-center mt-6'>
-                  <div className='text-xs text-[#4FCA6A]'>SKU: {product.product_sku}</div>
-                  <div className='text-xs'>Est. {product.est_prod_days_from}-{product.est_prod_days_to} days</div>
+                <div className='mt-6'>
+                  <span className='text-lg font-medium'>{product.product_name}</span>
+
+                  <div className='flex items-center justify-between mt-2'>
+                    <h3 className='font-semibold text-xl'>₦{product.product_price.toLocaleString()}</h3>
+                    <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
+                      <button
+                        onClick={incrementQuantity}
+                        className='p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed'
+                      >
+                        <PlusIcon className='w-4 h-4' />
+                      </button>
+                      <span className='px-4 bg-card h-full flex items-center'>
+                        {currentQuantity}
+                      </span>
+                      <button
+                        onClick={decrementQuantity}
+                        className='p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed'
+                        disabled={currentQuantity === 0}
+                      >
+                        <MinusIcon className='w-4 h-4' />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* VARIANT SELECTOR - NEW SECTION */}
+                  {hasVariants && (
+                    <div className='mt-6'>
+                      <h4 className='text-sm font-semibold mb-3'>Select Variant</h4>
+
+                      {/* Size Selector */}
+                      <div className='mb-4'>
+                        <label className='text-xs text-gray-500 mb-2 block'>Size</label>
+                        <div className='flex flex-wrap gap-2'>
+                          {parsedVariants.map((variant, index) => (
+                            <button
+                              key={index}
+                              onClick={() => setSelectedVariant(variant)}
+                              disabled={variant.quantity === 0}
+                              className={`
+                px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all
+                ${selectedVariant === variant
+                                  ? 'border-[#4FCA6A] bg-[#4FCA6A]/10 text-[#4FCA6A]'
+                                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                                }
+                ${variant.quantity === 0
+                                  ? 'opacity-50 cursor-not-allowed line-through'
+                                  : 'cursor-pointer'
+                                }
+              `}
+                            >
+                              {variant.size}
+                              {variant.quantity === 0 && (
+                                <span className='ml-1 text-xs'>(Out of Stock)</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Color Display */}
+                      {selectedVariant && (
+                        <div className='mb-4'>
+                          <label className='text-xs text-gray-500 mb-2 block'>Color</label>
+                          <div className='flex items-center gap-3'>
+                            <div
+                              className='w-10 h-10 rounded-lg border-2 border-gray-200 dark:border-gray-700'
+                              style={{ backgroundColor: selectedVariant.color }}
+                            />
+                            <div className='flex flex-col'>
+                              <span className='text-sm font-medium'>{selectedVariant.color}</span>
+                              <span className='text-xs text-gray-500'>
+                                {selectedVariant.quantity > 0
+                                  ? `${selectedVariant.quantity} available`
+                                  : 'Out of stock'
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Variant Stock Warning */}
+                      {selectedVariant && selectedVariant.quantity === 0 && (
+                        <div className='mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg'>
+                          <p className='text-xs text-red-600 dark:text-red-400'>
+                            ⚠️ This variant is currently out of stock. Please select another size.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className='flex justify-between items-center mt-6'>
+                    <div className='text-xs text-[#4FCA6A]'>SKU: {product.product_sku}</div>
+                    <div className='text-xs'>Est. {product.est_prod_days_from}-{product.est_prod_days_to} days</div>
+                  </div>
                 </div>
 
                 <div className='mt-4'>
@@ -470,15 +594,24 @@ function Page() {
                         <Button
                           className=''
                           onClick={() => handleAddToCart()}
-                          disabled={currentQuantity > 0}
+                          disabled={currentQuantity > 0 || (hasVariants && (!selectedVariant || selectedVariant.quantity === 0))}
                         >
                           <CartIcon />
-                          {currentQuantity > 0 ? 'In Cart' : 'Add to Cart'}
+                          {currentQuantity > 0
+                            ? 'In Cart'
+                            : (hasVariants && (!selectedVariant || selectedVariant.quantity === 0))
+                              ? 'Unavailable'
+                              : 'Add to Cart'
+                          }
                         </Button>
                       </div>
                       {currentQuantity > 0 && (
                         <div className='text-xs text-green-600 text-center'>
-                          ✓ {currentQuantity} item{currentQuantity > 1 ? 's' : ''} in cart • Use +/- to adjust quantity
+                          ✓ {currentQuantity} item{currentQuantity > 1 ? 's' : ''} in cart
+                          {hasVariants && selectedVariant && (
+                            <span> • Size: {selectedVariant.size} • Color: {selectedVariant.color}</span>
+                          )}
+                          {' '}• Use +/- to adjust quantity
                         </div>
                       )}
                     </CardContent>
