@@ -18,7 +18,7 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
-import StateRegionSelect from '@/components/stateRegionSelect'; // ← Your reusable component
+import StateRegionSelect from '@/components/stateRegionSelect';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 // Country to code mapping (ISO 3166-1 alpha-2)
@@ -70,6 +70,60 @@ const countryToCode: Record<string, string> = {
   "Zambia": "ZM", "Zimbabwe": "ZW"
 };
 
+// Phone dial codes with flags
+const PHONE_CODES = [
+  { code: 'NG', dial: '+234', flag: '🇳🇬', name: 'Nigeria' },
+  { code: 'GH', dial: '+233', flag: '🇬🇭', name: 'Ghana' },
+  { code: 'KE', dial: '+254', flag: '🇰🇪', name: 'Kenya' },
+  { code: 'ZA', dial: '+27',  flag: '🇿🇦', name: 'South Africa' },
+  { code: 'ET', dial: '+251', flag: '🇪🇹', name: 'Ethiopia' },
+  { code: 'TZ', dial: '+255', flag: '🇹🇿', name: 'Tanzania' },
+  { code: 'UG', dial: '+256', flag: '🇺🇬', name: 'Uganda' },
+  { code: 'RW', dial: '+250', flag: '🇷🇼', name: 'Rwanda' },
+  { code: 'SN', dial: '+221', flag: '🇸🇳', name: 'Senegal' },
+  { code: 'CM', dial: '+237', flag: '🇨🇲', name: 'Cameroon' },
+  { code: 'CI', dial: '+225', flag: '🇨🇮', name: "Côte d'Ivoire" },
+  { code: 'ZM', dial: '+260', flag: '🇿🇲', name: 'Zambia' },
+  { code: 'ZW', dial: '+263', flag: '🇿🇼', name: 'Zimbabwe' },
+  { code: 'EG', dial: '+20',  flag: '🇪🇬', name: 'Egypt' },
+  { code: 'US', dial: '+1',   flag: '🇺🇸', name: 'United States' },
+  { code: 'CA', dial: '+1',   flag: '🇨🇦', name: 'Canada' },
+  { code: 'GB', dial: '+44',  flag: '🇬🇧', name: 'United Kingdom' },
+  { code: 'AU', dial: '+61',  flag: '🇦🇺', name: 'Australia' },
+  { code: 'NZ', dial: '+64',  flag: '🇳🇿', name: 'New Zealand' },
+  { code: 'DE', dial: '+49',  flag: '🇩🇪', name: 'Germany' },
+  { code: 'FR', dial: '+33',  flag: '🇫🇷', name: 'France' },
+  { code: 'IT', dial: '+39',  flag: '🇮🇹', name: 'Italy' },
+  { code: 'ES', dial: '+34',  flag: '🇪🇸', name: 'Spain' },
+  { code: 'NL', dial: '+31',  flag: '🇳🇱', name: 'Netherlands' },
+  { code: 'SE', dial: '+46',  flag: '🇸🇪', name: 'Sweden' },
+  { code: 'NO', dial: '+47',  flag: '🇳🇴', name: 'Norway' },
+  { code: 'DK', dial: '+45',  flag: '🇩🇰', name: 'Denmark' },
+  { code: 'FI', dial: '+358', flag: '🇫🇮', name: 'Finland' },
+  { code: 'CH', dial: '+41',  flag: '🇨🇭', name: 'Switzerland' },
+  { code: 'PL', dial: '+48',  flag: '🇵🇱', name: 'Poland' },
+  { code: 'RO', dial: '+40',  flag: '🇷🇴', name: 'Romania' },
+  { code: 'UA', dial: '+380', flag: '🇺🇦', name: 'Ukraine' },
+  { code: 'TR', dial: '+90',  flag: '🇹🇷', name: 'Turkey' },
+  { code: 'IN', dial: '+91',  flag: '🇮🇳', name: 'India' },
+  { code: 'PK', dial: '+92',  flag: '🇵🇰', name: 'Pakistan' },
+  { code: 'BD', dial: '+880', flag: '🇧🇩', name: 'Bangladesh' },
+  { code: 'CN', dial: '+86',  flag: '🇨🇳', name: 'China' },
+  { code: 'JP', dial: '+81',  flag: '🇯🇵', name: 'Japan' },
+  { code: 'SG', dial: '+65',  flag: '🇸🇬', name: 'Singapore' },
+  { code: 'MY', dial: '+60',  flag: '🇲🇾', name: 'Malaysia' },
+  { code: 'ID', dial: '+62',  flag: '🇮🇩', name: 'Indonesia' },
+  { code: 'PH', dial: '+63',  flag: '🇵🇭', name: 'Philippines' },
+  { code: 'AE', dial: '+971', flag: '🇦🇪', name: 'UAE' },
+  { code: 'SA', dial: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+  { code: 'QA', dial: '+974', flag: '🇶🇦', name: 'Qatar' },
+  { code: 'BR', dial: '+55',  flag: '🇧🇷', name: 'Brazil' },
+  { code: 'MX', dial: '+52',  flag: '🇲🇽', name: 'Mexico' },
+  { code: 'AR', dial: '+54',  flag: '🇦🇷', name: 'Argentina' },
+  { code: 'CO', dial: '+57',  flag: '🇨🇴', name: 'Colombia' },
+  { code: 'IR', dial: '+98',  flag: '🇮🇷', name: 'Iran' },
+];
+
 interface OrderData {
   orderId: string;
   orderNumber: string;
@@ -78,7 +132,7 @@ interface OrderData {
   platformFee: number;
   totalAmount: number;
   paymentUrl: string;
-  paymentReference?: string; 
+  paymentReference?: string;
 }
 
 export default function CheckoutPage() {
@@ -92,6 +146,7 @@ export default function CheckoutPage() {
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [orderData, setOrderData] = useState<OrderData | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<'sendbox' | 'pickup'>('sendbox');
+  const [phoneDialCode, setPhoneDialCode] = useState('+234'); // Default Nigeria
 
   const [customerDetails, setCustomerDetails] = useState({
     name: '',
@@ -101,7 +156,7 @@ export default function CheckoutPage() {
     city: '',
     state: '',
     post_code: '',
-    country: 'NG' // Default to Nigeria
+    country: 'NG'
   });
 
   const { cart, getCartTotal } = useCart();
@@ -113,21 +168,15 @@ export default function CheckoutPage() {
 
   const handleEditAddress = () => setIsEditingAddress(true);
   const handleSaveAddress = () => setIsEditingAddress(false);
-  const handleCancelEdit = () => {
-    setIsEditingAddress(false);
-  };
-
+  const handleCancelEdit = () => setIsEditingAddress(false);
   const handleEditDelivery = () => setIsEditingDelivery(true);
   const handleSaveDelivery = () => setIsEditingDelivery(false);
   const handleCancelDeliveryEdit = () => setIsEditingDelivery(false);
 
-  // Updated handler: clears state when country changes
   const handleInputChange = (field: keyof typeof customerDetails, value: string) => {
     setCustomerDetails(prev => {
       const updated = { ...prev, [field]: value };
-      if (field === 'country') {
-        updated.state = ''; // Reset state when country changes
-      }
+      if (field === 'country') updated.state = '';
       return updated;
     });
   };
@@ -143,7 +192,7 @@ export default function CheckoutPage() {
       toast.error("Invalid Email - Please enter a valid email address");
       return false;
     }
-    if (customerDetails.phone.length < 10) {
+    if (customerDetails.phone.length < 7) {
       toast.error("Invalid Phone - Please enter a valid phone number");
       return false;
     }
@@ -173,11 +222,11 @@ export default function CheckoutPage() {
         total_amount: itemsTotal,
         total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
         payment_method: "paystack",
-        delivery_method: deliveryMethod, // Add this line
+        delivery_method: deliveryMethod,
         customer_info: {
           name: customerDetails.name,
           email: customerDetails.email,
-          phone: customerDetails.phone,
+          phone: `${phoneDialCode}${customerDetails.phone}`, // ← Combined dial code + number
           address: customerDetails.address,
           city: customerDetails.city,
           state: customerDetails.state,
@@ -186,19 +235,17 @@ export default function CheckoutPage() {
         },
         notes: deliveryNotes || "No delivery notes provided"
       };
-  
-      console.log('📦 Order payload with delivery method:', orderPayload); // For debugging
-  
+
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderPayload)
       });
-  
+
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || `Failed to create order: ${response.status}`);
       if (result.status !== 'success') throw new Error(result.message || 'Order creation failed');
-  
+
       return result;
     } catch (error) {
       console.error('Order creation error:', error);
@@ -206,118 +253,104 @@ export default function CheckoutPage() {
     }
   };
 
- // In your handleConfirmOrder function, update this section:
-const handleConfirmOrder = async () => {
-  if (!validateCheckout()) return;
-  setIsProcessingOrder(true);
-  try {
-    const orderResult = await createOrder();
-    const orderDetails = orderResult.data?.order;
-    const paymentDetails = orderResult.data?.payment;
-    const transactionDetails = orderResult.data?.transaction; // Get transaction details
+  const handleConfirmOrder = async () => {
+    if (!validateCheckout()) return;
+    setIsProcessingOrder(true);
+    try {
+      const orderResult = await createOrder();
+      const orderDetails = orderResult.data?.order;
+      const paymentDetails = orderResult.data?.payment;
+      const transactionDetails = orderResult.data?.transaction;
 
-    if (orderDetails && paymentDetails) {
-      const deliveryFee = Number(orderDetails.delivery_fee) || 0;
-      const paystackAmount = Number(paymentDetails.total_paid) || Number(orderDetails.order_total);
+      if (orderDetails && paymentDetails) {
+        const deliveryFee = Number(orderDetails.delivery_fee) || 0;
+        const paystackAmount = Number(paymentDetails.total_paid) || Number(orderDetails.order_total);
 
-      const newOrderData: OrderData = {
-        orderId: orderDetails.id,
-        orderNumber: orderDetails.order_number,
-        itemsTotal,
-        deliveryFee,
-        totalAmount: paystackAmount,
-        paymentUrl: paymentDetails.authorization_url,
-        platformFee: Number(orderDetails.platform_fee)
-      };
+        const newOrderData: OrderData = {
+          orderId: orderDetails.id,
+          orderNumber: orderDetails.order_number,
+          itemsTotal,
+          deliveryFee,
+          totalAmount: paystackAmount,
+          paymentUrl: paymentDetails.authorization_url,
+          platformFee: Number(orderDetails.platform_fee)
+        };
 
-      setOrderData(newOrderData);
-      
-      // Store order data with payment reference
-      const paymentReference = transactionDetails?.reference || paymentDetails.reference;
-      
-      localStorage.setItem('pending_order', JSON.stringify({
-        orderId: orderDetails.order_number,
-        customerDetails,
-        cart,
-        total: paystackAmount,
-        deliveryNotes,
-        orderData: orderResult,
-        paymentReference: paymentReference // Store payment reference
-      }));
-      
-      // ⭐⭐⭐ CRITICAL: Store store ID for use after payment ⭐⭐⭐
-      localStorage.setItem('current_store_id', storeId);
-      
-      // Also store payment reference separately for easy access
-      if (paymentReference) {
-        localStorage.setItem('payment_reference', paymentReference);
+        setOrderData(newOrderData);
+
+        const paymentReference = transactionDetails?.reference || paymentDetails.reference;
+
+        localStorage.setItem('pending_order', JSON.stringify({
+          orderId: orderDetails.order_number,
+          customerDetails: {
+            ...customerDetails,
+            phone: `${phoneDialCode}${customerDetails.phone}`
+          },
+          cart,
+          total: paystackAmount,
+          deliveryNotes,
+          orderData: orderResult,
+          paymentReference
+        }));
+
+        localStorage.setItem('current_store_id', storeId);
+        if (paymentReference) localStorage.setItem('payment_reference', paymentReference);
+
+        toast.success("Order created! Review the total including delivery and fees.");
+      } else {
+        throw new Error('Order details not found in response');
       }
-
-      toast.success("Order created! Review the total including delivery and fees.");
-    } else {
-      throw new Error('Order details not found in response');
+    } catch (error) {
+      toast.error(`Order Creation Failed - ${error instanceof Error ? error.message : "Please try again."}`);
+    } finally {
+      setIsProcessingOrder(false);
     }
-  } catch (error) {
-    toast.error(`Order Creation Failed - ${error instanceof Error ? error.message : "Please try again."}`);
-  } finally {
-    setIsProcessingOrder(false);
-  }
-};
+  };
 
-const handleProceedToPayment = async () => {
-  if (!orderData?.paymentUrl) return;
-  setIsProcessingPayment(true);
-  try {
-    localStorage.setItem('current_store_id', storeId);
-    
-    toast.success("Redirecting to payment...");
-    window.location.href = orderData.paymentUrl;
-  } catch (error) {
-    toast.error("Failed to redirect to payment.");
-  } finally {
-    setIsProcessingPayment(false);
-  }
-};
+  const handleProceedToPayment = async () => {
+    if (!orderData?.paymentUrl) return;
+    setIsProcessingPayment(true);
+    try {
+      localStorage.setItem('current_store_id', storeId);
+      toast.success("Redirecting to payment...");
+      window.location.href = orderData.paymentUrl;
+    } catch (error) {
+      toast.error("Failed to redirect to payment.");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
 
   const DeliveryMethodSection = () => (
     <div className='mb-6'>
       <Label className='text-xs mb-3 block'>Delivery Method *</Label>
-      <RadioGroup 
-        value={deliveryMethod} 
+      <RadioGroup
+        value={deliveryMethod}
         onValueChange={(value: 'sendbox' | 'pickup') => setDeliveryMethod(value)}
         className="space-y-3"
         disabled={!!orderData}
       >
         <div className="flex items-center space-x-2">
           <RadioGroupItem value="sendbox" id="sendbox" />
-          <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
-            Door Delivery
-          </Label>
+          <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">Door Delivery</Label>
         </div>
         <div className="flex items-center space-x-2">
           <RadioGroupItem value="pickup" id="pickup" />
-          <Label htmlFor="pickup" className="text-sm font-normal cursor-pointer">
-            Pick Up
-          </Label>
+          <Label htmlFor="pickup" className="text-sm font-normal cursor-pointer">Pick Up</Label>
         </div>
       </RadioGroup>
-      
-      {/* Delivery method descriptions */}
       {deliveryMethod === 'sendbox' && (
-        <p className="text-xs text-[#A0A0A0] mt-2">
-          Your order will be delivered to your specified address
-        </p>
+        <p className="text-xs text-[#A0A0A0] mt-2">Your order will be delivered to your specified address</p>
       )}
       {deliveryMethod === 'pickup' && (
-        <p className="text-xs text-[#A0A0A0] mt-2">
-          You&apos;ll pick up your order from the store location
-        </p>
+        <p className="text-xs text-[#A0A0A0] mt-2">You&apos;ll pick up your order from the store location</p>
       )}
     </div>
   );
+
   return (
     <div className='flex flex-col bg-[#FCFCFC]'>
-      {/* Header */}
+      {/* Mobile Header */}
       <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10`}>
         <div className='flex items-center justify-between'>
           <Link href={`/storefront/${storeId}`}><Logo /></Link>
@@ -335,27 +368,23 @@ const handleProceedToPayment = async () => {
                 <span className='text-sm'>Item&apos;s total ({cart.length})</span>
                 <span className='text-sm'>₦{itemsTotal.toLocaleString()}</span>
               </div>
-
               {orderData && (
                 <div className='flex items-center justify-between'>
                   <span className='text-sm'>Delivery Fee</span>
                   <span className='text-sm'>₦{deliveryFee.toLocaleString()}</span>
                 </div>
               )}
-
               {orderData && (
                 <div className='flex items-center justify-between text-xs text-gray-500'>
                   <span>Platform fee & processing fees</span>
                   <span>Included</span>
                 </div>
               )}
-
               <div className='flex items-center justify-between border-t pt-2'>
                 <span className='text-sm font-semibold'>Total Amount</span>
                 <h4 className='font-bold'>₦{total.toLocaleString()}</h4>
               </div>
             </CardContent>
-
             <CardFooter className='pt-4'>
               {!orderData ? (
                 <Button
@@ -407,38 +436,90 @@ const handleProceedToPayment = async () => {
             </CardHeader>
 
             <CardContent className='pt-6 space-y-4'>
+              {/* Full Name */}
               <div>
                 <Label className='text-xs mb-1'>Full Name *</Label>
-                <Input disabled={!isEditingAddress || !!orderData} value={customerDetails.name}
-                  onChange={e => handleInputChange('name', e.target.value)} placeholder="Enter your full name" />
+                <Input
+                  disabled={!isEditingAddress || !!orderData}
+                  value={customerDetails.name}
+                  onChange={e => handleInputChange('name', e.target.value)}
+                  placeholder="Enter your full name"
+                />
               </div>
-{/*  */}
+
+              {/* Email */}
               <div>
                 <Label className='text-xs mb-1'>Email *</Label>
-                <Input type='email' disabled={!isEditingAddress || !!orderData} value={customerDetails.email}
-                  onChange={e => handleInputChange('email', e.target.value)} placeholder="your@email.com" />
+                <Input
+                  type='email'
+                  disabled={!isEditingAddress || !!orderData}
+                  value={customerDetails.email}
+                  onChange={e => handleInputChange('email', e.target.value)}
+                  placeholder="your@email.com"
+                />
               </div>
 
+              {/* Phone Number with Dial Code */}
               <div>
                 <Label className='text-xs mb-1'>Phone Number *</Label>
-                <Input type='tel' disabled={!isEditingAddress || !!orderData} value={customerDetails.phone}
-                  onChange={e => handleInputChange('phone', e.target.value)} placeholder="+2348012345678" />
+                <div className="flex">
+                  <Select
+                    value={phoneDialCode}
+                    onValueChange={setPhoneDialCode}
+                    disabled={!isEditingAddress || !!orderData}
+                  >
+                    <SelectTrigger className="w-[120px] rounded-r-none border-r-0 focus:ring-0 flex-shrink-0">
+                      <SelectValue>
+                        <span className="flex items-center gap-1.5">
+                          <span>{PHONE_CODES.find(c => c.dial === phoneDialCode)?.flag ?? '🏳'}</span>
+                          <span className="text-xs font-mono">{phoneDialCode}</span>
+                        </span>
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[260px]">
+                      {PHONE_CODES.map((country, index) => (
+                        <SelectItem key={`${country.code}-${index}`} value={country.dial}>
+                          <span className="flex items-center gap-2">
+                            <span>{country.flag}</span>
+                            <span className="text-xs text-muted-foreground font-mono w-10 flex-shrink-0">{country.dial}</span>
+                            <span className="text-sm">{country.name}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="tel"
+                    disabled={!isEditingAddress || !!orderData}
+                    value={customerDetails.phone}
+                    onChange={e => handleInputChange('phone', e.target.value)}
+                    placeholder="8012345678"
+                    className="rounded-l-none flex-1"
+                  />
+                </div>
               </div>
 
+              {/* Delivery Address */}
               <div>
                 <Label className='text-xs mb-1'>Delivery Address *</Label>
-                <Input disabled={!isEditingAddress || !!orderData} value={customerDetails.address}
-                  onChange={e => handleInputChange('address', e.target.value)} placeholder="Enter your complete address" />
+                <Input
+                  disabled={!isEditingAddress || !!orderData}
+                  value={customerDetails.address}
+                  onChange={e => handleInputChange('address', e.target.value)}
+                  placeholder="Enter your complete address"
+                />
               </div>
 
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <div>
                   <Label className='text-xs mb-1'>City *</Label>
-                  <Input disabled={!isEditingAddress || !!orderData} value={customerDetails.city}
-                    onChange={e => handleInputChange('city', e.target.value)} placeholder="e.g., Lagos" />
+                  <Input
+                    disabled={!isEditingAddress || !!orderData}
+                    value={customerDetails.city}
+                    onChange={e => handleInputChange('city', e.target.value)}
+                    placeholder="e.g., Lagos"
+                  />
                 </div>
-
-                {/* Dynamic State / Region Field */}
                 <div>
                   <StateRegionSelect
                     countryCode={customerDetails.country}
@@ -452,10 +533,13 @@ const handleProceedToPayment = async () => {
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <div>
                   <Label className='text-xs mb-1'>Post Code *</Label>
-                  <Input disabled={!isEditingAddress || !!orderData} value={customerDetails.post_code}
-                    onChange={e => handleInputChange('post_code', e.target.value)} placeholder="e.g., 100001" />
+                  <Input
+                    disabled={!isEditingAddress || !!orderData}
+                    value={customerDetails.post_code}
+                    onChange={e => handleInputChange('post_code', e.target.value)}
+                    placeholder="e.g., 100001"
+                  />
                 </div>
-
                 <div>
                   <Label className='text-xs mb-1'>Country *</Label>
                   <Select
@@ -494,7 +578,7 @@ const handleProceedToPayment = async () => {
             </CardHeader>
 
             <CardContent className='pt-6'>
-            <DeliveryMethodSection />
+              <DeliveryMethodSection />
               <div className='mb-4'>
                 <Label className='text-xs mb-1'>Delivery Notes (Optional)</Label>
                 <div className='relative'>
@@ -521,9 +605,14 @@ const handleProceedToPayment = async () => {
                     </div>
                     <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
                       <p className='text-sm font-medium'>Door Delivery</p>
-                      {/* <span className='text-xs text-[#A0A0A0]'>Delivery between 13 October and 16 October</span> */}
                       <div className='flex gap-3 mt-3'>
-                        <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg' />
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          width={50}
+                          height={50}
+                          className='object-cover w-12 h-12 rounded-lg'
+                        />
                         <div className='flex flex-col justify-between'>
                           <p className='text-sm line-clamp-2'>{item.name}</p>
                           <div className='flex items-center gap-2'>
