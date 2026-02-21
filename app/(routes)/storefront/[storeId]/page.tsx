@@ -152,7 +152,7 @@ const getImageUrl = (imagePath: string | null): string | null => {
 
   // If it's a relative path, construct absolute URL using your API base URL
   const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.swiftree.app";
+    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
   return `${API_BASE_URL}${imagePath}`;
 };
 

@@ -1,7 +1,7 @@
 // app/api/payments/verify/server/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-const API_BASE_URL = "https://api.swiftree.app";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const INTERNAL_SECRET = process.env.SWIFTREE_INTERNAL_SECRET;
 
 export async function POST(request: NextRequest) {
