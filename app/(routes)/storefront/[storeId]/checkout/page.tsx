@@ -13,13 +13,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
 import StateRegionSelect from '@/components/stateRegionSelect';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Loader2 } from 'lucide-react';
 
 // Country to code mapping (ISO 3166-1 alpha-2)
 const countryToCode: Record<string, string> = {
@@ -145,8 +146,10 @@ export default function CheckoutPage() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [orderData, setOrderData] = useState<OrderData | null>(null);
-  const [deliveryMethod, setDeliveryMethod] = useState<'sendbox' | 'pickup'>('sendbox');
-  const [phoneDialCode, setPhoneDialCode] = useState('+234'); // Default Nigeria
+  const [deliveryMethod, setDeliveryMethod] = useState<'sendbox' | 'pickup' | 'vendor'>('sendbox');
+  const [phoneDialCode, setPhoneDialCode] = useState('+234');
+  const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
+  const [isLoadingModes, setIsLoadingModes] = useState(true);
 
   const [customerDetails, setCustomerDetails] = useState({
     name: '',
@@ -165,6 +168,56 @@ export default function CheckoutPage() {
   const itemsTotal = getCartTotal();
   const deliveryFee = orderData?.deliveryFee || 0;
   const total = orderData ? orderData.totalAmount : itemsTotal;
+
+  // Fetch store's enabled fulfillment modes
+  useEffect(() => {
+    const fetchStoreFulfillmentModes = async () => {
+      try {
+        setIsLoadingModes(true);
+        console.log('🔄 Fetching store fulfillment modes for:', storeId);
+
+        const response = await fetch(`/api/stores/${storeId}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch store details');
+        }
+
+        const result = await response.json();
+        console.log('📦 Store API response:', result);
+
+        if (result.status === 'success' && result.data?.storeDetails) {
+          const modes = result.data.storeDetails.enabled_fulfillment_modes || [];
+          setEnabledFulfillmentModes(modes);
+          
+          console.log('✅ Enabled fulfillment modes:', modes);
+
+          // Set default delivery method based on enabled modes
+          if (modes.length > 0) {
+            // Priority: platform > pickup > vendor
+            if (modes.includes('platform')) {
+              setDeliveryMethod('sendbox'); // platform maps to sendbox
+            } else if (modes.includes('pickup')) {
+              setDeliveryMethod('pickup');
+            } else if (modes.includes('vendor')) {
+              setDeliveryMethod('vendor');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error fetching store fulfillment modes:', error);
+        toast.error('Failed to load delivery options');
+        // Fallback to default modes
+        setEnabledFulfillmentModes(['pickup', 'platform']);
+        setDeliveryMethod('sendbox');
+      } finally {
+        setIsLoadingModes(false);
+      }
+    };
+
+    if (storeId) {
+      fetchStoreFulfillmentModes();
+    }
+  }, [storeId]);
 
   const handleEditAddress = () => setIsEditingAddress(true);
   const handleSaveAddress = () => setIsEditingAddress(false);
@@ -222,11 +275,11 @@ export default function CheckoutPage() {
         total_amount: itemsTotal,
         total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
         payment_method: "paystack",
-        delivery_method: deliveryMethod,
+        delivery_method: deliveryMethod, // Will be 'sendbox', 'pickup', or 'vendor'
         customer_info: {
           name: customerDetails.name,
           email: customerDetails.email,
-          phone: `${phoneDialCode}${customerDetails.phone}`, // ← Combined dial code + number
+          phone: `${phoneDialCode}${customerDetails.phone}`,
           address: customerDetails.address,
           city: customerDetails.city,
           state: customerDetails.state,
@@ -235,6 +288,8 @@ export default function CheckoutPage() {
         },
         notes: deliveryNotes || "No delivery notes provided"
       };
+
+      console.log('📦 Creating order with delivery_method:', deliveryMethod);
 
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -321,32 +376,90 @@ export default function CheckoutPage() {
     }
   };
 
-  const DeliveryMethodSection = () => (
-    <div className='mb-6'>
-      <Label className='text-xs mb-3 block'>Delivery Method *</Label>
-      <RadioGroup
-        value={deliveryMethod}
-        onValueChange={(value: 'sendbox' | 'pickup') => setDeliveryMethod(value)}
-        className="space-y-3"
-        disabled={!!orderData}
-      >
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="sendbox" id="sendbox" />
-          <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">Door Delivery</Label>
+  const DeliveryMethodSection = () => {
+    if (isLoadingModes) {
+      return (
+        <div className='mb-6'>
+          <Label className='text-xs mb-3 block'>Delivery Method *</Label>
+          <div className='flex items-center justify-center py-8'>
+            <Loader2 className='w-6 h-6 animate-spin text-primary' />
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <RadioGroupItem value="pickup" id="pickup" />
-          <Label htmlFor="pickup" className="text-sm font-normal cursor-pointer">Pick Up</Label>
+      );
+    }
+
+    if (enabledFulfillmentModes.length === 0) {
+      return (
+        <div className='mb-6'>
+          <Label className='text-xs mb-3 block'>Delivery Method *</Label>
+          <div className='p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg'>
+            <p className='text-sm text-red-600 dark:text-red-400'>
+              No delivery methods are currently available for this store.
+            </p>
+          </div>
         </div>
-      </RadioGroup>
-      {deliveryMethod === 'sendbox' && (
-        <p className="text-xs text-[#A0A0A0] mt-2">Your order will be delivered to your specified address</p>
-      )}
-      {deliveryMethod === 'pickup' && (
-        <p className="text-xs text-[#A0A0A0] mt-2">You&apos;ll pick up your order from the store location</p>
-      )}
-    </div>
-  );
+      );
+    }
+
+    return (
+      <div className='mb-6'>
+        <Label className='text-xs mb-3 block'>Delivery Method *</Label>
+        <RadioGroup
+          value={deliveryMethod}
+          onValueChange={(value: 'sendbox' | 'pickup' | 'vendor') => setDeliveryMethod(value)}
+          className="space-y-3"
+          disabled={!!orderData}
+        >
+          {/* Platform Delivery (shows as Door Delivery) */}
+          {enabledFulfillmentModes.includes('platform') && (
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="sendbox" id="sendbox" />
+              <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
+                Door Delivery
+              </Label>
+            </div>
+          )}
+
+          {/* Pickup */}
+          {enabledFulfillmentModes.includes('pickup') && (
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="pickup" id="pickup" />
+              <Label htmlFor="pickup" className="text-sm font-normal cursor-pointer">
+                Pick Up
+              </Label>
+            </div>
+          )}
+
+          {/* Vendor Delivery */}
+          {enabledFulfillmentModes.includes('vendor') && (
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="vendor" id="vendor" />
+              <Label htmlFor="vendor" className="text-sm font-normal cursor-pointer">
+                Vendor Delivery
+              </Label>
+            </div>
+          )}
+        </RadioGroup>
+
+        {/* Description based on selected method */}
+        {deliveryMethod === 'sendbox' && enabledFulfillmentModes.includes('platform') && (
+          <p className="text-xs text-[#A0A0A0] mt-2">
+            Your order will be delivered to your specified address through our platform delivery service
+          </p>
+        )}
+        {deliveryMethod === 'pickup' && enabledFulfillmentModes.includes('pickup') && (
+          <p className="text-xs text-[#A0A0A0] mt-2">
+            You&apos;ll pick up your order from the store location
+          </p>
+        )}
+        {deliveryMethod === 'vendor' && enabledFulfillmentModes.includes('vendor') && (
+          <p className="text-xs text-[#A0A0A0] mt-2">
+            The vendor will handle delivery of your order
+          </p>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className='flex flex-col bg-[#FCFCFC]'>
@@ -390,7 +503,7 @@ export default function CheckoutPage() {
                 <Button
                   className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
                   onClick={handleConfirmOrder}
-                  disabled={isProcessingOrder || cart.length === 0}
+                  disabled={isProcessingOrder || cart.length === 0 || isLoadingModes}
                 >
                   {isProcessingOrder ? 'Creating Order...' : 'Confirm Order'}
                 </Button>
@@ -436,7 +549,6 @@ export default function CheckoutPage() {
             </CardHeader>
 
             <CardContent className='pt-6 space-y-4'>
-              {/* Full Name */}
               <div>
                 <Label className='text-xs mb-1'>Full Name *</Label>
                 <Input
@@ -447,7 +559,6 @@ export default function CheckoutPage() {
                 />
               </div>
 
-              {/* Email */}
               <div>
                 <Label className='text-xs mb-1'>Email *</Label>
                 <Input
@@ -459,7 +570,6 @@ export default function CheckoutPage() {
                 />
               </div>
 
-              {/* Phone Number with Dial Code */}
               <div>
                 <Label className='text-xs mb-1'>Phone Number *</Label>
                 <div className="flex">
@@ -499,7 +609,6 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Delivery Address */}
               <div>
                 <Label className='text-xs mb-1'>Delivery Address *</Label>
                 <Input
@@ -601,10 +710,18 @@ export default function CheckoutPage() {
                   <div key={item.id} className='flex-shrink-0 w-[280px]'>
                     <div className='flex justify-between items-center'>
                       <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
-                      <span className='text-xs text-[#A0A0A0]'>Fulfilled By Vendor</span>
+                      <span className='text-xs text-[#A0A0A0]'>
+                        {deliveryMethod === 'vendor' ? 'Fulfilled By Vendor' : 
+                         deliveryMethod === 'pickup' ? 'Store Pickup' : 
+                         'Platform Delivery'}
+                      </span>
                     </div>
                     <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
-                      <p className='text-sm font-medium'>Door Delivery</p>
+                      <p className='text-sm font-medium'>
+                        {deliveryMethod === 'vendor' ? 'Vendor Delivery' : 
+                         deliveryMethod === 'pickup' ? 'Store Pickup' : 
+                         'Door Delivery'}
+                      </p>
                       <div className='flex gap-3 mt-3'>
                         <Image
                           src={item.image}
