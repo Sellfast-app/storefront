@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
     console.error("❌ Error fetching tracking info:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error" },
+      
       { status: 500 }
     );
   }
