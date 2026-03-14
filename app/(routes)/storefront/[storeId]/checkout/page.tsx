@@ -146,7 +146,7 @@ export default function CheckoutPage() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [orderData, setOrderData] = useState<OrderData | null>(null);
-  const [deliveryMethod, setDeliveryMethod] = useState<'sendbox' | 'pickup' | 'vendor'>('sendbox');
+  const [deliveryMethod, setDeliveryMethod] = useState<'platform' | 'pickup' | 'vendor'>('platform');
   const [phoneDialCode, setPhoneDialCode] = useState('+234');
   const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
@@ -195,7 +195,7 @@ export default function CheckoutPage() {
           if (modes.length > 0) {
             // Priority: platform > pickup > vendor
             if (modes.includes('platform')) {
-              setDeliveryMethod('sendbox'); // platform maps to sendbox
+              setDeliveryMethod('platform'); // platform maps to sendbox
             } else if (modes.includes('pickup')) {
               setDeliveryMethod('pickup');
             } else if (modes.includes('vendor')) {
@@ -208,7 +208,7 @@ export default function CheckoutPage() {
         toast.error('Failed to load delivery options');
         // Fallback to default modes
         setEnabledFulfillmentModes(['pickup', 'platform']);
-        setDeliveryMethod('sendbox');
+        setDeliveryMethod('platform');
       } finally {
         setIsLoadingModes(false);
       }
@@ -275,7 +275,7 @@ export default function CheckoutPage() {
         total_amount: itemsTotal,
         total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
         payment_method: "paystack",
-        delivery_method: deliveryMethod, // Will be 'sendbox', 'pickup', or 'vendor'
+        delivery_method: deliveryMethod === 'platform' ? 'platform' : deliveryMethod,
         customer_info: {
           name: customerDetails.name,
           email: customerDetails.email,
@@ -288,19 +288,19 @@ export default function CheckoutPage() {
         },
         notes: deliveryNotes || "No delivery notes provided"
       };
-
-      console.log('📦 Creating order with delivery_method:', deliveryMethod);
-
+  
+      console.log('📦 Creating order with delivery_method:', orderPayload.delivery_method);
+  
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(orderPayload)
       });
-
+  
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || `Failed to create order: ${response.status}`);
       if (result.status !== 'success') throw new Error(result.message || 'Order creation failed');
-
+  
       return result;
     } catch (error) {
       console.error('Order creation error:', error);
@@ -406,15 +406,15 @@ export default function CheckoutPage() {
         <Label className='text-xs mb-3 block'>Delivery Method *</Label>
         <RadioGroup
           value={deliveryMethod}
-          onValueChange={(value: 'sendbox' | 'pickup' | 'vendor') => setDeliveryMethod(value)}
+          onValueChange={(value: 'platform' | 'pickup' | 'vendor') => setDeliveryMethod(value)}
           className="space-y-3"
           disabled={!!orderData}
         >
           {/* Platform Delivery (shows as Door Delivery) */}
           {enabledFulfillmentModes.includes('platform') && (
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="sendbox" id="sendbox" />
-              <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
+              <RadioGroupItem value="platform" id="platform" />
+              <Label htmlFor="platform" className="text-sm font-normal cursor-pointer">
                 Door Delivery
               </Label>
             </div>
@@ -442,7 +442,7 @@ export default function CheckoutPage() {
         </RadioGroup>
 
         {/* Description based on selected method */}
-        {deliveryMethod === 'sendbox' && enabledFulfillmentModes.includes('platform') && (
+        {deliveryMethod === 'platform' && enabledFulfillmentModes.includes('platform') && (
           <p className="text-xs text-[#A0A0A0] mt-2">
             Your order will be delivered to your specified address through our platform delivery service
           </p>
