@@ -1,17 +1,16 @@
-// components/SubscriptionModal.tsx
 "use client";
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogOverlay,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import ModalIcon from "./svgIcons/ModalIcon";
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -19,172 +18,129 @@ interface SubscriptionModalProps {
 }
 
 export function SubscriptionModal({ isOpen, onSubscribe }: SubscriptionModalProps) {
-  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [showNotifyForm, setShowNotifyForm] = useState(false);
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [isSubmittingNotify, setIsSubmittingNotify] = useState(false);
 
-  const handleSubscribe = async () => {
-    setIsSubscribing(true);
-    const subscribeToast = toast.loading('Creating subscription...');
+  const handleNotifySubmit = async () => {
+    if (!notifyEmail.trim()) {
+      toast.error('Please enter your email address');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(notifyEmail)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    setIsSubmittingNotify(true);
+    const submitToast = toast.loading('Submitting...');
 
     try {
-      const response = await fetch('/api/subscription/create', {
+      const response = await fetch('/api/stores/join-waitlist', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'monthly',
-          isTrial: false,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: notifyEmail }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'Failed to create subscription');
+        throw new Error(result.message || 'Failed to join waitlist');
       }
 
-      const checkoutUrl = result.data?.checkout_url;
-      
-      if (!checkoutUrl) {
-        throw new Error('No checkout URL received');
-      }
-
-      toast.dismiss(subscribeToast);
-      toast.success('Redirecting to payment...');
-      
-      // Open Paystack checkout
-      window.open(checkoutUrl, '_blank');
-      
-      // Call the onSubscribe callback
-      onSubscribe();
-
+      toast.dismiss(submitToast);
+      toast.success("You'll be notified when this store is active!");
+      setNotifyEmail("");
+      setShowNotifyForm(false); // ← go back to main view
     } catch (error) {
-      console.error('Subscription error:', error);
-      toast.dismiss(subscribeToast);
-      toast.error(error instanceof Error ? error.message : 'Failed to create subscription');
+      toast.dismiss(submitToast);
+      toast.error(error instanceof Error ? error.message : 'Failed to submit. Please try again.');
     } finally {
-      setIsSubscribing(false);
+      setIsSubmittingNotify(false);
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
-       <DialogOverlay className="backdrop-blur-xs bg-[#06140033] dark:bg-black/50" />
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          {/* Icon */}
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                />
-              </svg>
-            </div>
-          </div>
+      <DialogOverlay className="backdrop-blur-xs bg-[#06140033] dark:bg-black/50" />
+      <DialogContent className="sm:max-w-[500px] [&>button]:hidden">
 
-          <DialogTitle className="text-center text-2xl">
-            Subscribe to Continue
-          </DialogTitle>
-          <DialogDescription className="text-center">
-            To access your storefront and start selling, you need an active subscription.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Features */}
-          <div className="bg-muted rounded-lg p-4">
-            <h3 className="font-semibold mb-3">
-              What you get:
-            </h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-start">
-                <svg
-                  className="w-5 h-5 text-primary mr-2 flex-shrink-0 mt-0.5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span>Full access to your storefront</span>
-              </li>
-              <li className="flex items-start">
-                <svg
-                  className="w-5 h-5 text-primary mr-2 flex-shrink-0 mt-0.5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span>WhatsApp integration for orders</span>
-              </li>
-              <li className="flex items-start">
-                <svg
-                  className="w-5 h-5 text-primary mr-2 flex-shrink-0 mt-0.5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span>Analytics and insights</span>
-              </li>
-              <li className="flex items-start">
-                <svg
-                  className="w-5 h-5 text-primary mr-2 flex-shrink-0 mt-0.5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span>Priority customer support</span>
-              </li>
-            </ul>
-          </div>
-
-          {/* Pricing */}
-          <div className="text-center">
-            <div className="text-3xl font-bold text-primary mb-1">
-              ₦5,000<span className="text-lg text-muted-foreground">/month</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Cancel anytime</p>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-2">
-            <Button
-              onClick={handleSubscribe}
-              disabled={isSubscribing}
-              className="w-full"
-              size="lg"
-            >
-              {isSubscribing ? 'Processing...' : 'Subscribe Now'}
-            </Button>
-          </div>
+        {/* Title */}
+        <div className="mb-2">
+          <h2 className="text-sm font-semibold">Storefront Update</h2>
+          <p className="text-xs text-muted-foreground">Here&apos;s a simple message from this Swiftree</p>
         </div>
+
+        {!showNotifyForm ? (
+          /* ── Main View ── */
+          <div className="flex flex-col text-center space-y-2">
+            <div className="w-full max-w-sm mx-auto flex justify-center py-2">
+              <ModalIcon />
+            </div>
+
+            <h3 className="text-lg font-semibold">This Store Isn&apos;t Active Right Now</h3>
+            <p className="text-xs text-muted-foreground px-2">
+              Looks like this store hasn&apos;t completed their setup yet, so you can&apos;t place
+              orders at the moment. To get notified once they&apos;re up and running again,
+              click the button below.
+            </p>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <Button variant="outline" onClick={() => setShowNotifyForm(true)}>
+                Check back later
+              </Button>
+              <Button onClick={() => setShowNotifyForm(true)}>
+                Notify me
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* ── Notify Form View ── */
+          <div className="flex flex-col space-y-4">
+            <h3 className="text-sm font-semibold text-center">
+              Notify Me When This Store is Active
+            </h3>
+            <p className="text-xs text-muted-foreground text-center">
+              To make sure you&apos;re properly informed when this store is active again, please
+              enter your email and you&apos;ll receive a message from Swiftree.
+            </p>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">
+                  Email address <span className="text-red-500">*</span>
+                </Label>
+              </div>
+              <Input
+                type="email"
+                placeholder="e.g johndoe@example.com"
+                value={notifyEmail}
+                onChange={(e) => setNotifyEmail(e.target.value)}
+                className="dark:bg-background"
+                onKeyDown={(e) => e.key === 'Enter' && handleNotifySubmit()}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => { setShowNotifyForm(false); setNotifyEmail(""); }}
+                disabled={isSubmittingNotify}
+              >
+                Close
+              </Button>
+              <Button
+                onClick={handleNotifySubmit}
+                disabled={isSubmittingNotify}
+              >
+                {isSubmittingNotify ? 'Submitting...' : 'Submit'}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

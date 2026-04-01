@@ -218,6 +218,10 @@ function Page() {
             document.cookie = `vendor_email=${encodeURIComponent(vendorEmail)}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
             console.log("✅ Vendor email saved to cookie:", vendorEmail);
           }
+          if (storeId) {
+            document.cookie = `storefront_store_id=${storeId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+            console.log("✅ Store ID saved to cookie:", storeId);
+          }
         } else {
           throw new Error(result.message || "Failed to load store details");
         }
