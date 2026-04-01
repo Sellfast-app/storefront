@@ -71,7 +71,7 @@ export function SubscriptionModal({ isOpen, onSubscribe }: SubscriptionModalProp
         {/* Title */}
         <div className="mb-2">
           <h2 className="text-sm font-semibold">Storefront Update</h2>
-          <p className="text-xs text-muted-foreground">Here&apos;s a simple message from this Swiftree</p>
+          <p className="text-xs text-muted-foreground">Here&apos;s a simple message from Swiftree</p>
         </div>
 
         {!showNotifyForm ? (
