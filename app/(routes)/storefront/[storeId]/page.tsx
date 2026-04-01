@@ -20,6 +20,8 @@ import FilterIcon from "@/components/svgIcons/FilterIcon";
 import { useCart } from "@/context/CartContext";
 import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
+import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
+import { SubscriptionModal } from "@/components/SubscriptionModal";
 
 interface StoreDetails {
   id: string;
@@ -170,6 +172,8 @@ function Page() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [vendorId, setVendorId] = useState<string | undefined>(undefined);
+  const { showModal, dismissModal } = useSubscriptionCheck(vendorId);
 
   const { addToCart } = useCart();
 
@@ -177,35 +181,47 @@ function Page() {
   useEffect(() => {
     const fetchStoreData = async () => {
       if (!storeId) return;
-
+  
       setIsLoading(true);
       setError(null);
-
+  
       try {
         const response = await fetch(`/api/stores/${storeId}`);
-
+  
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || "Failed to fetch store details");
         }
-
+  
         const result = await response.json();
-
-        console.log("📦 Storefront - Store data received:", result);
-        console.log(
-          "📦 Storefront - Logo URL:",
-          result.data?.storeDetails?.logo
-        );
-        console.log(
-          "📦 Storefront - Banner URL:",
-          result.data?.storeDetails?.banner
-        );
-
+  
+        console.log(" Storefront - Store data received:", result);
+        console.log("Storefront - Logo URL:", result.data?.storeDetails?.logo);
+        console.log(" Storefront - Banner URL:", result.data?.storeDetails?.banner);
+  
         if (result.status === "success" && result.data) {
           setStoreDetails(result.data.storeDetails);
-          setStoreReviews(result.data.reviews.reviews || []);
+          setStoreReviews(result.data.reviews.items || []);
           setListings(result.data.total_listings || 0);
           setRatings(result.data.ratings || 0);
+  
+          const vendorId = result.data.storeDetails.vendor_id;
+          const vendorEmail = result.data.storeDetails.vendor_email;
+  
+          if (vendorId) {
+            document.cookie = `vendor_id=${vendorId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+            setVendorId(vendorId);
+            console.log("✅ Vendor ID saved to cookie:", vendorId);
+          }
+  
+          if (vendorEmail) {
+            document.cookie = `vendor_email=${encodeURIComponent(vendorEmail)}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+            console.log("✅ Vendor email saved to cookie:", vendorEmail);
+          }
+          if (storeId) {
+            document.cookie = `storefront_store_id=${storeId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+            console.log("✅ Store ID saved to cookie:", storeId);
+          }
         } else {
           throw new Error(result.message || "Failed to load store details");
         }
@@ -218,7 +234,7 @@ function Page() {
         setIsLoading(false);
       }
     };
-
+  
     fetchStoreData();
   }, [storeId]);
 
@@ -261,6 +277,7 @@ function Page() {
     fetchProducts();
   }, [storeId]);
 
+
   // Filter products based on search query
   const filteredProducts = products.filter((product) =>
     product.product_name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -284,7 +301,7 @@ function Page() {
 
   const toggleCart = () => {
     setShowCart(!showCart);
-    
+
     // Scroll to top when opening cart on mobile
     if (!showCart && window.innerWidth < 768) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -639,6 +656,10 @@ function Page() {
           )}
         </div>
       </div>
+      <SubscriptionModal
+        isOpen={showModal}
+        onSubscribe={dismissModal}
+      />
     </div>
   );
 }
