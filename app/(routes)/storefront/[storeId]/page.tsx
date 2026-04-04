@@ -288,7 +288,25 @@ function Page() {
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
-    // Convert API product to cart format
+  
+    // Check if product has variants
+    let hasVariants = false;
+    try {
+      const variants = typeof product.variants === 'string'
+        ? JSON.parse(product.variants)
+        : product.variants;
+      hasVariants = Array.isArray(variants) && variants.length > 0;
+    } catch {
+      hasVariants = false;
+    }
+  
+    if (hasVariants) {
+      // Redirect to product detail page to select a variant
+      window.location.href = `/storefront/${storeId}/product/${product.id}`;
+      return;
+    }
+  
+    // Non-variant product — add directly
     const cartProduct = {
       id: product.id,
       name: product.product_name,

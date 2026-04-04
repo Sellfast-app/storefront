@@ -33,6 +33,7 @@ interface ProductVariant {
   size: string;
   quantity: number;
   color: string;
+  price?: string;
 }
 
 interface Product {
@@ -253,73 +254,131 @@ function Page() {
   const isSearchingOnMobile = searchQuery.trim() !== ''
   const totalReviews = ratingBreakdown.reduce((sum, item) => sum + item.count, 0)
 
+  const getVariantCartId = (productId: string, variant: ProductVariant | null) => {
+    if (!variant) return productId;
+    return `${productId}-${variant.size}-${variant.color}`;
+  };
+
   const getCurrentQuantity = () => {
-    if (!product) return 0
-    const cartItem = cart.find(item => item.id === product.id)
-    return cartItem ? cartItem.quantity : 0
-  }
+    if (!product) return 0;
+    const cartId = getVariantCartId(product.id, hasVariants ? selectedVariant : null);
+    const cartItem = cart.find(item => item.id === cartId);
+    return cartItem ? cartItem.quantity : 0;
+  };
 
   const currentQuantity = getCurrentQuantity()
-  const totalPrice = product ? (product.product_price * currentQuantity) : 0
+  const activePrice = product
+    ? (hasVariants && selectedVariant?.price
+      ? parseInt(selectedVariant.price)
+      : product.product_price)
+    : 0;
+
+  const totalPrice = activePrice * currentQuantity;
 
   const incrementQuantity = () => {
     if (product) {
+      const priceToUse = hasVariants && selectedVariant?.price
+        ? parseInt(selectedVariant.price)
+        : product.product_price;
+      const cartId = getVariantCartId(product.id, hasVariants ? selectedVariant : null);
+
       addToCart({
-        id: product.id,
+        id: cartId,
         name: product.product_name,
-        price: product.product_price,
+        price: priceToUse,
         image: product.product_images[0] || Banner,
         description: product.product_description,
-      }, 1)
+        ...(hasVariants && selectedVariant && {
+          variant: { size: selectedVariant.size, color: selectedVariant.color, price: parseInt(selectedVariant.price || '0') }
+        })
+      }, 1);
     }
-  }
+  };
 
   const decrementQuantity = () => {
     if (product && currentQuantity > 0) {
+      const priceToUse = hasVariants && selectedVariant?.price
+        ? parseInt(selectedVariant.price)
+        : product.product_price;
+      const cartId = getVariantCartId(product.id, hasVariants ? selectedVariant : null);
+
       addToCart({
-        id: product.id,
+        id: cartId,
         name: product.product_name,
-        price: product.product_price,
+        price: priceToUse,
         image: product.product_images[0] || Banner,
         description: product.product_description,
-      }, -1)
+        ...(hasVariants && selectedVariant && {
+          variant: { size: selectedVariant.size, color: selectedVariant.color, price: parseInt(selectedVariant.price || '0') }
+        })
+      }, -1);
     }
-  }
+  };
 
-  const isAddToCartDisabled =
-    currentQuantity > 0 ||
-    (hasVariants && (!selectedVariant || selectedVariant.quantity === 0));
+  const isAddToCartDisabled = hasVariants
+    ? (!selectedVariant || selectedVariant.quantity === 0)
+    : currentQuantity > 0;
 
   const handleAddToCart = (e?: React.MouseEvent, prod?: Product) => {
-    if (e) { e.preventDefault(); e.stopPropagation() }
-    const productToAdd = prod || product
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const productToAdd = prod || product;
     if (!productToAdd) return;
     if (hasVariants && !selectedVariant) return;
     if (hasVariants && selectedVariant && selectedVariant.quantity === 0) return;
 
+    const priceToUse = hasVariants && selectedVariant?.price
+      ? parseInt(selectedVariant.price)
+      : productToAdd.product_price;
+
+    const cartId = getVariantCartId(
+      productToAdd.id,
+      hasVariants ? selectedVariant : null
+    );
+
     addToCart({
-      id: productToAdd.id,
+      id: cartId, // ← unique per variant
       name: productToAdd.product_name,
-      price: productToAdd.product_price,
+      price: priceToUse,
       image: productToAdd.product_images[0] || Banner,
       description: productToAdd.product_description,
       ...(hasVariants && selectedVariant && {
-        variant: { size: selectedVariant.size, color: selectedVariant.color }
+        variant: {
+          size: selectedVariant.size,
+          color: selectedVariant.color,
+          price: parseInt(selectedVariant.price || '0'),
+        }
       })
-    }, 1)
-  }
+    }, 1);
+  };
 
   const handleRelatedProductAddToCart = (e: React.MouseEvent, prod: Product) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Check if product has variants
+    let prodHasVariants = false;
+    try {
+      const variants = typeof prod.variants === 'string'
+        ? JSON.parse(prod.variants)
+        : prod.variants;
+      prodHasVariants = Array.isArray(variants) && variants.length > 0;
+    } catch {
+      prodHasVariants = false;
+    }
+
+    if (prodHasVariants) {
+      window.location.href = `/storefront/${storeId}/product/${prod.id}`;
+      return;
+    }
+
     addToCart({
       id: prod.id,
       name: prod.product_name,
       price: prod.product_price,
       image: prod.product_images[0] || Banner,
       description: prod.product_description,
-    }, 1)
-  }
+    }, 1);
+  };
 
   const toggleCart = () => {
     setShowCart(!showCart);
@@ -425,7 +484,21 @@ function Page() {
                 <span className='text-lg font-medium'>{product.product_name}</span>
 
                 <div className='flex items-center justify-between mt-2'>
-                  <h3 className='font-semibold text-xl'>₦{product.product_price.toLocaleString()}</h3>
+                  <div>
+                    <h3 className='font-semibold text-xl'>
+                      ₦{(
+                        hasVariants && selectedVariant?.price
+                          ? parseInt(selectedVariant.price)
+                          : product.product_price
+                      ).toLocaleString()}
+                    </h3>
+                    {hasVariants && selectedVariant?.price &&
+                      parseInt(selectedVariant.price) !== product.product_price && (
+                        <p className='text-xs text-muted-foreground line-through'>
+                          ₦{product.product_price.toLocaleString()}
+                        </p>
+                      )}
+                  </div>
                   <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
                     <button onClick={incrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
                       <PlusIcon className='w-4 h-4' />
@@ -534,7 +607,6 @@ function Page() {
                     )}
                   </div>
                 )}
-                {/* ── END VARIANT SELECTOR ─────────────────────────────── */}
 
                 <div className='flex justify-between items-center mt-6'>
                   <div className='text-xs text-[#4FCA6A]'>SKU: {product.product_sku}</div>
@@ -548,24 +620,28 @@ function Page() {
                         <div>
                           <span className='text-xs text-gray-500'>Total Price:</span>
                           <h3 className='text-xl font-bold'>₦{totalPrice.toLocaleString()}</h3>
+                          {hasVariants && selectedVariant?.price && (
+                            <p className='text-xs text-muted-foreground'>
+                              ₦{parseInt(selectedVariant.price).toLocaleString()} × {currentQuantity}
+                            </p>
+                          )}
                         </div>
                         <Button onClick={() => handleAddToCart()} disabled={isAddToCartDisabled}>
                           <CartIcon />
-                          {currentQuantity > 0
-                            ? 'In Cart'
-                            : hasVariants && (!selectedVariant || selectedVariant.quantity === 0)
-                              ? 'Unavailable'
+                          {hasVariants
+                            ? (currentQuantity > 0 ? 'Add Another' : 'Add Selection')
+                            : currentQuantity > 0
+                              ? 'In Cart'
                               : 'Add to Cart'
                           }
                         </Button>
                       </div>
                       {currentQuantity > 0 && (
                         <div className='text-xs text-green-600 text-center'>
-                          ✓ {currentQuantity} item{currentQuantity > 1 ? 's' : ''} in cart
+                          ✓ {currentQuantity} of this selection in cart
                           {hasVariants && selectedVariant && (
                             <span className='capitalize'> • {selectedVariant.size} • {selectedVariant.color}</span>
                           )}
-                          {' '}• Use +/- to adjust quantity
                         </div>
                       )}
                     </CardContent>
@@ -629,8 +705,20 @@ function Page() {
                       <p className='text-xs mt-2 px-2 line-clamp-2'>{prod.product_name}</p>
                       <div className='flex items-center justify-between mt-2 px-2 pb-3'>
                         <span className='text-sm font-semibold'>₦{prod.product_price.toLocaleString()}</span>
-                        <Button className='text-xs' onClick={(e) => handleRelatedProductAddToCart(e, prod)}>
-                          Add to Cart
+                        <Button
+                          className='text-xs'
+                          onClick={(e) => handleRelatedProductAddToCart(e, prod)}
+                        >
+                          {(() => {
+                            try {
+                              const variants = typeof prod.variants === 'string'
+                                ? JSON.parse(prod.variants)
+                                : prod.variants;
+                              return Array.isArray(variants) && variants.length > 0 ? 'Select Options' : 'Add to Cart';
+                            } catch {
+                              return 'Add to Cart';
+                            }
+                          })()}
                         </Button>
                       </div>
                     </div>
