@@ -76,7 +76,7 @@ const PHONE_CODES = [
   { code: 'NG', dial: '+234', flag: '🇳🇬', name: 'Nigeria' },
   { code: 'GH', dial: '+233', flag: '🇬🇭', name: 'Ghana' },
   { code: 'KE', dial: '+254', flag: '🇰🇪', name: 'Kenya' },
-  { code: 'ZA', dial: '+27',  flag: '🇿🇦', name: 'South Africa' },
+  { code: 'ZA', dial: '+27', flag: '🇿🇦', name: 'South Africa' },
   { code: 'ET', dial: '+251', flag: '🇪🇹', name: 'Ethiopia' },
   { code: 'TZ', dial: '+255', flag: '🇹🇿', name: 'Tanzania' },
   { code: 'UG', dial: '+256', flag: '🇺🇬', name: 'Uganda' },
@@ -86,43 +86,43 @@ const PHONE_CODES = [
   { code: 'CI', dial: '+225', flag: '🇨🇮', name: "Côte d'Ivoire" },
   { code: 'ZM', dial: '+260', flag: '🇿🇲', name: 'Zambia' },
   { code: 'ZW', dial: '+263', flag: '🇿🇼', name: 'Zimbabwe' },
-  { code: 'EG', dial: '+20',  flag: '🇪🇬', name: 'Egypt' },
-  { code: 'US', dial: '+1',   flag: '🇺🇸', name: 'United States' },
-  { code: 'CA', dial: '+1',   flag: '🇨🇦', name: 'Canada' },
-  { code: 'GB', dial: '+44',  flag: '🇬🇧', name: 'United Kingdom' },
-  { code: 'AU', dial: '+61',  flag: '🇦🇺', name: 'Australia' },
-  { code: 'NZ', dial: '+64',  flag: '🇳🇿', name: 'New Zealand' },
-  { code: 'DE', dial: '+49',  flag: '🇩🇪', name: 'Germany' },
-  { code: 'FR', dial: '+33',  flag: '🇫🇷', name: 'France' },
-  { code: 'IT', dial: '+39',  flag: '🇮🇹', name: 'Italy' },
-  { code: 'ES', dial: '+34',  flag: '🇪🇸', name: 'Spain' },
-  { code: 'NL', dial: '+31',  flag: '🇳🇱', name: 'Netherlands' },
-  { code: 'SE', dial: '+46',  flag: '🇸🇪', name: 'Sweden' },
-  { code: 'NO', dial: '+47',  flag: '🇳🇴', name: 'Norway' },
-  { code: 'DK', dial: '+45',  flag: '🇩🇰', name: 'Denmark' },
+  { code: 'EG', dial: '+20', flag: '🇪🇬', name: 'Egypt' },
+  { code: 'US', dial: '+1', flag: '🇺🇸', name: 'United States' },
+  { code: 'CA', dial: '+1', flag: '🇨🇦', name: 'Canada' },
+  { code: 'GB', dial: '+44', flag: '🇬🇧', name: 'United Kingdom' },
+  { code: 'AU', dial: '+61', flag: '🇦🇺', name: 'Australia' },
+  { code: 'NZ', dial: '+64', flag: '🇳🇿', name: 'New Zealand' },
+  { code: 'DE', dial: '+49', flag: '🇩🇪', name: 'Germany' },
+  { code: 'FR', dial: '+33', flag: '🇫🇷', name: 'France' },
+  { code: 'IT', dial: '+39', flag: '🇮🇹', name: 'Italy' },
+  { code: 'ES', dial: '+34', flag: '🇪🇸', name: 'Spain' },
+  { code: 'NL', dial: '+31', flag: '🇳🇱', name: 'Netherlands' },
+  { code: 'SE', dial: '+46', flag: '🇸🇪', name: 'Sweden' },
+  { code: 'NO', dial: '+47', flag: '🇳🇴', name: 'Norway' },
+  { code: 'DK', dial: '+45', flag: '🇩🇰', name: 'Denmark' },
   { code: 'FI', dial: '+358', flag: '🇫🇮', name: 'Finland' },
-  { code: 'CH', dial: '+41',  flag: '🇨🇭', name: 'Switzerland' },
-  { code: 'PL', dial: '+48',  flag: '🇵🇱', name: 'Poland' },
-  { code: 'RO', dial: '+40',  flag: '🇷🇴', name: 'Romania' },
+  { code: 'CH', dial: '+41', flag: '🇨🇭', name: 'Switzerland' },
+  { code: 'PL', dial: '+48', flag: '🇵🇱', name: 'Poland' },
+  { code: 'RO', dial: '+40', flag: '🇷🇴', name: 'Romania' },
   { code: 'UA', dial: '+380', flag: '🇺🇦', name: 'Ukraine' },
-  { code: 'TR', dial: '+90',  flag: '🇹🇷', name: 'Turkey' },
-  { code: 'IN', dial: '+91',  flag: '🇮🇳', name: 'India' },
-  { code: 'PK', dial: '+92',  flag: '🇵🇰', name: 'Pakistan' },
+  { code: 'TR', dial: '+90', flag: '🇹🇷', name: 'Turkey' },
+  { code: 'IN', dial: '+91', flag: '🇮🇳', name: 'India' },
+  { code: 'PK', dial: '+92', flag: '🇵🇰', name: 'Pakistan' },
   { code: 'BD', dial: '+880', flag: '🇧🇩', name: 'Bangladesh' },
-  { code: 'CN', dial: '+86',  flag: '🇨🇳', name: 'China' },
-  { code: 'JP', dial: '+81',  flag: '🇯🇵', name: 'Japan' },
-  { code: 'SG', dial: '+65',  flag: '🇸🇬', name: 'Singapore' },
-  { code: 'MY', dial: '+60',  flag: '🇲🇾', name: 'Malaysia' },
-  { code: 'ID', dial: '+62',  flag: '🇮🇩', name: 'Indonesia' },
-  { code: 'PH', dial: '+63',  flag: '🇵🇭', name: 'Philippines' },
+  { code: 'CN', dial: '+86', flag: '🇨🇳', name: 'China' },
+  { code: 'JP', dial: '+81', flag: '🇯🇵', name: 'Japan' },
+  { code: 'SG', dial: '+65', flag: '🇸🇬', name: 'Singapore' },
+  { code: 'MY', dial: '+60', flag: '🇲🇾', name: 'Malaysia' },
+  { code: 'ID', dial: '+62', flag: '🇮🇩', name: 'Indonesia' },
+  { code: 'PH', dial: '+63', flag: '🇵🇭', name: 'Philippines' },
   { code: 'AE', dial: '+971', flag: '🇦🇪', name: 'UAE' },
   { code: 'SA', dial: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
   { code: 'QA', dial: '+974', flag: '🇶🇦', name: 'Qatar' },
-  { code: 'BR', dial: '+55',  flag: '🇧🇷', name: 'Brazil' },
-  { code: 'MX', dial: '+52',  flag: '🇲🇽', name: 'Mexico' },
-  { code: 'AR', dial: '+54',  flag: '🇦🇷', name: 'Argentina' },
-  { code: 'CO', dial: '+57',  flag: '🇨🇴', name: 'Colombia' },
-  { code: 'IR', dial: '+98',  flag: '🇮🇷', name: 'Iran' },
+  { code: 'BR', dial: '+55', flag: '🇧🇷', name: 'Brazil' },
+  { code: 'MX', dial: '+52', flag: '🇲🇽', name: 'Mexico' },
+  { code: 'AR', dial: '+54', flag: '🇦🇷', name: 'Argentina' },
+  { code: 'CO', dial: '+57', flag: '🇨🇴', name: 'Colombia' },
+  { code: 'IR', dial: '+98', flag: '🇮🇷', name: 'Iran' },
 ];
 
 interface OrderData {
@@ -146,7 +146,7 @@ export default function CheckoutPage() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [orderData, setOrderData] = useState<OrderData | null>(null);
-  const [deliveryMethod, setDeliveryMethod] = useState<'platform' | 'pickup' | 'vendor'>('platform');
+  const [deliveryMethod, setDeliveryMethod] = useState<'platform' | 'pickup' | 'vendor' | 'gig'>('platform');
   const [phoneDialCode, setPhoneDialCode] = useState('+234');
   const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
@@ -177,7 +177,7 @@ export default function CheckoutPage() {
         console.log('🔄 Fetching store fulfillment modes for:', storeId);
 
         const response = await fetch(`/api/stores/${storeId}`);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch store details');
         }
@@ -188,7 +188,7 @@ export default function CheckoutPage() {
         if (result.status === 'success' && result.data?.storeDetails) {
           const modes = result.data.storeDetails.enabled_fulfillment_modes || [];
           setEnabledFulfillmentModes(modes);
-          
+
           console.log('✅ Enabled fulfillment modes:', modes);
 
           // Set default delivery method based on enabled modes
@@ -200,6 +200,8 @@ export default function CheckoutPage() {
               setDeliveryMethod('pickup');
             } else if (modes.includes('vendor')) {
               setDeliveryMethod('vendor');
+            } else if (modes.includes('gig')) {
+              setDeliveryMethod('gig');
             }
           }
         }
@@ -265,13 +267,27 @@ export default function CheckoutPage() {
     try {
       const orderPayload = {
         store_id: storeId,
-        items: cart.map(item => ({
-          product_id: item.id,
-          quantity: item.quantity,
-          price: item.price,
-          discount: 0,
-          name: item.name
-        })),
+        items: cart.map(item => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const orderItem: any = {
+            // Use originalProductId if it exists, otherwise extract UUID from the ID
+            product_id: item.originalProductId || (typeof item.id === 'string' ? item.id.split('-')[0] : item.id),
+            quantity: item.quantity,
+            price: item.price,
+            discount: 0,
+            name: item.name
+          };
+          
+          // Add variant object if variant info exists
+          if (item.variant && (item.variant.size || item.variant.color)) {
+            orderItem.variant = {
+              size: item.variant.size || "",
+              color: item.variant.color || ""
+            };
+          }
+          
+          return orderItem;
+        }),
         total_amount: itemsTotal,
         total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
         payment_method: "paystack",
@@ -289,7 +305,7 @@ export default function CheckoutPage() {
         notes: deliveryNotes || "No delivery notes provided"
       };
   
-      console.log('📦 Creating order with delivery_method:', orderPayload.delivery_method);
+      console.log('📦 Creating order with items:', JSON.stringify(orderPayload.items, null, 2));
   
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -406,7 +422,7 @@ export default function CheckoutPage() {
         <Label className='text-xs mb-3 block'>Delivery Method *</Label>
         <RadioGroup
           value={deliveryMethod}
-          onValueChange={(value: 'platform' | 'pickup' | 'vendor') => setDeliveryMethod(value)}
+          onValueChange={(value: 'platform' | 'pickup' | 'vendor' | 'gig') => setDeliveryMethod(value)}
           className="space-y-3"
           disabled={!!orderData}
         >
@@ -439,6 +455,15 @@ export default function CheckoutPage() {
               </Label>
             </div>
           )}
+          {/* GIG Logistics */}
+          {enabledFulfillmentModes.includes('gig') && (
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="gig" id="gig" />
+              <Label htmlFor="gig" className="text-sm font-normal cursor-pointer">
+                GIG Logistics
+              </Label>
+            </div>
+          )}
         </RadioGroup>
 
         {/* Description based on selected method */}
@@ -455,6 +480,11 @@ export default function CheckoutPage() {
         {deliveryMethod === 'vendor' && enabledFulfillmentModes.includes('vendor') && (
           <p className="text-xs text-[#A0A0A0] mt-2">
             The vendor will handle delivery of your order
+          </p>
+        )}
+        {deliveryMethod === 'gig' && enabledFulfillmentModes.includes('gig') && (
+          <p className="text-xs text-[#A0A0A0] mt-2">
+            Your order will be delivered through GIG Logistics service
           </p>
         )}
       </div>
@@ -711,16 +741,17 @@ export default function CheckoutPage() {
                     <div className='flex justify-between items-center'>
                       <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
                       <span className='text-xs text-[#A0A0A0]'>
-                        {deliveryMethod === 'vendor' ? 'Fulfilled By Vendor' : 
-                         deliveryMethod === 'pickup' ? 'Store Pickup' : 
-                         'Platform Delivery'}
+                        {deliveryMethod === 'vendor' ? 'Fulfilled By Vendor' :
+                          deliveryMethod === 'pickup' ? 'Store Pickup' :
+                            'Platform Delivery'}
                       </span>
                     </div>
                     <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
                       <p className='text-sm font-medium'>
-                        {deliveryMethod === 'vendor' ? 'Vendor Delivery' : 
-                         deliveryMethod === 'pickup' ? 'Store Pickup' : 
-                         'Door Delivery'}
+                        {deliveryMethod === 'vendor' ? 'Vendor Delivery' :
+                          deliveryMethod === 'pickup' ? 'Store Pickup' :
+                            deliveryMethod === 'gig' ? 'Gig Delivery' :
+                              'Door Delivery'}
                       </p>
                       <div className='flex gap-3 mt-3'>
                         <Image

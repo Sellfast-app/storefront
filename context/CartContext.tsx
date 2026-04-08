@@ -7,10 +7,16 @@ import { StaticImageData } from 'next/image'
 // Simplified Product type for cart - only what we need
 export interface CartProduct {
   id: number | string
+  originalProductId?: string
   name: string
   price: number
   image: string | StaticImageData
   description: string
+  variant?: {
+    size: string
+    color: string
+    price?: number
+  }
 }
 
 interface CartItem extends CartProduct {
