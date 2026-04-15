@@ -8,6 +8,7 @@ import { StaticImageData } from 'next/image'
 export interface CartProduct {
   id: number | string
   originalProductId?: string
+  product_id?: string 
   name: string
   price: number
   image: string | StaticImageData

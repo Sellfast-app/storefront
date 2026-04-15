@@ -270,28 +270,26 @@ export default function CheckoutPage() {
         items: cart.map(item => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const orderItem: any = {
-            // Use originalProductId if it exists, otherwise extract UUID from the ID
-            product_id: item.originalProductId || (typeof item.id === 'string' ? item.id.split('-')[0] : item.id),
+            product_id: item.product_id || item.originalProductId || item.id,
             quantity: item.quantity,
             price: item.price,
             discount: 0,
             name: item.name
           };
-          
-          // Add variant object if variant info exists
+        
           if (item.variant && (item.variant.size || item.variant.color)) {
             orderItem.variant = {
               size: item.variant.size || "",
               color: item.variant.color || ""
             };
           }
-          
+        
           return orderItem;
         }),
         total_amount: itemsTotal,
         total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
         payment_method: "paystack",
-        delivery_method: deliveryMethod === 'platform' ? 'platform' : deliveryMethod,
+        delivery_method: deliveryMethod, // Just send the method as is
         customer_info: {
           name: customerDetails.name,
           email: customerDetails.email,
@@ -305,7 +303,7 @@ export default function CheckoutPage() {
         notes: deliveryNotes || "No delivery notes provided"
       };
   
-      console.log('📦 Creating order with items:', JSON.stringify(orderPayload.items, null, 2));
+      console.log('📦 Creating order:', JSON.stringify(orderPayload, null, 2));
   
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -326,17 +324,18 @@ export default function CheckoutPage() {
 
   const handleConfirmOrder = async () => {
     if (!validateCheckout()) return;
+    
     setIsProcessingOrder(true);
     try {
       const orderResult = await createOrder();
       const orderDetails = orderResult.data?.order;
       const paymentDetails = orderResult.data?.payment;
       const transactionDetails = orderResult.data?.transaction;
-
+  
       if (orderDetails && paymentDetails) {
         const deliveryFee = Number(orderDetails.delivery_fee) || 0;
         const paystackAmount = Number(paymentDetails.total_paid) || Number(orderDetails.order_total);
-
+  
         const newOrderData: OrderData = {
           orderId: orderDetails.id,
           orderNumber: orderDetails.order_number,
@@ -346,11 +345,11 @@ export default function CheckoutPage() {
           paymentUrl: paymentDetails.authorization_url,
           platformFee: Number(orderDetails.platform_fee)
         };
-
+  
         setOrderData(newOrderData);
-
+  
         const paymentReference = transactionDetails?.reference || paymentDetails.reference;
-
+  
         localStorage.setItem('pending_order', JSON.stringify({
           orderId: orderDetails.order_number,
           customerDetails: {
@@ -363,10 +362,10 @@ export default function CheckoutPage() {
           orderData: orderResult,
           paymentReference
         }));
-
+  
         localStorage.setItem('current_store_id', storeId);
         if (paymentReference) localStorage.setItem('payment_reference', paymentReference);
-
+  
         toast.success("Order created! Review the total including delivery and fees.");
       } else {
         throw new Error('Order details not found in response');

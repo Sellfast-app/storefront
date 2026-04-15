@@ -281,9 +281,11 @@ function Page() {
         ? parseInt(selectedVariant.price)
         : product.product_price;
       const cartId = getVariantCartId(product.id, hasVariants ? selectedVariant : null);
-
+  
       addToCart({
         id: cartId,
+        originalProductId: product.id, // ← add this
+        product_id: product.id,         // ← add this
         name: product.product_name,
         price: priceToUse,
         image: product.product_images[0] || Banner,
@@ -301,9 +303,11 @@ function Page() {
         ? parseInt(selectedVariant.price)
         : product.product_price;
       const cartId = getVariantCartId(product.id, hasVariants ? selectedVariant : null);
-
+  
       addToCart({
         id: cartId,
+        originalProductId: product.id, // ← add this
+        product_id: product.id,         // ← add this
         name: product.product_name,
         price: priceToUse,
         image: product.product_images[0] || Banner,
@@ -330,14 +334,12 @@ function Page() {
         ? parseInt(selectedVariant.price)
         : productToAdd.product_price;
     
-      // Create a unique ID for cart display, but store original product ID separately
-      const cartDisplayId = hasVariants && selectedVariant
-        ? `${productToAdd.id}-${selectedVariant.size}-${selectedVariant.color}`
-        : productToAdd.id;
+      const cartId = getVariantCartId(productToAdd.id, hasVariants ? selectedVariant : null);
     
       addToCart({
-        id: cartDisplayId,  // For cart display and uniqueness
-        originalProductId: productToAdd.id,  // Store the actual product UUID for API
+        id: cartId,
+        originalProductId: productToAdd.id, // real UUID for API
+        product_id: productToAdd.id,         // real UUID for API
         name: productToAdd.product_name,
         price: priceToUse,
         image: productToAdd.product_images[0] || Banner,
@@ -345,7 +347,8 @@ function Page() {
         ...(hasVariants && selectedVariant && {
           variant: {
             size: selectedVariant.size,
-            color: selectedVariant.color
+            color: selectedVariant.color,
+            price: parseInt(selectedVariant.price || '0'),
           }
         })
       }, 1);
