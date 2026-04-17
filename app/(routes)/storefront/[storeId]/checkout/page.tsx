@@ -1,4 +1,3 @@
-// app/storefront/[storeId]/checkout/page.tsx
 "use client";
 
 import CartButton from '@/components/CartButton';
@@ -12,6 +11,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogOverlay } from '@/components/ui/dialog';
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
@@ -20,9 +20,8 @@ import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
 import StateRegionSelect from '@/components/stateRegionSelect';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Truck, X } from 'lucide-react';
 
-// Country to code mapping (ISO 3166-1 alpha-2)
 const countryToCode: Record<string, string> = {
   "Afghanistan": "AF", "Albania": "AL", "Algeria": "DZ", "Andorra": "AD", "Angola": "AO",
   "Antigua and Barbuda": "AG", "Argentina": "AR", "Armenia": "AM", "Australia": "AU",
@@ -71,12 +70,11 @@ const countryToCode: Record<string, string> = {
   "Zambia": "ZM", "Zimbabwe": "ZW"
 };
 
-// Phone dial codes with flags
 const PHONE_CODES = [
   { code: 'NG', dial: '+234', flag: '🇳🇬', name: 'Nigeria' },
   { code: 'GH', dial: '+233', flag: '🇬🇭', name: 'Ghana' },
   { code: 'KE', dial: '+254', flag: '🇰🇪', name: 'Kenya' },
-  { code: 'ZA', dial: '+27',  flag: '🇿🇦', name: 'South Africa' },
+  { code: 'ZA', dial: '+27', flag: '🇿🇦', name: 'South Africa' },
   { code: 'ET', dial: '+251', flag: '🇪🇹', name: 'Ethiopia' },
   { code: 'TZ', dial: '+255', flag: '🇹🇿', name: 'Tanzania' },
   { code: 'UG', dial: '+256', flag: '🇺🇬', name: 'Uganda' },
@@ -86,54 +84,69 @@ const PHONE_CODES = [
   { code: 'CI', dial: '+225', flag: '🇨🇮', name: "Côte d'Ivoire" },
   { code: 'ZM', dial: '+260', flag: '🇿🇲', name: 'Zambia' },
   { code: 'ZW', dial: '+263', flag: '🇿🇼', name: 'Zimbabwe' },
-  { code: 'EG', dial: '+20',  flag: '🇪🇬', name: 'Egypt' },
-  { code: 'US', dial: '+1',   flag: '🇺🇸', name: 'United States' },
-  { code: 'CA', dial: '+1',   flag: '🇨🇦', name: 'Canada' },
-  { code: 'GB', dial: '+44',  flag: '🇬🇧', name: 'United Kingdom' },
-  { code: 'AU', dial: '+61',  flag: '🇦🇺', name: 'Australia' },
-  { code: 'NZ', dial: '+64',  flag: '🇳🇿', name: 'New Zealand' },
-  { code: 'DE', dial: '+49',  flag: '🇩🇪', name: 'Germany' },
-  { code: 'FR', dial: '+33',  flag: '🇫🇷', name: 'France' },
-  { code: 'IT', dial: '+39',  flag: '🇮🇹', name: 'Italy' },
-  { code: 'ES', dial: '+34',  flag: '🇪🇸', name: 'Spain' },
-  { code: 'NL', dial: '+31',  flag: '🇳🇱', name: 'Netherlands' },
-  { code: 'SE', dial: '+46',  flag: '🇸🇪', name: 'Sweden' },
-  { code: 'NO', dial: '+47',  flag: '🇳🇴', name: 'Norway' },
-  { code: 'DK', dial: '+45',  flag: '🇩🇰', name: 'Denmark' },
+  { code: 'EG', dial: '+20', flag: '🇪🇬', name: 'Egypt' },
+  { code: 'US', dial: '+1', flag: '🇺🇸', name: 'United States' },
+  { code: 'CA', dial: '+1', flag: '🇨🇦', name: 'Canada' },
+  { code: 'GB', dial: '+44', flag: '🇬🇧', name: 'United Kingdom' },
+  { code: 'AU', dial: '+61', flag: '🇦🇺', name: 'Australia' },
+  { code: 'NZ', dial: '+64', flag: '🇳🇿', name: 'New Zealand' },
+  { code: 'DE', dial: '+49', flag: '🇩🇪', name: 'Germany' },
+  { code: 'FR', dial: '+33', flag: '🇫🇷', name: 'France' },
+  { code: 'IT', dial: '+39', flag: '🇮🇹', name: 'Italy' },
+  { code: 'ES', dial: '+34', flag: '🇪🇸', name: 'Spain' },
+  { code: 'NL', dial: '+31', flag: '🇳🇱', name: 'Netherlands' },
+  { code: 'SE', dial: '+46', flag: '🇸🇪', name: 'Sweden' },
+  { code: 'NO', dial: '+47', flag: '🇳🇴', name: 'Norway' },
+  { code: 'DK', dial: '+45', flag: '🇩🇰', name: 'Denmark' },
   { code: 'FI', dial: '+358', flag: '🇫🇮', name: 'Finland' },
-  { code: 'CH', dial: '+41',  flag: '🇨🇭', name: 'Switzerland' },
-  { code: 'PL', dial: '+48',  flag: '🇵🇱', name: 'Poland' },
-  { code: 'RO', dial: '+40',  flag: '🇷🇴', name: 'Romania' },
+  { code: 'CH', dial: '+41', flag: '🇨🇭', name: 'Switzerland' },
+  { code: 'PL', dial: '+48', flag: '🇵🇱', name: 'Poland' },
+  { code: 'RO', dial: '+40', flag: '🇷🇴', name: 'Romania' },
   { code: 'UA', dial: '+380', flag: '🇺🇦', name: 'Ukraine' },
-  { code: 'TR', dial: '+90',  flag: '🇹🇷', name: 'Turkey' },
-  { code: 'IN', dial: '+91',  flag: '🇮🇳', name: 'India' },
-  { code: 'PK', dial: '+92',  flag: '🇵🇰', name: 'Pakistan' },
+  { code: 'TR', dial: '+90', flag: '🇹🇷', name: 'Turkey' },
+  { code: 'IN', dial: '+91', flag: '🇮🇳', name: 'India' },
+  { code: 'PK', dial: '+92', flag: '🇵🇰', name: 'Pakistan' },
   { code: 'BD', dial: '+880', flag: '🇧🇩', name: 'Bangladesh' },
-  { code: 'CN', dial: '+86',  flag: '🇨🇳', name: 'China' },
-  { code: 'JP', dial: '+81',  flag: '🇯🇵', name: 'Japan' },
-  { code: 'SG', dial: '+65',  flag: '🇸🇬', name: 'Singapore' },
-  { code: 'MY', dial: '+60',  flag: '🇲🇾', name: 'Malaysia' },
-  { code: 'ID', dial: '+62',  flag: '🇮🇩', name: 'Indonesia' },
-  { code: 'PH', dial: '+63',  flag: '🇵🇭', name: 'Philippines' },
+  { code: 'CN', dial: '+86', flag: '🇨🇳', name: 'China' },
+  { code: 'JP', dial: '+81', flag: '🇯🇵', name: 'Japan' },
+  { code: 'SG', dial: '+65', flag: '🇸🇬', name: 'Singapore' },
+  { code: 'MY', dial: '+60', flag: '🇲🇾', name: 'Malaysia' },
+  { code: 'ID', dial: '+62', flag: '🇮🇩', name: 'Indonesia' },
+  { code: 'PH', dial: '+63', flag: '🇵🇭', name: 'Philippines' },
   { code: 'AE', dial: '+971', flag: '🇦🇪', name: 'UAE' },
   { code: 'SA', dial: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
   { code: 'QA', dial: '+974', flag: '🇶🇦', name: 'Qatar' },
-  { code: 'BR', dial: '+55',  flag: '🇧🇷', name: 'Brazil' },
-  { code: 'MX', dial: '+52',  flag: '🇲🇽', name: 'Mexico' },
-  { code: 'AR', dial: '+54',  flag: '🇦🇷', name: 'Argentina' },
-  { code: 'CO', dial: '+57',  flag: '🇨🇴', name: 'Colombia' },
-  { code: 'IR', dial: '+98',  flag: '🇮🇷', name: 'Iran' },
+  { code: 'BR', dial: '+55', flag: '🇧🇷', name: 'Brazil' },
+  { code: 'MX', dial: '+52', flag: '🇲🇽', name: 'Mexico' },
+  { code: 'AR', dial: '+54', flag: '🇦🇷', name: 'Argentina' },
+  { code: 'CO', dial: '+57', flag: '🇨🇴', name: 'Colombia' },
+  { code: 'IR', dial: '+98', flag: '🇮🇷', name: 'Iran' },
 ];
 
-interface OrderData {
-  orderId: string;
-  orderNumber: string;
-  itemsTotal: number;
-  deliveryFee: number;
-  platformFee: number;
-  totalAmount: number;
-  paymentUrl: string;
-  paymentReference?: string;
+interface SendboxQuote {
+  name: string;
+  rate_card_id: string;
+  fee: number;
+  pickup_date: string;
+}
+
+interface GigQuote {
+  name: string;
+  rate_card_id: null;
+  fee: number;
+  pickup_date: null;
+}
+
+interface DeliveryQuote {
+  sendboxQuotes?: SendboxQuote[];
+  gigQuote?: GigQuote;
+  deliveryMethod: string;
+}
+
+interface SelectedQuote {
+  fee: number;
+  rate_card_id?: string | null;
+  name: string;
 }
 
 export default function CheckoutPage() {
@@ -142,14 +155,20 @@ export default function CheckoutPage() {
   const [searchQuery] = useState('');
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [isEditingDelivery, setIsEditingDelivery] = useState(false);
-  const [isProcessingOrder, setIsProcessingOrder] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
-  const [orderData, setOrderData] = useState<OrderData | null>(null);
-  const [deliveryMethod, setDeliveryMethod] = useState<'platform' | 'pickup' | 'vendor'>('platform');
+  const [deliveryMethod, setDeliveryMethod] = useState<'sendbox' | 'pickup' | 'vendor' | 'gig'>('sendbox');
   const [phoneDialCode, setPhoneDialCode] = useState('+234');
   const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
+
+  // Quote-related state
+  const [isFetchingQuote, setIsFetchingQuote] = useState(false);
+  const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
+  const [selectedQuote, setSelectedQuote] = useState<SelectedQuote | null>(null);
+  const [showSendboxModal, setShowSendboxModal] = useState(false);
+     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [quotePayload, setQuotePayload] = useState<any>(null); // store payload for reuse in order creation
 
   const [customerDetails, setCustomerDetails] = useState({
     name: '',
@@ -166,64 +185,55 @@ export default function CheckoutPage() {
   const isSearchingOnMobile = searchQuery.trim() !== '';
 
   const itemsTotal = getCartTotal();
-  const deliveryFee = orderData?.deliveryFee || 0;
-  const total = orderData ? orderData.totalAmount : itemsTotal;
+  const deliveryFee = selectedQuote?.fee || 0;
+  const total = itemsTotal + deliveryFee;
 
-  // Fetch store's enabled fulfillment modes
+  // Determines if this delivery method needs a quote
+  const needsQuote = deliveryMethod === 'sendbox' || deliveryMethod === 'gig';
+
+  // Whether the customer has completed the quote step
+  const quoteReady = !needsQuote || selectedQuote !== null;
+
   useEffect(() => {
     const fetchStoreFulfillmentModes = async () => {
       try {
         setIsLoadingModes(true);
-        console.log('🔄 Fetching store fulfillment modes for:', storeId);
-
         const response = await fetch(`/api/stores/${storeId}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch store details');
-        }
-
+        if (!response.ok) throw new Error('Failed to fetch store details');
         const result = await response.json();
-        console.log('📦 Store API response:', result);
 
         if (result.status === 'success' && result.data?.storeDetails) {
           const modes = result.data.storeDetails.enabled_fulfillment_modes || [];
           setEnabledFulfillmentModes(modes);
-          
-          console.log('✅ Enabled fulfillment modes:', modes);
 
-          // Set default delivery method based on enabled modes
-          if (modes.length > 0) {
-            // Priority: platform > pickup > vendor
-            if (modes.includes('platform')) {
-              setDeliveryMethod('platform'); // platform maps to sendbox
-            } else if (modes.includes('pickup')) {
-              setDeliveryMethod('pickup');
-            } else if (modes.includes('vendor')) {
-              setDeliveryMethod('vendor');
-            }
-          }
+          if (modes.includes('sendbox')) setDeliveryMethod('sendbox');
+          else if (modes.includes('pickup')) setDeliveryMethod('pickup');
+          else if (modes.includes('vendor')) setDeliveryMethod('vendor');
+          else if (modes.includes('gig')) setDeliveryMethod('gig');
         }
       } catch (error) {
         console.error('❌ Error fetching store fulfillment modes:', error);
         toast.error('Failed to load delivery options');
-        // Fallback to default modes
-        setEnabledFulfillmentModes(['pickup', 'platform']);
-        setDeliveryMethod('platform');
+        setEnabledFulfillmentModes(['pickup', 'sendbox']);
+        setDeliveryMethod('sendbox');
       } finally {
         setIsLoadingModes(false);
       }
     };
 
-    if (storeId) {
-      fetchStoreFulfillmentModes();
-    }
+    if (storeId) fetchStoreFulfillmentModes();
   }, [storeId]);
+
+  // Reset quote when delivery method or address changes
+  useEffect(() => {
+    setSelectedQuote(null);
+    setDeliveryQuote(null);
+  }, [deliveryMethod]);
 
   const handleEditAddress = () => setIsEditingAddress(true);
   const handleSaveAddress = () => setIsEditingAddress(false);
   const handleCancelEdit = () => setIsEditingAddress(false);
   const handleEditDelivery = () => setIsEditingDelivery(true);
-  const handleSaveDelivery = () => setIsEditingDelivery(false);
   const handleCancelDeliveryEdit = () => setIsEditingDelivery(false);
 
   const handleInputChange = (field: keyof typeof customerDetails, value: string) => {
@@ -232,6 +242,9 @@ export default function CheckoutPage() {
       if (field === 'country') updated.state = '';
       return updated;
     });
+    // Reset quote if address changes
+    setSelectedQuote(null);
+    setDeliveryQuote(null);
   };
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -241,76 +254,179 @@ export default function CheckoutPage() {
 
   const validateCheckout = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(customerDetails.email)) {
-      toast.error("Invalid Email - Please enter a valid email address");
-      return false;
-    }
-    if (customerDetails.phone.length < 7) {
-      toast.error("Invalid Phone - Please enter a valid phone number");
-      return false;
-    }
+    if (!emailRegex.test(customerDetails.email)) { toast.error("Please enter a valid email address"); return false; }
+    if (customerDetails.phone.length < 7) { toast.error("Please enter a valid phone number"); return false; }
     if (!customerDetails.name.trim()) { toast.error("Name is required"); return false; }
     if (!customerDetails.address.trim()) { toast.error("Address is required"); return false; }
     if (!customerDetails.city.trim()) { toast.error("City is required"); return false; }
     if (!customerDetails.state.trim()) { toast.error("State / Region is required"); return false; }
     if (!customerDetails.post_code.trim()) { toast.error("Post Code is required"); return false; }
-    if (cart.length === 0) {
-      toast.error("Empty Cart - Your cart is empty. Please add items before checkout");
-      return false;
-    }
+    if (cart.length === 0) { toast.error("Your cart is empty"); return false; }
     return true;
   };
 
-  const createOrder = async () => {
-    try {
-      const orderPayload = {
-        store_id: storeId,
-        items: cart.map(item => ({
-          product_id: item.id,
-          quantity: item.quantity,
-          price: item.price,
-          discount: 0,
-          name: item.name
-        })),
-        total_amount: itemsTotal,
-        total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
-        payment_method: "paystack",
-        delivery_method: deliveryMethod === 'platform' ? 'platform' : deliveryMethod,
-        customer_info: {
-          name: customerDetails.name,
-          email: customerDetails.email,
-          phone: `${phoneDialCode}${customerDetails.phone}`,
-          address: customerDetails.address,
-          city: customerDetails.city,
-          state: customerDetails.state,
-          post_code: customerDetails.post_code,
-          country: customerDetails.country
-        },
-        notes: deliveryNotes || "No delivery notes provided"
+  const buildBasePayload = () => ({
+    store_id: storeId,
+    items: cart.map(item => {
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const orderItem: any = {
+        product_id: item.product_id || item.originalProductId || item.id,
+        quantity: item.quantity,
+        price: item.price,
+        discount: 0,
+        name: item.name
       };
-  
-      console.log('📦 Creating order with delivery_method:', orderPayload.delivery_method);
-  
-      const response = await fetch('/api/orders', {
+      if (item.variant && (item.variant.size || item.variant.color)) {
+        orderItem.variant = { size: item.variant.size || "", color: item.variant.color || "" };
+      }
+      return orderItem;
+    }),
+    total_amount: itemsTotal,
+    total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
+    payment_method: "paystack",
+    delivery_method: deliveryMethod,
+    customer_info: {
+      name: customerDetails.name,
+      email: customerDetails.email,
+      phone: `${phoneDialCode}${customerDetails.phone}`,
+      address: customerDetails.address,
+      city: customerDetails.city,
+      state: customerDetails.state,
+      post_code: customerDetails.post_code,
+      country: customerDetails.country
+    },
+    notes: deliveryNotes || "No delivery notes provided"
+  });
+
+  // Called when user clicks "Save" in the delivery section
+  const handleSaveDelivery = async () => {
+    if (!needsQuote) {
+      setIsEditingDelivery(false);
+      return;
+    }
+
+    if (!validateCheckout()) return;
+
+    setIsFetchingQuote(true);
+    setIsEditingDelivery(false);
+
+    try {
+      const payload = buildBasePayload();
+      setQuotePayload(payload);
+
+      console.log('📦 Fetching delivery quote:', JSON.stringify(payload, null, 2));
+
+      const response = await fetch('/api/orders/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderPayload)
+        body: JSON.stringify(payload)
       });
-  
+
       const result = await response.json();
-      if (!response.ok) throw new Error(result.message || `Failed to create order: ${response.status}`);
-      if (result.status !== 'success') throw new Error(result.message || 'Order creation failed');
-  
-      return result;
+      console.log('📥 FULL Quote response:', result);
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch delivery quote');
+      }
+
+      const methodRaw = result.data?.delivery_method;
+
+      const method = methodRaw;
+      const quoteData = result.data?.quote;
+
+      console.log('🧪 delivery_method:', method);
+      console.log('🧪 quoteData:', quoteData);
+
+      // ✅ HANDLE SENDBOX (sendbox)
+      if (method === 'sendbox') {
+        const quotes: SendboxQuote[] = Array.isArray(quoteData) ? quoteData : [];
+
+        if (quotes.length === 0) {
+          toast.error('No delivery options available');
+          return;
+        }
+
+        setDeliveryQuote({
+          sendboxQuotes: quotes,
+          deliveryMethod: 'sendbox'
+        });
+
+        setShowSendboxModal(true);
+      }
+
+      // ✅ HANDLE GIG
+      else if (method === 'gig') {
+        const gigQuote: GigQuote = quoteData;
+
+        if (!gigQuote || !gigQuote.fee) {
+          throw new Error('Invalid GIG quote response');
+        }
+
+        setDeliveryQuote({
+          gigQuote,
+          deliveryMethod: 'gig'
+        });
+
+        setSelectedQuote({
+          fee: gigQuote.fee,
+          rate_card_id: null,
+          name: 'GIG Logistics'
+        });
+
+        toast.success(`GIG delivery fee: ₦${gigQuote.fee.toLocaleString()} added to total`);
+      }
+
+      // ❌ UNKNOWN RESPONSE
+      else {
+        console.error('❌ Unknown delivery method:', method);
+        toast.error('Unsupported delivery method returned');
+      }
+
     } catch (error) {
-      console.error('Order creation error:', error);
-      throw error;
+      console.error('Quote error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to get delivery quote');
+    } finally {
+      setIsFetchingQuote(false);
     }
   };
 
-  const handleConfirmOrder = async () => {
+  const handleSelectSendboxQuote = (quote: SendboxQuote) => {
+    setSelectedQuote({ fee: quote.fee, rate_card_id: quote.rate_card_id, name: quote.name });
+    setShowSendboxModal(false);
+    toast.success(`${quote.name} selected — ₦${quote.fee.toLocaleString()} delivery fee added`);
+  };
+
+  const createOrder = async () => {
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: any = { ...buildBasePayload() };
+
+    // Add rate_card_id for sendbox
+    if (deliveryMethod === 'sendbox' && selectedQuote?.rate_card_id) {
+      payload.rate_card_id = selectedQuote.rate_card_id;
+    }
+
+    console.log('📦 Creating order:', JSON.stringify(payload, null, 2));
+
+    const response = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || `Failed to create order: ${response.status}`);
+    if (result.status !== 'success') throw new Error(result.message || 'Order creation failed');
+    return result;
+  };
+
+  const handleProceedToPayment = async () => {
     if (!validateCheckout()) return;
-    setIsProcessingOrder(true);
+    if (needsQuote && !selectedQuote) {
+      toast.error('Please save delivery details to get a delivery quote first');
+      return;
+    }
+
+    setIsProcessingPayment(true);
     try {
       const orderResult = await createOrder();
       const orderDetails = orderResult.data?.order;
@@ -318,31 +434,13 @@ export default function CheckoutPage() {
       const transactionDetails = orderResult.data?.transaction;
 
       if (orderDetails && paymentDetails) {
-        const deliveryFee = Number(orderDetails.delivery_fee) || 0;
-        const paystackAmount = Number(paymentDetails.total_paid) || Number(orderDetails.order_total);
-
-        const newOrderData: OrderData = {
-          orderId: orderDetails.id,
-          orderNumber: orderDetails.order_number,
-          itemsTotal,
-          deliveryFee,
-          totalAmount: paystackAmount,
-          paymentUrl: paymentDetails.authorization_url,
-          platformFee: Number(orderDetails.platform_fee)
-        };
-
-        setOrderData(newOrderData);
-
         const paymentReference = transactionDetails?.reference || paymentDetails.reference;
 
         localStorage.setItem('pending_order', JSON.stringify({
           orderId: orderDetails.order_number,
-          customerDetails: {
-            ...customerDetails,
-            phone: `${phoneDialCode}${customerDetails.phone}`
-          },
+          customerDetails: { ...customerDetails, phone: `${phoneDialCode}${customerDetails.phone}` },
           cart,
-          total: paystackAmount,
+          total: Number(paymentDetails.total_paid) || Number(orderDetails.order_total),
           deliveryNotes,
           orderData: orderResult,
           paymentReference
@@ -351,26 +449,13 @@ export default function CheckoutPage() {
         localStorage.setItem('current_store_id', storeId);
         if (paymentReference) localStorage.setItem('payment_reference', paymentReference);
 
-        toast.success("Order created! Review the total including delivery and fees.");
+        toast.success("Redirecting to payment...");
+        window.location.href = paymentDetails.authorization_url;
       } else {
         throw new Error('Order details not found in response');
       }
     } catch (error) {
-      toast.error(`Order Creation Failed - ${error instanceof Error ? error.message : "Please try again."}`);
-    } finally {
-      setIsProcessingOrder(false);
-    }
-  };
-
-  const handleProceedToPayment = async () => {
-    if (!orderData?.paymentUrl) return;
-    setIsProcessingPayment(true);
-    try {
-      localStorage.setItem('current_store_id', storeId);
-      toast.success("Redirecting to payment...");
-      window.location.href = orderData.paymentUrl;
-    } catch (error) {
-      toast.error("Failed to redirect to payment.");
+      toast.error(`Order Failed — ${error instanceof Error ? error.message : "Please try again."}`);
     } finally {
       setIsProcessingPayment(false);
     }
@@ -393,9 +478,7 @@ export default function CheckoutPage() {
         <div className='mb-6'>
           <Label className='text-xs mb-3 block'>Delivery Method *</Label>
           <div className='p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg'>
-            <p className='text-sm text-red-600 dark:text-red-400'>
-              No delivery methods are currently available for this store.
-            </p>
+            <p className='text-sm text-red-600 dark:text-red-400'>No delivery methods are currently available for this store.</p>
           </div>
         </div>
       );
@@ -406,56 +489,63 @@ export default function CheckoutPage() {
         <Label className='text-xs mb-3 block'>Delivery Method *</Label>
         <RadioGroup
           value={deliveryMethod}
-          onValueChange={(value: 'platform' | 'pickup' | 'vendor') => setDeliveryMethod(value)}
+          onValueChange={(value: 'sendbox' | 'pickup' | 'vendor' | 'gig') => {
+            setDeliveryMethod(value);
+            setSelectedQuote(null);
+            setDeliveryQuote(null);
+          }}
           className="space-y-3"
-          disabled={!!orderData}
+          disabled={!isEditingDelivery}
         >
-          {/* Platform Delivery (shows as Door Delivery) */}
-          {enabledFulfillmentModes.includes('platform') && (
+          {enabledFulfillmentModes.includes('sendbox') && (
             <div className="flex items-center space-x-2">
-              <RadioGroupItem value="platform" id="platform" />
-              <Label htmlFor="platform" className="text-sm font-normal cursor-pointer">
-                Door Delivery
+              <RadioGroupItem value="sendbox" id="sendbox" />
+              <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
+                Platform Delivery
               </Label>
             </div>
           )}
-
-          {/* Pickup */}
           {enabledFulfillmentModes.includes('pickup') && (
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="pickup" id="pickup" />
-              <Label htmlFor="pickup" className="text-sm font-normal cursor-pointer">
-                Pick Up
-              </Label>
+              <Label htmlFor="pickup" className="text-sm font-normal cursor-pointer">Pick Up</Label>
             </div>
           )}
-
-          {/* Vendor Delivery */}
           {enabledFulfillmentModes.includes('vendor') && (
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="vendor" id="vendor" />
-              <Label htmlFor="vendor" className="text-sm font-normal cursor-pointer">
-                Vendor Delivery
-              </Label>
+              <Label htmlFor="vendor" className="text-sm font-normal cursor-pointer">Vendor Delivery</Label>
+            </div>
+          )}
+          {enabledFulfillmentModes.includes('gig') && (
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="gig" id="gig" />
+              <Label htmlFor="gig" className="text-sm font-normal cursor-pointer">GIG Logistics</Label>
             </div>
           )}
         </RadioGroup>
 
-        {/* Description based on selected method */}
-        {deliveryMethod === 'platform' && enabledFulfillmentModes.includes('platform') && (
-          <p className="text-xs text-[#A0A0A0] mt-2">
-            Your order will be delivered to your specified address through our platform delivery service
-          </p>
-        )}
-        {deliveryMethod === 'pickup' && enabledFulfillmentModes.includes('pickup') && (
-          <p className="text-xs text-[#A0A0A0] mt-2">
-            You&apos;ll pick up your order from the store location
-          </p>
-        )}
-        {deliveryMethod === 'vendor' && enabledFulfillmentModes.includes('vendor') && (
-          <p className="text-xs text-[#A0A0A0] mt-2">
-            The vendor will handle delivery of your order
-          </p>
+        {deliveryMethod === 'sendbox' && <p className="text-xs text-[#A0A0A0] mt-2">Delivered through our sendbox delivery service. Rates will be shown after saving.</p>}
+        {deliveryMethod === 'pickup' && <p className="text-xs text-[#A0A0A0] mt-2">You&apos;ll pick up your order from the store location.</p>}
+        {deliveryMethod === 'vendor' && <p className="text-xs text-[#A0A0A0] mt-2">The vendor will handle delivery of your order.</p>}
+        {deliveryMethod === 'gig' && <p className="text-xs text-[#A0A0A0] mt-2">Delivered through GIG Logistics. Rate will be calculated after saving.</p>}
+
+        {/* Show selected quote info */}
+        {selectedQuote && (
+          <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-green-700 dark:text-green-400">✓ {selectedQuote.name}</p>
+              <p className="text-xs text-green-600 dark:text-green-500">Delivery fee: ₦{selectedQuote.fee.toLocaleString()}</p>
+            </div>
+            {needsQuote && !isEditingDelivery && (
+              <button
+                onClick={() => { setIsEditingDelivery(true); setSelectedQuote(null); setDeliveryQuote(null); }}
+                className="text-xs text-primary underline"
+              >
+                Change
+              </button>
+            )}
+          </div>
         )}
       </div>
     );
@@ -464,7 +554,7 @@ export default function CheckoutPage() {
   return (
     <div className='flex flex-col bg-[#FCFCFC]'>
       {/* Mobile Header */}
-      <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10`}>
+      <div className='md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10'>
         <div className='flex items-center justify-between'>
           <Link href={`/storefront/${storeId}`}><Logo /></Link>
           <div className='flex gap-2'><CartButton /></div>
@@ -481,16 +571,16 @@ export default function CheckoutPage() {
                 <span className='text-sm'>Item&apos;s total ({cart.length})</span>
                 <span className='text-sm'>₦{itemsTotal.toLocaleString()}</span>
               </div>
-              {orderData && (
+              {selectedQuote && (
                 <div className='flex items-center justify-between'>
-                  <span className='text-sm'>Delivery Fee</span>
-                  <span className='text-sm'>₦{deliveryFee.toLocaleString()}</span>
+                  <span className='text-sm'>Delivery Fee ({selectedQuote.name})</span>
+                  <span className='text-sm'>₦{selectedQuote.fee.toLocaleString()}</span>
                 </div>
               )}
-              {orderData && (
-                <div className='flex items-center justify-between text-xs text-gray-500'>
-                  <span>Platform fee & processing fees</span>
-                  <span>Included</span>
+              {(deliveryMethod === 'sendbox' || deliveryMethod === 'gig') && !selectedQuote && (
+                <div className='flex items-center justify-between text-xs text-[#A0A0A0]'>
+                  <span>Delivery fee</span>
+                  <span>Calculated after saving delivery</span>
                 </div>
               )}
               <div className='flex items-center justify-between border-t pt-2'>
@@ -499,23 +589,19 @@ export default function CheckoutPage() {
               </div>
             </CardContent>
             <CardFooter className='pt-4'>
-              {!orderData ? (
-                <Button
-                  className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
-                  onClick={handleConfirmOrder}
-                  disabled={isProcessingOrder || cart.length === 0 || isLoadingModes}
-                >
-                  {isProcessingOrder ? 'Creating Order...' : 'Confirm Order'}
-                </Button>
-              ) : (
-                <Button
-                  className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
-                  onClick={handleProceedToPayment}
-                  disabled={isProcessingPayment}
-                >
-                  {isProcessingPayment ? 'Redirecting...' : 'Proceed to Payment'}
-                </Button>
-              )}
+              <Button
+                className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
+                onClick={handleProceedToPayment}
+                disabled={isProcessingPayment || cart.length === 0 || isLoadingModes || isFetchingQuote || (needsQuote && !selectedQuote)}
+              >
+                {isProcessingPayment ? (
+                  <><Loader2 className='w-4 h-4 mr-2 animate-spin' /> Processing...</>
+                ) : needsQuote && !selectedQuote ? (
+                  'Save delivery to continue'
+                ) : (
+                  'Proceed to Payment'
+                )}
+              </Button>
             </CardFooter>
           </Card>
 
@@ -542,8 +628,8 @@ export default function CheckoutPage() {
                 </Button>
               ) : (
                 <div className='flex items-center gap-2'>
-                  <Button variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                  <Button onClick={handleSaveAddress}><SaveIcon /> <span className="hidden sm:inline ml-2">Save Changes</span></Button>
+                  <Button variant="outline" onClick={handleCancelEdit}> <X/> <span className="hidden sm:inline ml-2">Cancel</span></Button>
+                  <Button onClick={handleSaveAddress}><SaveIcon className="hidden sm:inline ml-2"/> <span >Save Changes</span></Button>
                 </div>
               )}
             </CardHeader>
@@ -551,33 +637,16 @@ export default function CheckoutPage() {
             <CardContent className='pt-6 space-y-4'>
               <div>
                 <Label className='text-xs mb-1'>Full Name *</Label>
-                <Input
-                  disabled={!isEditingAddress || !!orderData}
-                  value={customerDetails.name}
-                  onChange={e => handleInputChange('name', e.target.value)}
-                  placeholder="Enter your full name"
-                />
+                <Input disabled={!isEditingAddress} value={customerDetails.name} onChange={e => handleInputChange('name', e.target.value)} placeholder="Enter your full name" />
               </div>
-
               <div>
                 <Label className='text-xs mb-1'>Email *</Label>
-                <Input
-                  type='email'
-                  disabled={!isEditingAddress || !!orderData}
-                  value={customerDetails.email}
-                  onChange={e => handleInputChange('email', e.target.value)}
-                  placeholder="your@email.com"
-                />
+                <Input type='email' disabled={!isEditingAddress} value={customerDetails.email} onChange={e => handleInputChange('email', e.target.value)} placeholder="your@email.com" />
               </div>
-
               <div>
                 <Label className='text-xs mb-1'>Phone Number *</Label>
                 <div className="flex">
-                  <Select
-                    value={phoneDialCode}
-                    onValueChange={setPhoneDialCode}
-                    disabled={!isEditingAddress || !!orderData}
-                  >
+                  <Select value={phoneDialCode} onValueChange={setPhoneDialCode} disabled={!isEditingAddress}>
                     <SelectTrigger className="w-[120px] rounded-r-none border-r-0 focus:ring-0 flex-shrink-0">
                       <SelectValue>
                         <span className="flex items-center gap-1.5">
@@ -598,67 +667,31 @@ export default function CheckoutPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input
-                    type="tel"
-                    disabled={!isEditingAddress || !!orderData}
-                    value={customerDetails.phone}
-                    onChange={e => handleInputChange('phone', e.target.value)}
-                    placeholder="8012345678"
-                    className="rounded-l-none flex-1"
-                  />
+                  <Input type="tel" disabled={!isEditingAddress} value={customerDetails.phone} onChange={e => handleInputChange('phone', e.target.value)} placeholder="8012345678" className="rounded-l-none flex-1" />
                 </div>
               </div>
-
               <div>
                 <Label className='text-xs mb-1'>Delivery Address *</Label>
-                <Input
-                  disabled={!isEditingAddress || !!orderData}
-                  value={customerDetails.address}
-                  onChange={e => handleInputChange('address', e.target.value)}
-                  placeholder="Enter your complete address"
-                />
+                <Input disabled={!isEditingAddress} value={customerDetails.address} onChange={e => handleInputChange('address', e.target.value)} placeholder="Enter your complete address" />
               </div>
-
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <div>
                   <Label className='text-xs mb-1'>City *</Label>
-                  <Input
-                    disabled={!isEditingAddress || !!orderData}
-                    value={customerDetails.city}
-                    onChange={e => handleInputChange('city', e.target.value)}
-                    placeholder="e.g., Lagos"
-                  />
+                  <Input disabled={!isEditingAddress} value={customerDetails.city} onChange={e => handleInputChange('city', e.target.value)} placeholder="e.g., Lagos" />
                 </div>
                 <div>
-                  <StateRegionSelect
-                    countryCode={customerDetails.country}
-                    value={customerDetails.state}
-                    onChange={(value) => handleInputChange('state', value)}
-                    disabled={!isEditingAddress || !!orderData}
-                  />
+                  <StateRegionSelect countryCode={customerDetails.country} value={customerDetails.state} onChange={(value) => handleInputChange('state', value)} disabled={!isEditingAddress} />
                 </div>
               </div>
-
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <div>
                   <Label className='text-xs mb-1'>Post Code *</Label>
-                  <Input
-                    disabled={!isEditingAddress || !!orderData}
-                    value={customerDetails.post_code}
-                    onChange={e => handleInputChange('post_code', e.target.value)}
-                    placeholder="e.g., 100001"
-                  />
+                  <Input disabled={!isEditingAddress} value={customerDetails.post_code} onChange={e => handleInputChange('post_code', e.target.value)} placeholder="e.g., 100001" />
                 </div>
                 <div>
                   <Label className='text-xs mb-1'>Country *</Label>
-                  <Select
-                    disabled={!isEditingAddress || !!orderData}
-                    value={customerDetails.country}
-                    onValueChange={(value) => handleInputChange('country', value)}
-                  >
-                    <SelectTrigger className='w-full'>
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
+                  <Select disabled={!isEditingAddress} value={customerDetails.country} onValueChange={(value) => handleInputChange('country', value)}>
+                    <SelectTrigger className='w-full'><SelectValue placeholder="Select country" /></SelectTrigger>
                     <SelectContent className="max-h-[300px]">
                       {Object.entries(countryToCode).map(([name, code]) => (
                         <SelectItem key={code} value={code}>{name}</SelectItem>
@@ -675,33 +708,38 @@ export default function CheckoutPage() {
             <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
               <h3 className='font-semibold'>2. DELIVERY DETAILS</h3>
               {!isEditingDelivery ? (
-                <Button variant="outline" className='text-[#4FCA6A]' onClick={handleEditDelivery}>
+                <Button variant="outline" className='text-[#4FCA6A]' onClick={() => setIsEditingDelivery(true)}>
                   Change <EditIcon />
                 </Button>
               ) : (
                 <div className='flex items-center gap-2'>
-                  <Button variant="outline" onClick={handleCancelDeliveryEdit}>Cancel</Button>
-                  <Button onClick={handleSaveDelivery}><SaveIcon /> <span className="hidden sm:inline ml-2">Save</span></Button>
+                  <Button variant="outline" onClick={handleCancelDeliveryEdit}><X/> <span className="hidden sm:inline ml-2">Cancel</span></Button>
+                  <Button onClick={handleSaveDelivery} disabled={isFetchingQuote}>
+                    {isFetchingQuote ? (
+                      <><Loader2 className='w-4 h-4 mr-2 animate-spin' /> Getting quote...</>
+                    ) : (
+                      <><SaveIcon className="hidden sm:inline ml-2"/> <span >Save Changes</span></>
+                    )}
+                  </Button>
                 </div>
               )}
             </CardHeader>
 
             <CardContent className='pt-6'>
               <DeliveryMethodSection />
+
               <div className='mb-4'>
                 <Label className='text-xs mb-1'>Delivery Notes (Optional)</Label>
                 <div className='relative'>
                   <textarea
                     className='w-full min-h-[100px] px-3 py-2 text-sm border border-[#E0E0E0] rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#4FCA6A] disabled:bg-gray-50'
-                    disabled={!isEditingDelivery || !!orderData}
+                    disabled={!isEditingDelivery}
                     value={deliveryNotes}
                     onChange={handleNotesChange}
                     placeholder="Add any special instructions..."
                     maxLength={200}
                   />
-                  <span className='absolute bottom-2 right-3 text-xs text-[#A0A0A0]'>
-                    {deliveryNotes.length}/200
-                  </span>
+                  <span className='absolute bottom-2 right-3 text-xs text-[#A0A0A0]'>{deliveryNotes.length}/200</span>
                 </div>
               </div>
 
@@ -711,25 +749,19 @@ export default function CheckoutPage() {
                     <div className='flex justify-between items-center'>
                       <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
                       <span className='text-xs text-[#A0A0A0]'>
-                        {deliveryMethod === 'vendor' ? 'Fulfilled By Vendor' : 
-                         deliveryMethod === 'pickup' ? 'Store Pickup' : 
-                         'Platform Delivery'}
+                        {deliveryMethod === 'vendor' ? 'Fulfilled By Vendor' :
+                          deliveryMethod === 'pickup' ? 'Store Pickup' :
+                            deliveryMethod === 'gig' ? 'GIG Logistics' : 'Door Delivery'}
                       </span>
                     </div>
                     <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
                       <p className='text-sm font-medium'>
-                        {deliveryMethod === 'vendor' ? 'Vendor Delivery' : 
-                         deliveryMethod === 'pickup' ? 'Store Pickup' : 
-                         'Door Delivery'}
+                        {deliveryMethod === 'vendor' ? 'Vendor Delivery' :
+                          deliveryMethod === 'pickup' ? 'Store Pickup' :
+                            deliveryMethod === 'gig' ? 'GIG Delivery' : 'Door Delivery'}
                       </p>
                       <div className='flex gap-3 mt-3'>
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          width={50}
-                          height={50}
-                          className='object-cover w-12 h-12 rounded-lg'
-                        />
+                        <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg' />
                         <div className='flex flex-col justify-between'>
                           <p className='text-sm line-clamp-2'>{item.name}</p>
                           <div className='flex items-center gap-2'>
@@ -761,6 +793,51 @@ export default function CheckoutPage() {
           </Link>
         </div>
       </div>
+
+      {/* Sendbox Courier Selection Modal */}
+      <Dialog open={showSendboxModal} onOpenChange={() => { }}>
+        <DialogOverlay className="backdrop-blur-xs" />
+        <DialogContent className="sm:max-w-md [&>button]:hidden">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">Choose Delivery Option</DialogTitle>
+            <p className="text-xs text-muted-foreground">Select a courier for your order</p>
+          </DialogHeader>
+
+          <div className="space-y-3 mt-4">
+            {Array.isArray(deliveryQuote?.sendboxQuotes) &&
+              deliveryQuote.sendboxQuotes.map((quote) => (
+                <button
+                  key={quote.rate_card_id}
+                  onClick={() => handleSelectSendboxQuote(quote)}
+                  className="w-full flex items-center justify-between p-4 border rounded-lg hover:border-[#4FCA6A] hover:bg-[#4FCA6A]/5 transition-all text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                      <Truck className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{quote.name}</p>
+                      {quote.pickup_date && (
+                        <p className="text-xs text-muted-foreground">
+                          Pickup: {new Date(quote.pickup_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-primary">₦{quote.fee.toLocaleString()}</p>
+                  </div>
+                </button>
+              ))}
+          </div>
+
+          <div className="flex justify-end mt-4">
+            <Button variant="outline" onClick={() => { setShowSendboxModal(false); setIsEditingDelivery(true); }}>
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

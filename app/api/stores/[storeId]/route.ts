@@ -14,6 +14,7 @@ export async function GET(
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'x-stf-org-c': '39fda25f3410a85a0fe5e2a2d81ac2c7d8c8694bf43304fe0db413e6494f024b',
       },
       next: { revalidate: 60 }
     })

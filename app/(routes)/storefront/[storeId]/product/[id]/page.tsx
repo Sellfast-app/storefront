@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { PlusIcon } from 'lucide-react';
 import MinusIcon from '@/components/svgIcons/MinusIcon';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { ratingBreakdown, customerReviews } from '@/lib/mockdata'
+import { ratingBreakdown } from '@/lib/mockdata'
 import { useCart } from '@/context/CartContext'
 import CartButton from '@/components/CartButton'
 import CartView from '@/components/CartView'
@@ -281,9 +281,11 @@ function Page() {
         ? parseInt(selectedVariant.price)
         : product.product_price;
       const cartId = getVariantCartId(product.id, hasVariants ? selectedVariant : null);
-
+  
       addToCart({
         id: cartId,
+        originalProductId: product.id, // ← add this
+        product_id: product.id,         // ← add this
         name: product.product_name,
         price: priceToUse,
         image: product.product_images[0] || Banner,
@@ -301,9 +303,11 @@ function Page() {
         ? parseInt(selectedVariant.price)
         : product.product_price;
       const cartId = getVariantCartId(product.id, hasVariants ? selectedVariant : null);
-
+  
       addToCart({
         id: cartId,
+        originalProductId: product.id, // ← add this
+        product_id: product.id,         // ← add this
         name: product.product_name,
         price: priceToUse,
         image: product.product_images[0] || Banner,
@@ -319,37 +323,36 @@ function Page() {
     ? (!selectedVariant || selectedVariant.quantity === 0)
     : currentQuantity > 0;
 
-  const handleAddToCart = (e?: React.MouseEvent, prod?: Product) => {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    const productToAdd = prod || product;
-    if (!productToAdd) return;
-    if (hasVariants && !selectedVariant) return;
-    if (hasVariants && selectedVariant && selectedVariant.quantity === 0) return;
-
-    const priceToUse = hasVariants && selectedVariant?.price
-      ? parseInt(selectedVariant.price)
-      : productToAdd.product_price;
-
-    const cartId = getVariantCartId(
-      productToAdd.id,
-      hasVariants ? selectedVariant : null
-    );
-
-    addToCart({
-      id: cartId, // ← unique per variant
-      name: productToAdd.product_name,
-      price: priceToUse,
-      image: productToAdd.product_images[0] || Banner,
-      description: productToAdd.product_description,
-      ...(hasVariants && selectedVariant && {
-        variant: {
-          size: selectedVariant.size,
-          color: selectedVariant.color,
-          price: parseInt(selectedVariant.price || '0'),
-        }
-      })
-    }, 1);
-  };
+    const handleAddToCart = (e?: React.MouseEvent, prod?: Product) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      const productToAdd = prod || product;
+      if (!productToAdd) return;
+      if (hasVariants && !selectedVariant) return;
+      if (hasVariants && selectedVariant && selectedVariant.quantity === 0) return;
+    
+      const priceToUse = hasVariants && selectedVariant?.price
+        ? parseInt(selectedVariant.price)
+        : productToAdd.product_price;
+    
+      const cartId = getVariantCartId(productToAdd.id, hasVariants ? selectedVariant : null);
+    
+      addToCart({
+        id: cartId,
+        originalProductId: productToAdd.id, // real UUID for API
+        product_id: productToAdd.id,         // real UUID for API
+        name: productToAdd.product_name,
+        price: priceToUse,
+        image: productToAdd.product_images[0] || Banner,
+        description: productToAdd.product_description,
+        ...(hasVariants && selectedVariant && {
+          variant: {
+            size: selectedVariant.size,
+            color: selectedVariant.color,
+            price: parseInt(selectedVariant.price || '0'),
+          }
+        })
+      }, 1);
+    };
 
   const handleRelatedProductAddToCart = (e: React.MouseEvent, prod: Product) => {
     e.preventDefault();
