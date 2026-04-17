@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { PlusIcon } from 'lucide-react';
 import MinusIcon from '@/components/svgIcons/MinusIcon';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { ratingBreakdown, customerReviews } from '@/lib/mockdata'
+import { ratingBreakdown } from '@/lib/mockdata'
 import { useCart } from '@/context/CartContext'
 import CartButton from '@/components/CartButton'
 import CartView from '@/components/CartView'

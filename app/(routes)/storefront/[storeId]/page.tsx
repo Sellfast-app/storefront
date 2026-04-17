@@ -7,9 +7,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Banner from "@/public/Banner.png";
 import Profile from "@/public/image.png";
-import FacebookIcon from "@/components/svgIcons/FacebookIcon";
 import WhatsappIcon from "@/components/svgIcons/WhatsappIcon";
-import InstagramIcon from "@/components/svgIcons/InstagramIcon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import Logo from "@/components/svgIcons/Logo";
@@ -674,10 +672,10 @@ function Page() {
           )}
         </div>
       </div>
-      {/* <SubscriptionModal
+      <SubscriptionModal
         isOpen={showModal}
         onSubscribe={dismissModal}
-      /> */}
+      />
     </div>
   );
 }

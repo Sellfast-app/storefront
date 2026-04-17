@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     // Forward the request to your backend API
     const response = await fetch(
-      `${API_BASE_URL}/api/orders`,
+      `${API_BASE_URL}/api/orders/create`,
       {
         method: "POST",
         headers: {
