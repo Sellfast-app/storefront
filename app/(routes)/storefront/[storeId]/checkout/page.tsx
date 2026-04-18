@@ -778,15 +778,7 @@ export default function CheckoutPage() {
           </Card>
 
           {/* 3. Payment Method */}
-          <Card className='mt-6 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
-            <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
-              <h3 className='font-semibold'>3. PAYMENT METHOD</h3>
-            </CardHeader>
-            <CardContent className='pt-6'>
-              <PaystackLogo />
-              <p className='text-xs text-[#A0A0A0] mt-2'>This is the default payment for Swiftree</p>
-            </CardContent>
-          </Card>
+        
 
           <Link href={`/storefront/${storeId}`} className='flex text-sm items-center text-[#4FCA6A] mt-6 hover:underline'>
             <ArrowIcon /> Go back & continue shopping
