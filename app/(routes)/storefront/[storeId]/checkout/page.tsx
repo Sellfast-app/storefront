@@ -563,7 +563,7 @@ export default function CheckoutPage() {
 
       <div className='p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden'>
         {/* Left: Order Summary */}
-        <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
+        <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full order-2 md:order-1 ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
           <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
             <CardContent className='pb-2 border-b border-[#F5F5F5] dark:border-[#1F1F1F] space-y-4 pt-6'>
               <h3 className='font-semibold'>Order Summary</h3>
@@ -612,7 +612,7 @@ export default function CheckoutPage() {
         </div>
 
         {/* Right: Forms */}
-        <div className='w-full md:w-[55%] md:overflow-y-auto md:h-full'>
+        <div className='w-full md:w-[55%] md:overflow-y-auto md:h-full order-1 md:order-2'>
           <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-[#FCFCFC] z-10 pb-4'>
             <Link href={`/storefront/${storeId}`}><Logo /></Link>
             <div className='flex gap-2'><CartButton /></div>
