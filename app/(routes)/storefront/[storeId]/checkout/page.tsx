@@ -501,7 +501,7 @@ export default function CheckoutPage() {
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="sendbox" id="sendbox" />
               <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
-                Platform Delivery
+                SendBox
               </Label>
             </div>
           )}
