@@ -181,7 +181,7 @@ export default function CheckoutPage() {
     country: 'NG'
   });
 
-  const { cart, getCartTotal } = useCart();
+  const { cart, getCartTotal, clearCart  } = useCart();
   const isSearchingOnMobile = searchQuery.trim() !== '';
 
   const itemsTotal = getCartTotal();
@@ -425,17 +425,17 @@ export default function CheckoutPage() {
       toast.error('Please save delivery details to get a delivery quote first');
       return;
     }
-
+  
     setIsProcessingPayment(true);
     try {
       const orderResult = await createOrder();
       const orderDetails = orderResult.data?.order;
       const paymentDetails = orderResult.data?.payment;
       const transactionDetails = orderResult.data?.transaction;
-
+  
       if (orderDetails && paymentDetails) {
         const paymentReference = transactionDetails?.reference || paymentDetails.reference;
-
+  
         localStorage.setItem('pending_order', JSON.stringify({
           orderId: orderDetails.order_number,
           customerDetails: { ...customerDetails, phone: `${phoneDialCode}${customerDetails.phone}` },
@@ -445,10 +445,13 @@ export default function CheckoutPage() {
           orderData: orderResult,
           paymentReference
         }));
-
+  
         localStorage.setItem('current_store_id', storeId);
         if (paymentReference) localStorage.setItem('payment_reference', paymentReference);
-
+  
+        // ✅ Clear the cart after successful order creation
+        clearCart();
+  
         toast.success("Redirecting to payment...");
         window.location.href = paymentDetails.authorization_url;
       } else {
