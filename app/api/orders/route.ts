@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       result = { status: "success", message: "Order created successfully" };
     }
 
-    console.log('✅ Order created successfully:', result);
+    console.log('✅ Order created successfully:', JSON.stringify(result, null, 2));
     return NextResponse.json(result);
 
   } 
