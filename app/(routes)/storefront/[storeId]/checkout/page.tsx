@@ -4,7 +4,6 @@ import CartButton from '@/components/CartButton';
 import ArrowIcon from '@/components/svgIcons/ArrowIcon';
 import EditIcon from '@/components/svgIcons/EditIcon';
 import Logo from '@/components/svgIcons/Logo';
-import PaystackLogo from '@/components/svgIcons/PaystackLogo';
 import SaveIcon from '@/components/svgIcons/SaveIcon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -162,13 +161,12 @@ export default function CheckoutPage() {
   const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
 
-  // Quote-related state
   const [isFetchingQuote, setIsFetchingQuote] = useState(false);
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<SelectedQuote | null>(null);
   const [showSendboxModal, setShowSendboxModal] = useState(false);
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [quotePayload, setQuotePayload] = useState<any>(null); // store payload for reuse in order creation
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [quotePayload, setQuotePayload] = useState<any>(null);
 
   const [customerDetails, setCustomerDetails] = useState({
     name: '',
@@ -181,17 +179,17 @@ export default function CheckoutPage() {
     country: 'NG'
   });
 
-  const { cart, getCartTotal, clearCart  } = useCart();
+  const { cart, getCartTotal, clearCart, isFoodCart } = useCart();
   const isSearchingOnMobile = searchQuery.trim() !== '';
+
+  // ── Detect food cart ────────────────────────────────────────────────────────
+  const isFood = isFoodCart();
 
   const itemsTotal = getCartTotal();
   const deliveryFee = selectedQuote?.fee || 0;
   const total = itemsTotal + deliveryFee;
 
-  // Determines if this delivery method needs a quote
   const needsQuote = deliveryMethod === 'sendbox' || deliveryMethod === 'gig';
-
-  // Whether the customer has completed the quote step
   const quoteReady = !needsQuote || selectedQuote !== null;
 
   useEffect(() => {
@@ -224,7 +222,6 @@ export default function CheckoutPage() {
     if (storeId) fetchStoreFulfillmentModes();
   }, [storeId]);
 
-  // Reset quote when delivery method or address changes
   useEffect(() => {
     setSelectedQuote(null);
     setDeliveryQuote(null);
@@ -233,7 +230,6 @@ export default function CheckoutPage() {
   const handleEditAddress = () => setIsEditingAddress(true);
   const handleSaveAddress = () => setIsEditingAddress(false);
   const handleCancelEdit = () => setIsEditingAddress(false);
-  const handleEditDelivery = () => setIsEditingDelivery(true);
   const handleCancelDeliveryEdit = () => setIsEditingDelivery(false);
 
   const handleInputChange = (field: keyof typeof customerDetails, value: string) => {
@@ -242,7 +238,6 @@ export default function CheckoutPage() {
       if (field === 'country') updated.state = '';
       return updated;
     });
-    // Reset quote if address changes
     setSelectedQuote(null);
     setDeliveryQuote(null);
   };
@@ -265,16 +260,28 @@ export default function CheckoutPage() {
     return true;
   };
 
+  const getCustomerInfo = () => ({
+    name: customerDetails.name,
+    email: customerDetails.email,
+    phone: `${phoneDialCode}${customerDetails.phone}`,
+    address: customerDetails.address,
+    city: customerDetails.city,
+    state: customerDetails.state,
+    post_code: customerDetails.post_code,
+    country: customerDetails.country,
+  });
+
+  // ── Regular product payload ─────────────────────────────────────────────────
   const buildBasePayload = () => ({
     store_id: storeId,
     items: cart.map(item => {
-         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const orderItem: any = {
         product_id: item.product_id || item.originalProductId || item.id,
         quantity: item.quantity,
         price: item.price,
         discount: 0,
-        name: item.name
+        name: item.name,
       };
       if (item.variant && (item.variant.size || item.variant.color)) {
         orderItem.variant = { size: item.variant.size || "", color: item.variant.color || "" };
@@ -285,20 +292,58 @@ export default function CheckoutPage() {
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
     payment_method: "paystack",
     delivery_method: deliveryMethod,
-    customer_info: {
-      name: customerDetails.name,
-      email: customerDetails.email,
-      phone: `${phoneDialCode}${customerDetails.phone}`,
-      address: customerDetails.address,
-      city: customerDetails.city,
-      state: customerDetails.state,
-      post_code: customerDetails.post_code,
-      country: customerDetails.country
-    },
-    notes: deliveryNotes || "No delivery notes provided"
+    customer_info: getCustomerInfo(),
+    notes: deliveryNotes || "No delivery notes provided",
   });
 
-  // Called when user clicks "Save" in the delivery section
+  // ── Food order payload ──────────────────────────────────────────────────────
+  const buildFoodPayload = () => ({
+    store_id: storeId,
+    total_amount: itemsTotal,
+    total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
+    payment_method: "paystack",
+    delivery_method: deliveryMethod,
+    customer_info: getCustomerInfo(),
+    notes: deliveryNotes || "No delivery notes provided",
+    items: cart.map(item => {
+      const sel = item.foodSelection!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const orderItem: any = {
+        product_id: sel.productUid,
+        name: item.name,
+        weight: 0,
+        image: typeof item.image === 'string' ? item.image : '',
+      };
+
+      if (sel.type === 'Simple' && sel.portion) {
+        orderItem.portion = sel.portion.map(p => ({
+          uid: p.uid,
+          quantity: item.quantity,
+        }));
+      }
+
+      if (sel.type === 'Customizable' && sel.addOnGroup) {
+        orderItem.addOnGroup = sel.addOnGroup.map(g => ({
+          uid: g.uid,
+          addOnGroupOption: g.addOnGroupOption.map(o => ({
+            uid: o.uid,
+            quantity: item.quantity,
+          })),
+        }));
+      }
+
+      if (sel.type === 'Bundle' && sel.bundleConfig) {
+        orderItem.bundleConfig = {
+          uid: sel.bundleConfig.uid,
+          quantity: item.quantity,
+        };
+      }
+
+      return orderItem;
+    }),
+  });
+
+  // ── Quote ───────────────────────────────────────────────────────────────────
   const handleSaveDelivery = async () => {
     if (!needsQuote) {
       setIsEditingDelivery(false);
@@ -311,77 +356,41 @@ export default function CheckoutPage() {
     setIsEditingDelivery(false);
 
     try {
-      const payload = buildBasePayload();
+      const payload = isFood ? buildFoodPayload() : buildBasePayload();
       setQuotePayload(payload);
 
-      console.log('📦 Fetching delivery quote:', JSON.stringify(payload, null, 2));
+      console.log(`📦 Fetching ${isFood ? 'food' : 'product'} delivery quote:`, JSON.stringify(payload, null, 2));
 
-      const response = await fetch('/api/orders/quote', {
+      const quoteUrl = isFood ? '/api/orders/food/quote' : '/api/orders/quote';
+      const response = await fetch(quoteUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
       console.log('📥 FULL Quote response:', result);
 
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to fetch delivery quote');
-      }
+      if (!response.ok) throw new Error(result.message || 'Failed to fetch delivery quote');
 
-      const methodRaw = result.data?.delivery_method;
-
-      const method = methodRaw;
+      const method = result.data?.delivery_method;
       const quoteData = result.data?.quote;
 
-      console.log('🧪 delivery_method:', method);
-      console.log('🧪 quoteData:', quoteData);
-
-      // ✅ HANDLE SENDBOX (sendbox)
       if (method === 'sendbox') {
         const quotes: SendboxQuote[] = Array.isArray(quoteData) ? quoteData : [];
-
-        if (quotes.length === 0) {
-          toast.error('No delivery options available');
-          return;
-        }
-
-        setDeliveryQuote({
-          sendboxQuotes: quotes,
-          deliveryMethod: 'sendbox'
-        });
-
+        if (quotes.length === 0) { toast.error('No delivery options available'); return; }
+        setDeliveryQuote({ sendboxQuotes: quotes, deliveryMethod: 'sendbox' });
         setShowSendboxModal(true);
-      }
-
-      // ✅ HANDLE GIG
-      else if (method === 'gig') {
+      } else if (method === 'gig') {
         const gigQuote: GigQuote = quoteData;
-
-        if (!gigQuote || !gigQuote.fee) {
-          throw new Error('Invalid GIG quote response');
-        }
-
-        setDeliveryQuote({
-          gigQuote,
-          deliveryMethod: 'gig'
-        });
-
-        setSelectedQuote({
-          fee: gigQuote.fee,
-          rate_card_id: null,
-          name: 'GIG Logistics'
-        });
-
+        if (!gigQuote || !gigQuote.fee) throw new Error('Invalid GIG quote response');
+        setDeliveryQuote({ gigQuote, deliveryMethod: 'gig' });
+        setSelectedQuote({ fee: gigQuote.fee, rate_card_id: null, name: 'GIG Logistics' });
         toast.success(`GIG delivery fee: ₦${gigQuote.fee.toLocaleString()} added to total`);
-      }
-
-      // ❌ UNKNOWN RESPONSE
-      else {
+      } else {
         console.error('❌ Unknown delivery method:', method);
         toast.error('Unsupported delivery method returned');
       }
-
     } catch (error) {
       console.error('Quote error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to get delivery quote');
@@ -396,23 +405,38 @@ export default function CheckoutPage() {
     toast.success(`${quote.name} selected — ₦${quote.fee.toLocaleString()} delivery fee added`);
   };
 
+  // ── Order creation ──────────────────────────────────────────────────────────
   const createOrder = async () => {
-       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload: any = { ...buildBasePayload() };
+    if (isFood) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const payload: any = { ...buildFoodPayload() };
+      if (deliveryMethod === 'sendbox' && selectedQuote?.rate_card_id) {
+        payload.rate_card_id = selectedQuote.rate_card_id;
+      }
+      console.log('🍔 Creating food order:', JSON.stringify(payload, null, 2));
+      const response = await fetch('/api/orders/food/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || `Failed to create food order: ${response.status}`);
+      if (result.status !== 'success') throw new Error(result.message || 'Food order creation failed');
+      return result;
+    }
 
-    // Add rate_card_id for sendbox
+    // Regular product order — unchanged
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: any = { ...buildBasePayload() };
     if (deliveryMethod === 'sendbox' && selectedQuote?.rate_card_id) {
       payload.rate_card_id = selectedQuote.rate_card_id;
     }
-
     console.log('📦 Creating order:', JSON.stringify(payload, null, 2));
-
     const response = await fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
-
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || `Failed to create order: ${response.status}`);
     if (result.status !== 'success') throw new Error(result.message || 'Order creation failed');
@@ -425,17 +449,17 @@ export default function CheckoutPage() {
       toast.error('Please save delivery details to get a delivery quote first');
       return;
     }
-  
+
     setIsProcessingPayment(true);
     try {
       const orderResult = await createOrder();
       const orderDetails = orderResult.data?.order;
       const paymentDetails = orderResult.data?.payment;
       const transactionDetails = orderResult.data?.transaction;
-  
+
       if (orderDetails && paymentDetails) {
         const paymentReference = transactionDetails?.reference || paymentDetails.reference;
-  
+
         localStorage.setItem('pending_order', JSON.stringify({
           orderId: orderDetails.order_number,
           customerDetails: { ...customerDetails, phone: `${phoneDialCode}${customerDetails.phone}` },
@@ -443,15 +467,13 @@ export default function CheckoutPage() {
           total: Number(paymentDetails.total_paid) || Number(orderDetails.order_total),
           deliveryNotes,
           orderData: orderResult,
-          paymentReference
+          paymentReference,
         }));
-  
+
         localStorage.setItem('current_store_id', storeId);
         if (paymentReference) localStorage.setItem('payment_reference', paymentReference);
-  
-        // ✅ Clear the cart after successful order creation
+
         clearCart();
-  
         toast.success("Redirecting to payment...");
         window.location.href = paymentDetails.authorization_url;
       } else {
@@ -503,9 +525,7 @@ export default function CheckoutPage() {
           {enabledFulfillmentModes.includes('sendbox') && (
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="sendbox" id="sendbox" />
-              <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
-                SendBox
-              </Label>
+              <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">SendBox</Label>
             </div>
           )}
           {enabledFulfillmentModes.includes('pickup') && (
@@ -533,7 +553,6 @@ export default function CheckoutPage() {
         {deliveryMethod === 'vendor' && <p className="text-xs text-[#A0A0A0] mt-2">The vendor will handle delivery of your order.</p>}
         {deliveryMethod === 'gig' && <p className="text-xs text-[#A0A0A0] mt-2">Delivered through GIG Logistics. Rate will be calculated after saving.</p>}
 
-        {/* Show selected quote info */}
         {selectedQuote && (
           <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
             <div>
@@ -631,8 +650,8 @@ export default function CheckoutPage() {
                 </Button>
               ) : (
                 <div className='flex items-center gap-2'>
-                  <Button variant="outline" onClick={handleCancelEdit}> <X/> <span className="hidden sm:inline ml-2">Cancel</span></Button>
-                  <Button onClick={handleSaveAddress}><SaveIcon className="hidden sm:inline ml-2"/> <span >Save Changes</span></Button>
+                  <Button variant="outline" onClick={handleCancelEdit}><X /> <span className="hidden sm:inline ml-2">Cancel</span></Button>
+                  <Button onClick={handleSaveAddress}><SaveIcon className="hidden sm:inline ml-2" /> <span>Save Changes</span></Button>
                 </div>
               )}
             </CardHeader>
@@ -716,12 +735,12 @@ export default function CheckoutPage() {
                 </Button>
               ) : (
                 <div className='flex items-center gap-2'>
-                  <Button variant="outline" onClick={handleCancelDeliveryEdit}><X/> <span className="hidden sm:inline ml-2">Cancel</span></Button>
+                  <Button variant="outline" onClick={handleCancelDeliveryEdit}><X /> <span className="hidden sm:inline ml-2">Cancel</span></Button>
                   <Button onClick={handleSaveDelivery} disabled={isFetchingQuote}>
                     {isFetchingQuote ? (
                       <><Loader2 className='w-4 h-4 mr-2 animate-spin' /> Getting quote...</>
                     ) : (
-                      <><SaveIcon className="hidden sm:inline ml-2"/> <span >Save Changes</span></>
+                      <><SaveIcon className="hidden sm:inline ml-2" /> <span>Save Changes</span></>
                     )}
                   </Button>
                 </div>
@@ -779,9 +798,6 @@ export default function CheckoutPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* 3. Payment Method */}
-        
 
           <Link href={`/storefront/${storeId}`} className='flex text-sm items-center text-[#4FCA6A] mt-6 hover:underline'>
             <ArrowIcon /> Go back & continue shopping

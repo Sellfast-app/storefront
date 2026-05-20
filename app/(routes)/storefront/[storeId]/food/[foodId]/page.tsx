@@ -17,7 +17,7 @@ import CartView from "@/components/CartView";
 import { useCart } from "@/context/CartContext";
 import { PlusIcon, Clock, Flame, Leaf, ChevronLeft, ChevronRight } from "lucide-react";
 import MinusIcon from "@/components/svgIcons/MinusIcon";
-import { FoodItem, Portion, AddOnGroup, AddOnOption, BundleConfig } from "@/lib/mock-data/food-items";
+import { AddOnGroup, AddOnOption, FoodItem, Portion } from "@/lib/mockdata";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -268,6 +268,24 @@ function Page() {
       ? `${food.name} + ${addOnNames}`
       : food.name;
 
+    // Build foodSelection so checkout knows how to shape the order payload
+    const foodSelection: import("@/context/CartContext").FoodSelection = {
+      type: food.type,
+      productUid: food.uid,
+      ...(food.type === "Simple" && selectedPortion && {
+        portion: [{ uid: selectedPortion.uid, quantity: 1 }],
+      }),
+      ...(food.type === "Customizable" && {
+        addOnGroup: Object.entries(selectedAddOns).map(([groupUid, options]) => ({
+          uid: groupUid,
+          addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: 1 })),
+        })),
+      }),
+      ...(food.type === "Bundle" && food.bundleConfig.length > 0 && {
+        bundleConfig: { uid: food.bundleConfig[0].uid, quantity: 1 },
+      }),
+    };
+
     addToCart(
       {
         id: getCartId(),
@@ -275,6 +293,7 @@ function Page() {
         price: basePrice,
         image: food.product_images[0] || Banner,
         description: food.description,
+        foodSelection,
       },
       quantity
     );

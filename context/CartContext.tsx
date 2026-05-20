@@ -3,6 +3,34 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { StaticImageData } from 'next/image'
 
+export interface FoodPortionSelection {
+  uid: string;
+  quantity: number;
+}
+
+export interface FoodAddOnOptionSelection {
+  uid: string;
+  quantity: number;
+}
+
+export interface FoodAddOnGroupSelection {
+  uid: string;
+  addOnGroupOption: FoodAddOnOptionSelection[];
+}
+
+export interface FoodBundleConfigSelection {
+  uid: string;
+  quantity: number;
+}
+
+export interface FoodSelection {
+  type: 'Simple' | 'Customizable' | 'Bundle';
+  productUid: string; // the food item's uid — used as product_id in the order
+  portion?: FoodPortionSelection[];
+  addOnGroup?: FoodAddOnGroupSelection[];
+  bundleConfig?: FoodBundleConfigSelection;
+}
+
 export interface CartProduct {
   id: number | string
   originalProductId?: string
@@ -16,6 +44,8 @@ export interface CartProduct {
     color: string
     price?: number
   }
+  // Present only for food items
+  foodSelection?: FoodSelection
 }
 
 interface CartItem extends CartProduct {
@@ -30,6 +60,7 @@ interface CartContextType {
   clearCart: () => void
   getCartTotal: () => number
   getCartItemCount: () => number
+  isFoodCart: () => boolean
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -50,9 +81,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const stored = localStorage.getItem(key);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setCart(parsed);
-        }
+        if (Array.isArray(parsed)) setCart(parsed);
       }
     } catch (e) {
       console.error('Failed to rehydrate cart:', e);
@@ -64,8 +93,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      const key = getCartKey();
-      localStorage.setItem(key, JSON.stringify(cart));
+      localStorage.setItem(getCartKey(), JSON.stringify(cart));
     } catch (e) {
       console.error('Failed to persist cart:', e);
     }
@@ -74,17 +102,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const addToCart = (product: CartProduct, quantity: number = 1) => {
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.id === product.id);
-
       if (existingItem) {
         const newQty = existingItem.quantity + quantity;
-        
-        if (newQty <= 0) {
-          return prevCart.filter(item => item.id !== product.id);
-        }
+        if (newQty <= 0) return prevCart.filter(item => item.id !== product.id);
         return prevCart.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: newQty }
-            : item
+          item.id === product.id ? { ...item, quantity: newQty } : item
         );
       } else {
         if (quantity <= 0) return prevCart;
@@ -98,46 +120,34 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const updateQuantity = (productId: number | string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
-      return;
-    }
+    if (quantity <= 0) { removeFromCart(productId); return; }
     setCart(prevCart =>
-      prevCart.map(item =>
-        item.id === productId ? { ...item, quantity } : item
-      )
+      prevCart.map(item => item.id === productId ? { ...item, quantity } : item)
     );
   };
 
   const clearCart = () => {
     setCart([]);
-    try {
-      localStorage.removeItem(getCartKey());
-    } catch (e) {
+    try { localStorage.removeItem(getCartKey()); } catch (e) {
       console.error('Failed to clear cart from storage:', e);
     }
   };
 
-  const getCartTotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-  };
+  const getCartTotal = () =>
+    cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
-  const getCartItemCount = () => {
-    return cart.reduce((count, item) => count + item.quantity, 0);
-  };
+  const getCartItemCount = () =>
+    cart.reduce((count, item) => count + item.quantity, 0);
+
+  // Returns true if ALL items in the cart are food items
+  const isFoodCart = () =>
+    cart.length > 0 && cart.every(item => !!item.foodSelection);
 
   return (
-    <CartContext.Provider
-      value={{
-        cart,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        getCartTotal,
-        getCartItemCount
-      }}
-    >
+    <CartContext.Provider value={{
+      cart, addToCart, removeFromCart, updateQuantity,
+      clearCart, getCartTotal, getCartItemCount, isFoodCart
+    }}>
       {children}
     </CartContext.Provider>
   );
@@ -145,8 +155,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
 export function useCart() {
   const context = useContext(CartContext)
-  if (context === undefined) {
-    throw new Error('useCart must be used within a CartProvider')
-  }
+  if (context === undefined) throw new Error('useCart must be used within a CartProvider')
   return context
 }
