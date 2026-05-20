@@ -156,9 +156,8 @@ function ImageCarousel({
                   e.stopPropagation();
                   setCurrent(i);
                 }}
-                className={`w-1.5 h-1.5 rounded-full transition-all ${
-                  i === current ? "bg-white scale-125" : "bg-white/50"
-                }`}
+                className={`w-1.5 h-1.5 rounded-full transition-all ${i === current ? "bg-white scale-125" : "bg-white/50"
+                  }`}
               />
             ))}
           </div>
@@ -188,22 +187,21 @@ function FoodCard({
     item.type === "Customizable"
       ? "Customize"
       : item.type === "Bundle"
-      ? "Build Pack"
-      : "+ Add";
+        ? "Build Pack"
+        : "+ Add";
 
   const actionStyle =
     item.type === "Customizable"
       ? "bg-[#4FCA6A] text-white hover:bg-[#3db55a]"
       : item.type === "Bundle"
-      ? "bg-purple-600 text-white hover:bg-purple-700"
-      : "bg-[#4FCA6A] text-white hover:bg-[#3db55a]";
+        ? "bg-purple-600 text-white hover:bg-purple-700"
+        : "bg-[#4FCA6A] text-white hover:bg-[#3db55a]";
 
   return (
     <a
-      href={`/storefront/${storeId}/product/${item.uid}`}
-      className={`flex flex-col rounded-2xl border border-[#F0F0F0] bg-white overflow-hidden hover:border-[#4FCA6A] hover:shadow-md transition-all duration-200 ${
-        isUnavailable ? "opacity-70" : ""
-      }`}
+      href={`/storefront/${storeId}/food/${item.uid}`}
+      className={`flex flex-col rounded-2xl border border-[#F0F0F0] bg-white overflow-hidden hover:border-[#4FCA6A] hover:shadow-md transition-all duration-200 ${isUnavailable ? "opacity-70" : ""
+        }`}
     >
       {/* Image with status badge */}
       <div className="relative">
