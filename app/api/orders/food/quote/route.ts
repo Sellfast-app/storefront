@@ -46,11 +46,12 @@ export async function POST(request: NextRequest) {
 
     let quotePayload = { ...body };
 
-    if (body.delivery_method === 'gig') {
+    // 🔑 FIX: Add relay to the geocoding condition
+    if (body.delivery_method === 'gig' || body.delivery_method === 'relay') {
       const customerInfo = body.customer_info;
       if (!customerInfo?.address || !customerInfo?.city || !customerInfo?.state || !customerInfo?.country) {
         return NextResponse.json(
-          { status: "error", message: "Complete address information is required for GIG delivery quote" },
+          { status: "error", message: "Complete address information is required for delivery quote" },
           { status: 400 }
         );
       }
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
 
       if (!coordinates) {
         return NextResponse.json(
-          { status: "error", message: "Could not validate your address for GIG delivery. Please ensure it is accurate." },
+          { status: "error", message: "Could not validate your address. Please ensure it is complete and accurate." },
           { status: 400 }
         );
       }
@@ -102,7 +103,8 @@ export async function POST(request: NextRequest) {
     const result = JSON.parse(responseText);
     return NextResponse.json(result);
 
-  } catch (error: any) {
+  }    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  catch (error: any) {
     console.error("Food quote error:", error);
     return NextResponse.json(
       { status: "error", message: error.message || "Internal server error" },

@@ -72,7 +72,8 @@ export async function GET(
       
       return NextResponse.json(result);
 
-    } catch (fetchError: any) {
+    }   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    catch (fetchError: any) {
       clearTimeout(timeoutId);
       
       if (fetchError.name === "AbortError") {
@@ -89,7 +90,8 @@ export async function GET(
       );
     }
 
-  } catch (error: any) {
+  }    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  catch (error: any) {
     console.error("❌ Error fetching storefront food items:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error" },

@@ -148,6 +148,26 @@ interface SelectedQuote {
   name: string;
 }
 
+// All possible delivery method values including relay for food stores
+type DeliveryMethodType = 'sendbox' | 'pickup' | 'vendor' | 'gig' | 'relay';
+
+// Label map — what each backend value shows as on the frontend
+const DELIVERY_METHOD_LABELS: Record<DeliveryMethodType, string> = {
+  sendbox: 'SendBox',
+  pickup: 'Pick Up',
+  vendor: 'Vendor Delivery',
+  gig: 'GIG Logistics',
+  relay: 'Relay by Chowdeck',
+};
+
+const DELIVERY_METHOD_DESCRIPTIONS: Record<DeliveryMethodType, string> = {
+  sendbox: 'Delivered through our sendbox delivery service. Rates will be shown after saving.',
+  pickup: "You'll pick up your order from the store location.",
+  vendor: 'The vendor will handle delivery of your order.',
+  gig: 'Delivered through GIG Logistics. Rate will be calculated after saving.',
+  relay: 'Delivered through Relay by Chowdeck. Delivery fee will be calculated after saving.',
+};
+
 export default function CheckoutPage() {
   const params = useParams();
   const storeId = params.storeId as string;
@@ -156,10 +176,11 @@ export default function CheckoutPage() {
   const [isEditingDelivery, setIsEditingDelivery] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
-  const [deliveryMethod, setDeliveryMethod] = useState<'sendbox' | 'pickup' | 'vendor' | 'gig'>('sendbox');
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethodType>('pickup');
   const [phoneDialCode, setPhoneDialCode] = useState('+234');
   const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
+  const [isFoodStore, setIsFoodStore] = useState(false);
 
   const [isFetchingQuote, setIsFetchingQuote] = useState(false);
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
@@ -176,21 +197,20 @@ export default function CheckoutPage() {
     city: '',
     state: '',
     post_code: '',
-    country: 'NG'
+    country: 'NG',
   });
 
   const { cart, getCartTotal, clearCart, isFoodCart } = useCart();
   const isSearchingOnMobile = searchQuery.trim() !== '';
 
-  // ── Detect food cart ────────────────────────────────────────────────────────
   const isFood = isFoodCart();
 
   const itemsTotal = getCartTotal();
   const deliveryFee = selectedQuote?.fee || 0;
   const total = itemsTotal + deliveryFee;
 
-  const needsQuote = deliveryMethod === 'sendbox' || deliveryMethod === 'gig';
-  const quoteReady = !needsQuote || selectedQuote !== null;
+  // relay, sendbox and gig all require a quote before proceeding
+  const needsQuote = deliveryMethod === 'sendbox' || deliveryMethod === 'gig' || deliveryMethod === 'relay';
 
   useEffect(() => {
     const fetchStoreFulfillmentModes = async () => {
@@ -201,19 +221,27 @@ export default function CheckoutPage() {
         const result = await response.json();
 
         if (result.status === 'success' && result.data?.storeDetails) {
-          const modes = result.data.storeDetails.enabled_fulfillment_modes || [];
+          const storeDetails = result.data.storeDetails;
+          const businessType: string = storeDetails.business_type || '';
+          const isRestaurant = businessType === 'Restaurant/Food Service';
+          setIsFoodStore(isRestaurant);
+
+          const modes: string[] = storeDetails.enabled_fulfillment_modes || [];
           setEnabledFulfillmentModes(modes);
 
-          if (modes.includes('sendbox')) setDeliveryMethod('sendbox');
-          else if (modes.includes('pickup')) setDeliveryMethod('pickup');
-          else if (modes.includes('vendor')) setDeliveryMethod('vendor');
-          else if (modes.includes('gig')) setDeliveryMethod('gig');
+          // Auto-select the first available mode
+          const preferred: DeliveryMethodType[] = isRestaurant
+            ? ['relay', 'pickup']
+            : ['sendbox', 'pickup', 'vendor', 'gig'];
+
+          const firstMatch = preferred.find(m => modes.includes(m));
+          if (firstMatch) setDeliveryMethod(firstMatch);
         }
       } catch (error) {
         console.error('❌ Error fetching store fulfillment modes:', error);
         toast.error('Failed to load delivery options');
-        setEnabledFulfillmentModes(['pickup', 'sendbox']);
-        setDeliveryMethod('sendbox');
+        setEnabledFulfillmentModes(['pickup']);
+        setDeliveryMethod('pickup');
       } finally {
         setIsLoadingModes(false);
       }
@@ -302,7 +330,7 @@ export default function CheckoutPage() {
     total_amount: itemsTotal,
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
     payment_method: "paystack",
-    delivery_method: deliveryMethod,
+    delivery_method: deliveryMethod, // sends 'relay' or 'pickup' as-is to backend
     customer_info: getCustomerInfo(),
     notes: deliveryNotes || "No delivery notes provided",
     items: cart.map(item => {
@@ -314,38 +342,26 @@ export default function CheckoutPage() {
         weight: 0,
         image: typeof item.image === 'string' ? item.image : '',
       };
-
       if (sel.type === 'Simple' && sel.portion) {
-        orderItem.portion = sel.portion.map(p => ({
-          uid: p.uid,
-          quantity: item.quantity,
-        }));
+        orderItem.portion = sel.portion.map(p => ({ uid: p.uid, quantity: item.quantity }));
       }
-
       if (sel.type === 'Customizable' && sel.addOnGroup) {
         orderItem.addOnGroup = sel.addOnGroup.map(g => ({
           uid: g.uid,
-          addOnGroupOption: g.addOnGroupOption.map(o => ({
-            uid: o.uid,
-            quantity: item.quantity,
-          })),
+          addOnGroupOption: g.addOnGroupOption.map(o => ({ uid: o.uid, quantity: item.quantity })),
         }));
       }
-
       if (sel.type === 'Bundle' && sel.bundleConfig) {
-        orderItem.bundleConfig = {
-          uid: sel.bundleConfig.uid,
-          quantity: item.quantity,
-        };
+        orderItem.bundleConfig = { uid: sel.bundleConfig.uid, quantity: item.quantity };
       }
-
       return orderItem;
     }),
   });
 
-  // ── Quote ───────────────────────────────────────────────────────────────────
+  // ── Quote — for sendbox, gig, and relay ───────────────────────────────────
   const handleSaveDelivery = async () => {
     if (!needsQuote) {
+      // pickup goes straight through — no quote needed
       setIsEditingDelivery(false);
       return;
     }
@@ -359,8 +375,6 @@ export default function CheckoutPage() {
       const payload = isFood ? buildFoodPayload() : buildBasePayload();
       setQuotePayload(payload);
 
-      console.log(`📦 Fetching ${isFood ? 'food' : 'product'} delivery quote:`, JSON.stringify(payload, null, 2));
-
       const quoteUrl = isFood ? '/api/orders/food/quote' : '/api/orders/quote';
       const response = await fetch(quoteUrl, {
         method: 'POST',
@@ -369,8 +383,6 @@ export default function CheckoutPage() {
       });
 
       const result = await response.json();
-      console.log('📥 FULL Quote response:', result);
-
       if (!response.ok) throw new Error(result.message || 'Failed to fetch delivery quote');
 
       const method = result.data?.delivery_method;
@@ -387,8 +399,13 @@ export default function CheckoutPage() {
         setDeliveryQuote({ gigQuote, deliveryMethod: 'gig' });
         setSelectedQuote({ fee: gigQuote.fee, rate_card_id: null, name: 'GIG Logistics' });
         toast.success(`GIG delivery fee: ₦${gigQuote.fee.toLocaleString()} added to total`);
+      } else if (method === 'relay') {
+        // Relay quote — same shape as GIG (single fee, no rate_card_id)
+        const relayFee = typeof quoteData?.fee === 'number' ? quoteData.fee : quoteData;
+        const fee = typeof relayFee === 'number' ? relayFee : 0;
+        setSelectedQuote({ fee, rate_card_id: null, name: 'Relay by Chowdeck' });
+        toast.success(`Relay delivery fee: ₦${fee.toLocaleString()} added to total`);
       } else {
-        console.error('❌ Unknown delivery method:', method);
         toast.error('Unsupported delivery method returned');
       }
     } catch (error) {
@@ -425,7 +442,6 @@ export default function CheckoutPage() {
       return result;
     }
 
-    // Regular product order — unchanged
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload: any = { ...buildBasePayload() };
     if (deliveryMethod === 'sendbox' && selectedQuote?.rate_card_id) {
@@ -486,6 +502,12 @@ export default function CheckoutPage() {
     }
   };
 
+  // ── Delivery method section ─────────────────────────────────────────────────
+  // For food stores only show relay + pickup; for regular stores show the rest
+  const visibleModes = isFoodStore
+    ? enabledFulfillmentModes.filter(m => m === 'relay' || m === 'pickup')
+    : enabledFulfillmentModes.filter(m => m !== 'relay');
+
   const DeliveryMethodSection = () => {
     if (isLoadingModes) {
       return (
@@ -498,7 +520,7 @@ export default function CheckoutPage() {
       );
     }
 
-    if (enabledFulfillmentModes.length === 0) {
+    if (visibleModes.length === 0) {
       return (
         <div className='mb-6'>
           <Label className='text-xs mb-3 block'>Delivery Method *</Label>
@@ -514,44 +536,29 @@ export default function CheckoutPage() {
         <Label className='text-xs mb-3 block'>Delivery Method *</Label>
         <RadioGroup
           value={deliveryMethod}
-          onValueChange={(value: 'sendbox' | 'pickup' | 'vendor' | 'gig') => {
-            setDeliveryMethod(value);
+          onValueChange={(value) => {
+            setDeliveryMethod(value as DeliveryMethodType);
             setSelectedQuote(null);
             setDeliveryQuote(null);
           }}
           className="space-y-3"
           disabled={!isEditingDelivery}
         >
-          {enabledFulfillmentModes.includes('sendbox') && (
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="sendbox" id="sendbox" />
-              <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">SendBox</Label>
+          {visibleModes.map(mode => (
+            <div key={mode} className="flex items-center space-x-2">
+              <RadioGroupItem value={mode} id={mode} />
+              <Label htmlFor={mode} className="text-sm font-normal cursor-pointer">
+                {DELIVERY_METHOD_LABELS[mode as DeliveryMethodType] ?? mode}
+              </Label>
             </div>
-          )}
-          {enabledFulfillmentModes.includes('pickup') && (
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="pickup" id="pickup" />
-              <Label htmlFor="pickup" className="text-sm font-normal cursor-pointer">Pick Up</Label>
-            </div>
-          )}
-          {enabledFulfillmentModes.includes('vendor') && (
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="vendor" id="vendor" />
-              <Label htmlFor="vendor" className="text-sm font-normal cursor-pointer">Vendor Delivery</Label>
-            </div>
-          )}
-          {enabledFulfillmentModes.includes('gig') && (
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="gig" id="gig" />
-              <Label htmlFor="gig" className="text-sm font-normal cursor-pointer">GIG Logistics</Label>
-            </div>
-          )}
+          ))}
         </RadioGroup>
 
-        {deliveryMethod === 'sendbox' && <p className="text-xs text-[#A0A0A0] mt-2">Delivered through our sendbox delivery service. Rates will be shown after saving.</p>}
-        {deliveryMethod === 'pickup' && <p className="text-xs text-[#A0A0A0] mt-2">You&apos;ll pick up your order from the store location.</p>}
-        {deliveryMethod === 'vendor' && <p className="text-xs text-[#A0A0A0] mt-2">The vendor will handle delivery of your order.</p>}
-        {deliveryMethod === 'gig' && <p className="text-xs text-[#A0A0A0] mt-2">Delivered through GIG Logistics. Rate will be calculated after saving.</p>}
+        {deliveryMethod && DELIVERY_METHOD_DESCRIPTIONS[deliveryMethod] && (
+          <p className="text-xs text-[#A0A0A0] mt-2">
+            {DELIVERY_METHOD_DESCRIPTIONS[deliveryMethod]}
+          </p>
+        )}
 
         {selectedQuote && (
           <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
@@ -571,6 +578,14 @@ export default function CheckoutPage() {
         )}
       </div>
     );
+  };
+
+  const shipmentLabel = (method: DeliveryMethodType) => {
+    if (method === 'relay') return 'Relay by Chowdeck';
+    if (method === 'pickup') return 'Store Pickup';
+    if (method === 'vendor') return 'Fulfilled By Vendor';
+    if (method === 'gig') return 'GIG Logistics';
+    return 'Door Delivery';
   };
 
   return (
@@ -599,7 +614,7 @@ export default function CheckoutPage() {
                   <span className='text-sm'>₦{selectedQuote.fee.toLocaleString()}</span>
                 </div>
               )}
-              {(deliveryMethod === 'sendbox' || deliveryMethod === 'gig') && !selectedQuote && (
+              {needsQuote && !selectedQuote && (
                 <div className='flex items-center justify-between text-xs text-[#A0A0A0]'>
                   <span>Delivery fee</span>
                   <span>Calculated after saving delivery</span>
@@ -770,18 +785,10 @@ export default function CheckoutPage() {
                   <div key={item.id} className='flex-shrink-0 w-[280px]'>
                     <div className='flex justify-between items-center'>
                       <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
-                      <span className='text-xs text-[#A0A0A0]'>
-                        {deliveryMethod === 'vendor' ? 'Fulfilled By Vendor' :
-                          deliveryMethod === 'pickup' ? 'Store Pickup' :
-                            deliveryMethod === 'gig' ? 'GIG Logistics' : 'Door Delivery'}
-                      </span>
+                      <span className='text-xs text-[#A0A0A0]'>{shipmentLabel(deliveryMethod)}</span>
                     </div>
                     <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
-                      <p className='text-sm font-medium'>
-                        {deliveryMethod === 'vendor' ? 'Vendor Delivery' :
-                          deliveryMethod === 'pickup' ? 'Store Pickup' :
-                            deliveryMethod === 'gig' ? 'GIG Delivery' : 'Door Delivery'}
-                      </p>
+                      <p className='text-sm font-medium'>{shipmentLabel(deliveryMethod)}</p>
                       <div className='flex gap-3 mt-3'>
                         <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg' />
                         <div className='flex flex-col justify-between'>

@@ -47,7 +47,8 @@ export async function GET(
       : [];
 
     const item = items.find(
-      (f: any) => f.uid === foodId || String(f.id) === foodId
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (f: any) => f.uid === foodId || String(f.id) === foodId
     );
 
     if (!item) {
@@ -59,7 +60,8 @@ export async function GET(
 
     return NextResponse.json({ status: "success", data: item });
 
-  } catch (error: any) {
+  }   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  catch (error: any) {
     console.error("Error fetching food item:", error);
     return NextResponse.json(
       { status: "error", message: "Internal server error" },
