@@ -52,7 +52,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('🍔 Creating food order:', JSON.stringify(body, null, 2));
+    console.log('🍔 Creating food order from quote:', {
+      hasOrderKey: Boolean(body.orderKey),
+      hasRateCardId: Boolean(body.rate_card_id),
+    });
 
     let orderPayload = { ...body };
 
@@ -104,9 +107,6 @@ export async function POST(request: NextRequest) {
       console.log(`✅ Added coordinates to ${body.delivery_method} order:`, coordinates);
     }
 
-    // Log the final payload being sent
-    console.log('📤 Final order payload:', JSON.stringify(orderPayload, null, 2));
-
     const response = await fetch(`${API_BASE_URL}/api/orders/food/create`, {
       method: "POST",
       headers: {
@@ -118,7 +118,6 @@ export async function POST(request: NextRequest) {
 
     const responseText = await response.text();
     console.log('📥 Food order response status:', response.status);
-    console.log('📥 Food order response:', responseText.substring(0, 500));
 
     if (!response.ok) {
       let errorMessage = `Failed to create food order: ${response.status}`;
@@ -141,7 +140,7 @@ export async function POST(request: NextRequest) {
       result = { status: "success", message: "Food order created successfully" };
     }
 
-    console.log('✅ Food order created:', JSON.stringify(result, null, 2));
+    console.log('✅ Food order created');
     return NextResponse.json(result);
 
   }    // eslint-disable-next-line @typescript-eslint/no-explicit-any

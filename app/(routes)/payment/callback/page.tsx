@@ -12,6 +12,22 @@ export default function PaymentCallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        const provider = searchParams.get('provider')
+
+        if (provider === 'klump') {
+          const reference = searchParams.get('reference') || localStorage.getItem('payment_reference') || ''
+          const storeId = searchParams.get('store_id') || localStorage.getItem('current_store_id') || ''
+
+          const params = new URLSearchParams()
+          if (storeId) params.set('store_id', storeId)
+          if (reference) params.set('reference', reference)
+          params.set('provider', 'klump')
+          params.set('verification', 'pending')
+
+          router.push(`/payment/success?${params.toString()}`)
+          return
+        }
+
         // Get parameters from Paystack
         const reference = searchParams.get('reference')
         const trxref = searchParams.get('trxref')

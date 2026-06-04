@@ -41,6 +41,11 @@ export interface BundleConfig {
   maxCount: number;
 }
 
+export interface ServingTypePricing {
+  servingType: string;
+  price: number;
+}
+
 export interface FoodItem {
   id: number;
   uid: string;
@@ -59,6 +64,7 @@ export interface FoodItem {
   addOnGroup: AddOnGroup[];
   portion: Portion[];
   bundleConfig: BundleConfig[];
+  servingTypePricing?: ServingTypePricing[];
 }
 
 export interface FoodApiResponse {

@@ -23,6 +23,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://js.useklump.com" />
+        <link rel="dns-prefetch" href="https://js.useklump.com" />
         {/* Google Tag Manager */}
         <Script
           id="gtm-script"

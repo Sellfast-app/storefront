@@ -26,7 +26,7 @@ async function geocodeAddress(address: string, city: string, state: string, coun
         return { lat: coordinates[1], lng: coordinates[0] };
       }
     } catch (error) {
-      console.error('Mapbox error for:', testAddress, error);
+      console.error('Mapbox error while geocoding food quote address:', error);
     }
   }
   return null;
@@ -84,7 +84,9 @@ export async function POST(request: NextRequest) {
 
     const responseText = await response.text();
     console.log('📥 Food quote response status:', response.status);
-    console.log('📥 Food quote response:', responseText);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('📥 Food quote full response:', responseText);
+    }
 
     if (!response.ok) {
       let errorMessage = `Failed to get quote: ${response.status}`;

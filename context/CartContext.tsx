@@ -26,6 +26,7 @@ export interface FoodBundleConfigSelection {
 export interface FoodSelection {
   type: 'Simple' | 'Customizable' | 'Bundle';
   productUid: string; // the food item's uid — used as product_id in the order
+  servingType?: string;
   portion?: FoodPortionSelection[];
   addOnGroup?: FoodAddOnGroupSelection[];
   bundleConfig?: FoodBundleConfigSelection;

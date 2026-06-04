@@ -121,6 +121,7 @@ function Page() {
 
   // ── Selection state ──────────────────────────────────────────────────────
   const [selectedPortion, setSelectedPortion] = useState<Portion | null>(null);
+  const [selectedServingType, setSelectedServingType] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<SelectedAddOns>({});
   const [quantity, setQuantity] = useState(1);
 
@@ -139,6 +140,13 @@ function Page() {
           // Auto-select first portion for Simple items
           if (result.data.type === "Simple" && result.data.portion?.length > 0) {
             setSelectedPortion(result.data.portion[0]);
+          }
+          if (result.data.type === "Customizable") {
+            const firstServingType =
+              result.data.servingTypePricing?.[0]?.servingType ||
+              result.data.servingType?.[0] ||
+              "";
+            setSelectedServingType(firstServingType);
           }
         } else {
           throw new Error("Food item not found");
@@ -204,9 +212,13 @@ function Page() {
     if (!food) return 0;
     if (food.type === "Simple") return selectedPortion?.price || 0;
     if (food.type === "Customizable") {
-      return Object.values(selectedAddOns)
+      const servingTypePrice = food.servingTypePricing?.find(
+        (entry) => entry.servingType === selectedServingType
+      )?.price || 0;
+      const addOnTotal = Object.values(selectedAddOns)
         .flat()
         .reduce((sum, o) => sum + o.price, 0);
+      return servingTypePrice + addOnTotal;
     }
     if (food.type === "Bundle") {
       return food.bundleConfig.reduce((sum, b) => sum + b.price, 0);
@@ -223,6 +235,7 @@ function Page() {
     if (food.status === "Out of Stock") return false;
     if (food.type === "Simple") return !!selectedPortion;
     if (food.type === "Customizable") {
+      if (!selectedServingType) return false;
       return food.addOnGroup
         .filter((g) => g.isRequired)
         .every((g) => (selectedAddOns[g.uid] || []).length > 0);
@@ -243,7 +256,7 @@ function Page() {
         .map((o) => o.uid)
         .sort()
         .join("-");
-      return `${food.uid}-${addOnKey}`;
+      return `${food.uid}-${selectedServingType}-${addOnKey}`;
     }
     return food.uid;
   };
@@ -264,6 +277,10 @@ function Page() {
 
     const itemName = food.type === "Simple" && selectedPortion
       ? `${food.name} (${selectedPortion.name})`
+      : food.type === "Customizable" && selectedServingType && addOnNames
+      ? `${food.name} (${selectedServingType}) + ${addOnNames}`
+      : food.type === "Customizable" && selectedServingType
+      ? `${food.name} (${selectedServingType})`
       : addOnNames
       ? `${food.name} + ${addOnNames}`
       : food.name;
@@ -276,6 +293,7 @@ function Page() {
         portion: [{ uid: selectedPortion.uid, quantity: 1 }],
       }),
       ...(food.type === "Customizable" && {
+        servingType: selectedServingType,
         addOnGroup: Object.entries(selectedAddOns).map(([groupUid, options]) => ({
           uid: groupUid,
           addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: 1 })),
@@ -456,9 +474,40 @@ function Page() {
                   </div>
                 )}
 
-                {/* ── CUSTOMIZABLE: Add-on groups ────────────────────────── */}
+                {/* ── CUSTOMIZABLE: Serving type + add-on groups ─────────── */}
                 {food.type === "Customizable" && food.addOnGroup.length > 0 && (
                   <div className="space-y-5">
+                    {food.servingType.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold mb-2">Choose a Serving Type</h3>
+                        <div className="space-y-2">
+                          {food.servingType.map((type) => {
+                            const price = food.servingTypePricing?.find(
+                              (entry) => entry.servingType === type
+                            )?.price || 0;
+                            const isSelected = selectedServingType === type;
+
+                            return (
+                              <button
+                                key={type}
+                                onClick={() => setSelectedServingType(type)}
+                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition-all ${
+                                  isSelected
+                                    ? "border-[#4FCA6A] bg-[#4FCA6A]/5"
+                                    : "border-gray-100 hover:border-gray-200"
+                                }`}
+                              >
+                                <span className="font-medium capitalize">{type}</span>
+                                <span className="font-semibold text-[#4FCA6A]">
+                                  ₦{price.toLocaleString()}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {food.addOnGroup.map((group) => {
                       const selected = selectedAddOns[group.uid] || [];
                       return (

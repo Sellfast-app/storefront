@@ -2,8 +2,11 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, Clock, Flame, Leaf } from "lucide-react";
 import { FoodItem } from "@/lib/mockdata";
+import { useCart } from "@/context/CartContext";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -176,19 +179,26 @@ function FoodCard({
   item: FoodItem;
   storeId: string;
 }) {
+  const { addToCart } = useCart();
   const status = STATUS_CONFIG[item.status] || STATUS_CONFIG["Available Today"];
   const typeConfig = TYPE_CONFIG[item.type] || TYPE_CONFIG["Simple"];
   const prepTime = getPrepTimeRange(item);
   const basePrice = getBasePrice(item);
   const servingLabel = getServingLabel(item);
   const isUnavailable = item.status === "Out of Stock";
+  const canAddDirectly = item.type === "Simple" && item.portion.length === 1;
+  const detailHref = `/storefront/${storeId}/food/${item.uid}`;
 
   const actionLabel =
-    item.type === "Customizable"
-      ? "Customize"
+    canAddDirectly
+      ? "+ Add"
+      : item.type === "Simple"
+      ? "Select Options"
+      : item.type === "Customizable"
+      ? "Select Options"
       : item.type === "Bundle"
         ? "Build Pack"
-        : "+ Add";
+        : "Select Options";
 
   const actionStyle =
     item.type === "Customizable"
@@ -197,14 +207,34 @@ function FoodCard({
         ? "bg-purple-600 text-white hover:bg-purple-700"
         : "bg-[#4FCA6A] text-white hover:bg-[#3db55a]";
 
+  const handleDirectAdd = () => {
+    if (!canAddDirectly) return;
+
+    const portion = item.portion[0];
+    addToCart({
+      id: `${item.uid}-${portion.uid}`,
+      originalProductId: item.uid,
+      product_id: item.uid,
+      name: `${item.name} (${portion.name})`,
+      price: portion.price,
+      image: item.product_images[0] || "/placeholder-food.jpg",
+      description: item.description,
+      foodSelection: {
+        type: item.type,
+        productUid: item.uid,
+        portion: [{ uid: portion.uid, quantity: 1 }],
+      },
+    });
+    toast.success("Added to cart");
+  };
+
   return (
-    <a
-      href={`/storefront/${storeId}/food/${item.uid}`}
+    <div
       className={`flex flex-col rounded-2xl border border-[#F0F0F0] bg-white overflow-hidden hover:border-[#4FCA6A] hover:shadow-md transition-all duration-200 ${isUnavailable ? "opacity-70" : ""
         }`}
     >
       {/* Image with status badge */}
-      <div className="relative">
+      <Link href={detailHref} className="relative block">
         <ImageCarousel images={item.product_images} name={item.name} />
 
         {/* Status badge — top left */}
@@ -214,14 +244,17 @@ function FoodCard({
           <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
           {status.label}
         </div>
-      </div>
+      </Link>
 
       {/* Card body */}
       <div className="flex flex-col gap-1.5 p-2.5 flex-1">
         {/* Food name */}
-        <p className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight">
+        <Link
+          href={`/storefront/${storeId}/food/${item.uid}`}
+          className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight hover:text-[#4FCA6A] transition-colors"
+        >
           {item.name}
-        </p>
+        </Link>
 
         {/* Type badge + dietary labels */}
         <div className="flex flex-wrap items-center gap-1">
@@ -265,8 +298,8 @@ function FoodCard({
         </div>
 
         {/* Price + CTA */}
-        <div className="flex items-center justify-between mt-auto pt-1">
-          <div className="flex flex-col">
+        <div className="flex items-center justify-between gap-2 mt-auto pt-1">
+          <div className="flex min-w-0 flex-col">
             {basePrice !== null && (
               <span className="text-sm font-bold text-gray-900">
                 ₦{basePrice.toLocaleString()}
@@ -278,20 +311,30 @@ function FoodCard({
           </div>
 
           {isUnavailable ? (
-            <span className="text-[11px] px-3 py-1.5 rounded-xl bg-gray-100 text-gray-400 font-medium">
+            <span className="inline-flex min-h-8 shrink-0 items-center justify-center rounded-xl bg-gray-100 px-3 py-1.5 text-center text-[11px] font-medium leading-tight text-gray-400">
               Sold Out
             </span>
           ) : (
-            <button
-              onClick={(e) => e.preventDefault()}
-              className={`text-[11px] font-semibold px-3 py-1.5 rounded-xl transition-colors ${actionStyle}`}
-            >
-              {actionLabel}
-            </button>
+            canAddDirectly ? (
+              <button
+                type="button"
+                onClick={handleDirectAdd}
+                className={`inline-flex min-h-8 w-[82px] shrink-0 items-center justify-center rounded-xl px-2 py-1.5 text-center text-[11px] font-semibold leading-tight transition-colors sm:w-auto sm:px-3 ${actionStyle}`}
+              >
+                {actionLabel}
+              </button>
+            ) : (
+              <Link
+                href={detailHref}
+                className={`inline-flex min-h-8 w-[82px] shrink-0 items-center justify-center rounded-xl px-2 py-1.5 text-center text-[11px] font-semibold leading-tight transition-colors sm:w-auto sm:px-3 ${actionStyle}`}
+              >
+                {actionLabel}
+              </Link>
+            )
           )}
         </div>
       </div>
-    </a>
+    </div>
   );
 }
 
