@@ -205,10 +205,10 @@ export default function CheckoutPage() {
   const storeId = params.storeId as string;
   const [searchQuery] = useState('');
   const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [isEditingDelivery, setIsEditingDelivery] = useState(false);
+  const [isEditingDelivery, setIsEditingDelivery] = useState(true);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethodType>('pickup');
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethodType | null>(null);
   const [phoneDialCode, setPhoneDialCode] = useState('+234');
   const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
@@ -242,7 +242,12 @@ export default function CheckoutPage() {
   const total = itemsTotal + deliveryFee;
 
   // Food orders must be quoted first because the backend returns the orderKey used to create the order.
-  const needsQuote = isFood || deliveryMethod === 'sendbox' || deliveryMethod === 'gig' || deliveryMethod === 'relay';
+  const needsQuote =
+    deliveryMethod !== null &&
+    (isFood ||
+      deliveryMethod === 'sendbox' ||
+      deliveryMethod === 'gig' ||
+      deliveryMethod === 'relay');
 
   useEffect(() => {
     const fetchStoreFulfillmentModes = async () => {
@@ -260,20 +265,15 @@ export default function CheckoutPage() {
 
           const modes: string[] = storeDetails.enabled_fulfillment_modes || [];
           setEnabledFulfillmentModes(modes);
-
-          // Auto-select the first available mode
-          const preferred: DeliveryMethodType[] = isRestaurant
-            ? ['relay', 'pickup']
-            : ['sendbox', 'pickup', 'vendor', 'gig'];
-
-          const firstMatch = preferred.find(m => modes.includes(m));
-          if (firstMatch) setDeliveryMethod(firstMatch);
+          setDeliveryMethod(null);
+          setIsEditingDelivery(true);
         }
       } catch (error) {
         console.error('❌ Error fetching store fulfillment modes:', error);
         toast.error('Failed to load delivery options');
         setEnabledFulfillmentModes(['pickup']);
-        setDeliveryMethod('pickup');
+        setDeliveryMethod(null);
+        setIsEditingDelivery(true);
       } finally {
         setIsLoadingModes(false);
       }
@@ -328,6 +328,7 @@ export default function CheckoutPage() {
 
   const validateCheckout = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!deliveryMethod) { toast.error("Please select a delivery method"); return false; }
     if (!emailRegex.test(customerDetails.email)) { toast.error("Please enter a valid email address"); return false; }
     if (customerDetails.phone.length < 7) { toast.error("Please enter a valid phone number"); return false; }
     if (!customerDetails.name.trim()) { toast.error("Name is required"); return false; }
@@ -412,6 +413,11 @@ export default function CheckoutPage() {
 
   // ── Quote — for sendbox, gig, and relay ───────────────────────────────────
   const handleSaveDelivery = async () => {
+    if (!deliveryMethod) {
+      toast.error('Please select a delivery method');
+      return;
+    }
+
     if (!needsQuote) {
       // pickup goes straight through — no quote needed
       setIsEditingDelivery(false);
@@ -449,6 +455,17 @@ export default function CheckoutPage() {
         if (deliveryMethod === 'pickup' || method === 'pickup') {
           setSelectedQuote({ fee: 0, rate_card_id: null, name: 'Store Pickup', orderKey });
           toast.success('Pickup order details saved');
+          return;
+        }
+
+        if (deliveryMethod === 'vendor' || method === 'vendor') {
+          setSelectedQuote({
+            fee: 0,
+            rate_card_id: null,
+            name: 'Vendor Delivery',
+            orderKey,
+          });
+          toast.success('Vendor delivery details saved');
           return;
         }
 
@@ -694,9 +711,11 @@ export default function CheckoutPage() {
   };
 
   // ── Delivery method section ─────────────────────────────────────────────────
-  // For food stores only show relay + pickup; for regular stores show the rest
+  // Food stores can use Relay, Pickup, or Vendor Delivery.
   const visibleModes = isFoodStore
-    ? enabledFulfillmentModes.filter(m => m === 'relay' || m === 'pickup')
+    ? enabledFulfillmentModes.filter(
+        m => m === 'relay' || m === 'pickup' || m === 'vendor'
+      )
     : enabledFulfillmentModes.filter(m => m !== 'relay');
 
   const DeliveryMethodSection = () => {
@@ -726,7 +745,7 @@ export default function CheckoutPage() {
       <div className='mb-6'>
         <Label className='text-xs mb-3 block'>Delivery Method *</Label>
         <RadioGroup
-          value={deliveryMethod}
+          value={deliveryMethod ?? undefined}
           onValueChange={(value) => {
             setDeliveryMethod(value as DeliveryMethodType);
             setSelectedQuote(null);
@@ -771,7 +790,8 @@ export default function CheckoutPage() {
     );
   };
 
-  const shipmentLabel = (method: DeliveryMethodType) => {
+  const shipmentLabel = (method: DeliveryMethodType | null) => {
+    if (!method) return 'Select delivery method';
     if (method === 'relay') return 'Relay by Chowdeck';
     if (method === 'pickup') return 'Store Pickup';
     if (method === 'vendor') return 'Fulfilled By Vendor';
@@ -858,10 +878,19 @@ export default function CheckoutPage() {
               <Button
                 className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
                 onClick={handleProceedToPayment}
-                disabled={isProcessingPayment || cart.length === 0 || isLoadingModes || isFetchingQuote || (needsQuote && !selectedQuote)}
+                disabled={
+                  isProcessingPayment ||
+                  cart.length === 0 ||
+                  isLoadingModes ||
+                  isFetchingQuote ||
+                  !deliveryMethod ||
+                  (needsQuote && !selectedQuote)
+                }
               >
                 {isProcessingPayment ? (
                   <><Loader2 className='w-4 h-4 mr-2 animate-spin' /> Processing...</>
+                ) : !deliveryMethod ? (
+                  'Select a delivery method'
                 ) : needsQuote && !selectedQuote ? (
                   'Save delivery to continue'
                 ) : (
@@ -873,7 +902,12 @@ export default function CheckoutPage() {
 
           <p className='text-center text-sm mt-4'>
             By proceeding, you are automatically accepting the{' '}
-            <a href="#" className='text-[#4FCA6A]'>Terms & Conditions</a>
+            <Link
+              href={`/storefront/${storeId}/terms`}
+              className='font-medium text-[#4FCA6A] hover:underline'
+            >
+              Terms & Conditions
+            </Link>
           </p>
         </div>
 
