@@ -20,6 +20,11 @@ import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
 import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
 import { SubscriptionModal } from "@/components/SubscriptionModal";
+import { AvailabilityModal } from "@/components/AvailabilityModal";
+import {
+  StoreAvailabilityEntry,
+  useStoreAvailability,
+} from "@/hooks/useStoreAvailability";
 import { FoodItem } from "@/lib/mockdata";
 import FoodProductGrid from "@/components/FoodproductGrid";
 
@@ -58,6 +63,7 @@ interface StoreDetails {
   };
   updated_at: string;
   subaccount_code: string | null;
+  availability?: StoreAvailabilityEntry[];
 }
 
 interface StoreReview {
@@ -165,7 +171,19 @@ function Page() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [vendorId, setVendorId] = useState<string | undefined>(undefined);
-  const { showModal, dismissModal } = useSubscriptionCheck(vendorId);
+  const {
+    showModal,
+    hasActiveSubscription,
+    isLoading: isCheckingSubscription,
+  } = useSubscriptionCheck(vendorId);
+  const { hasAvailability, isOpen, nextOpening } = useStoreAvailability(
+    storeDetails?.availability
+  );
+  const showAvailabilityModal =
+    !isCheckingSubscription &&
+    hasActiveSubscription &&
+    hasAvailability &&
+    !isOpen;
 
   const { addToCart } = useCart();
 
@@ -652,7 +670,12 @@ function Page() {
 
       <SubscriptionModal
         isOpen={showModal}
-        onSubscribe={dismissModal}
+        storeName={storeDetails.store_name}
+      />
+      <AvailabilityModal
+        isOpen={showAvailabilityModal}
+        storeName={storeDetails.store_name}
+        nextOpening={nextOpening}
       />
     </div>
   );

@@ -14,10 +14,13 @@ import ModalIcon from "./svgIcons/ModalIcon";
 
 interface SubscriptionModalProps {
   isOpen: boolean;
-  onSubscribe: () => void;
+  storeName: string;
 }
 
-export function SubscriptionModal({ isOpen, onSubscribe }: SubscriptionModalProps) {
+export function SubscriptionModal({
+  isOpen,
+  storeName,
+}: SubscriptionModalProps) {
   const [showNotifyForm, setShowNotifyForm] = useState(false);
   const [notifyEmail, setNotifyEmail] = useState("");
   const [isSubmittingNotify, setIsSubmittingNotify] = useState(false);
@@ -83,9 +86,11 @@ export function SubscriptionModal({ isOpen, onSubscribe }: SubscriptionModalProp
 
             <h3 className="text-lg font-semibold">This Store Isn&apos;t Active Right Now</h3>
             <p className="text-xs text-muted-foreground px-2">
-              It appears that the store owner has not yet renewed their subscription, so you can&apos;t place
-              orders at the moment. To get notified once they&apos;re up and running again,
-              click the button below.
+              Looks like{" "}
+              <span className="font-bold text-[#4FCA6A]">{storeName}</span>{" "}
+              hasn&apos;t completed their setup yet, so you can&apos;t place
+              orders at the moment. To get notified once they&apos;re up and
+              running again, click the button below.
             </p>
 
             <div className="flex justify-end gap-3 mt-6">
