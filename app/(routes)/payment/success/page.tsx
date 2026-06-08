@@ -15,6 +15,8 @@ export default function PaymentSuccessPage() {
   // Get parameters from URL
   const reference = searchParams.get('reference')
   const storeId = searchParams.get('store_id')
+  const provider = searchParams.get('provider')
+  const verification = searchParams.get('verification')
   
   const [countdown, setCountdown] = useState(10)
    // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -83,7 +85,9 @@ export default function PaymentSuccessPage() {
                 Payment Successful! 
               </h1>
               <p className="text-gray-600 dark:text-gray-300 text-lg">
-                Your order has been confirmed and is being processed
+                {provider === 'klump' && verification === 'pending'
+                  ? 'Your Klump checkout was completed. Payment verification is pending backend integration.'
+                  : 'Your order has been confirmed and is being processed'}
               </p>
             </div>
 

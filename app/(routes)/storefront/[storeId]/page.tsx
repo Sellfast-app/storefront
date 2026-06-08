@@ -20,6 +20,13 @@ import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
 import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
 import { SubscriptionModal } from "@/components/SubscriptionModal";
+import { AvailabilityModal } from "@/components/AvailabilityModal";
+import {
+  StoreAvailabilityEntry,
+  useStoreAvailability,
+} from "@/hooks/useStoreAvailability";
+import { FoodItem } from "@/lib/mockdata";
+import FoodProductGrid from "@/components/FoodproductGrid";
 
 interface StoreDetails {
   id: string;
@@ -56,6 +63,7 @@ interface StoreDetails {
   };
   updated_at: string;
   subaccount_code: string | null;
+  availability?: StoreAvailabilityEntry[];
 }
 
 interface StoreReview {
@@ -121,7 +129,6 @@ const StarRating = ({ rating }: { rating: number }) => {
   );
 };
 
-// Helper functions
 const getUserInitials = (userName: string): string => {
   return userName
     .split(" ")
@@ -141,18 +148,10 @@ const getRelativeTime = (dateString: string): string => {
   return `${Math.floor(diffInSeconds / 86400)}d ago`;
 };
 
-// Helper function to construct absolute URLs for images
 const getImageUrl = (imagePath: string | null): string | null => {
   if (!imagePath) return null;
-
-  // If it's already an absolute URL, return as is
-  if (imagePath.startsWith("http")) {
-    return imagePath;
-  }
-
-  // If it's a relative path, construct absolute URL using your API base URL
-  const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (imagePath.startsWith("http")) return imagePath;
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   return `${API_BASE_URL}${imagePath}`;
 };
 
@@ -167,11 +166,24 @@ function Page() {
   const [listings, setListings] = useState<totalListings>(0);
   const [ratings, setRatings] = useState<ratings>(0);
   const [products, setProducts] = useState<Product[]>([]);
+  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [vendorId, setVendorId] = useState<string | undefined>(undefined);
-  const { showModal, dismissModal } = useSubscriptionCheck(vendorId);
+  const {
+    showModal,
+    hasActiveSubscription,
+    isLoading: isCheckingSubscription,
+  } = useSubscriptionCheck(vendorId);
+  const { hasAvailability, isOpen, nextOpening } = useStoreAvailability(
+    storeDetails?.availability
+  );
+  const showAvailabilityModal =
+    !isCheckingSubscription &&
+    hasActiveSubscription &&
+    hasAvailability &&
+    !isOpen;
 
   const { addToCart } = useCart();
 
@@ -179,46 +191,38 @@ function Page() {
   useEffect(() => {
     const fetchStoreData = async () => {
       if (!storeId) return;
-  
+
       setIsLoading(true);
       setError(null);
-  
+
       try {
         const response = await fetch(`/api/stores/${storeId}`);
-  
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || "Failed to fetch store details");
         }
-  
+
         const result = await response.json();
-  
-        console.log(" Storefront - Store data received:", result);
-        console.log("Storefront - Logo URL:", result.data?.storeDetails?.logo);
-        console.log(" Storefront - Banner URL:", result.data?.storeDetails?.banner);
-  
+
         if (result.status === "success" && result.data) {
           setStoreDetails(result.data.storeDetails);
           setStoreReviews(result.data.reviews.items || []);
           setListings(result.data.total_listings || 0);
           setRatings(result.data.ratings || 0);
-  
+
           const vendorId = result.data.storeDetails.vendor_id;
           const vendorEmail = result.data.storeDetails.vendor_email;
-  
+
           if (vendorId) {
             document.cookie = `vendor_id=${vendorId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
             setVendorId(vendorId);
-            console.log("✅ Vendor ID saved to cookie:", vendorId);
           }
-  
           if (vendorEmail) {
             document.cookie = `vendor_email=${encodeURIComponent(vendorEmail)}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
-            console.log("✅ Vendor email saved to cookie:", vendorEmail);
           }
           if (storeId) {
             document.cookie = `storefront_store_id=${storeId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
-            console.log("✅ Store ID saved to cookie:", storeId);
           }
         } else {
           throw new Error(result.message || "Failed to load store details");
@@ -232,17 +236,16 @@ function Page() {
         setIsLoading(false);
       }
     };
-  
+
     fetchStoreData();
   }, [storeId]);
 
-  // Fetch products
+  // Fetch products — regular stores
   useEffect(() => {
+    if (!storeId || storeDetails?.business_type === "Restaurant/Food Service") return;
+
     const fetchProducts = async () => {
-      if (!storeId) return;
-
       setIsLoadingProducts(true);
-
       try {
         const queryParams = new URLSearchParams({
           page: "1",
@@ -256,12 +259,9 @@ function Page() {
           `/api/stores/${storeId}/products?${queryParams.toString()}`
         );
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch products");
-        }
+        if (!response.ok) throw new Error("Failed to fetch products");
 
         const result = await response.json();
-
         if (result.status === "success" && result.data) {
           setProducts(result.data.items || []);
         }
@@ -273,21 +273,44 @@ function Page() {
     };
 
     fetchProducts();
-  }, [storeId]);
+  }, [storeId, storeDetails?.business_type]);
 
+  // Fetch food items — Restaurant/Food Service stores
+  useEffect(() => {
+    if (!storeId || storeDetails?.business_type !== "Restaurant/Food Service") return;
 
-  // Filter products based on search query
+    const fetchFoodItems = async () => {
+      setIsLoadingProducts(true);
+      try {
+        const response = await fetch(`/api/stores/${storeId}/food`);
+
+        if (!response.ok) throw new Error("Failed to fetch food items");
+
+        const result = await response.json();
+        if (result.status === "success" && result.data) {
+          setFoodItems(result.data);
+        }
+      } catch (err) {
+        console.error("Error fetching food items:", err);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchFoodItems();
+  }, [storeId, storeDetails?.business_type]);
+
   const filteredProducts = products.filter((product) =>
     product.product_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const isSearchingOnMobile = searchQuery.trim() !== "";
+  const isFoodStore = storeDetails?.business_type === "Restaurant/Food Service";
 
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
-  
-    // Check if product has variants
+
     let hasVariants = false;
     try {
       const variants = typeof product.variants === 'string'
@@ -297,14 +320,12 @@ function Page() {
     } catch {
       hasVariants = false;
     }
-  
+
     if (hasVariants) {
-      // Redirect to product detail page to select a variant
       window.location.href = `/storefront/${storeId}/product/${product.id}`;
       return;
     }
-  
-    // Non-variant product — add directly
+
     const cartProduct = {
       id: product.id,
       name: product.product_name,
@@ -317,23 +338,14 @@ function Page() {
 
   const toggleCart = () => {
     setShowCart(!showCart);
-
-    // Scroll to top when opening cart on mobile
     if (!showCart && window.innerWidth < 768) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  // Get logo and banner URLs
   const logoUrl = storeDetails?.logo ? getImageUrl(storeDetails.logo) : null;
-  const bannerUrl = storeDetails?.banner
-    ? getImageUrl(storeDetails.banner)
-    : null;
+  const bannerUrl = storeDetails?.banner ? getImageUrl(storeDetails.banner) : null;
 
-  console.log("🖼️ Storefront - Final logo URL:", logoUrl);
-  console.log("🖼️ Storefront - Final banner URL:", bannerUrl);
-
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#FCFCFC]">
@@ -345,26 +357,18 @@ function Page() {
     );
   }
 
-  // Add this function with your other helper functions
   const getWhatsAppUrl = (phoneNumber: string): string => {
-    // Clean the phone number: remove spaces, dashes, parentheses, etc.
     const cleanPhone = phoneNumber.replace(/\D/g, '');
-
-    // If it starts with '0', replace with country code for Nigeria (234)
     let formattedPhone = cleanPhone;
     if (formattedPhone.startsWith('0')) {
       formattedPhone = '234' + formattedPhone.substring(1);
     }
-
-    // If it doesn't start with a country code, assume it's Nigerian and add 234
     if (!formattedPhone.startsWith('234') && !formattedPhone.startsWith('+')) {
       formattedPhone = '234' + formattedPhone;
     }
-
     return `https://wa.me/${formattedPhone}`;
   };
 
-  // Error state
   if (error || !storeDetails) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#FCFCFC]">
@@ -387,8 +391,7 @@ function Page() {
     <div className="flex flex-col bg-[#FCFCFC]">
       {/* Mobile Search Header */}
       <div
-        className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${isSearchingOnMobile ? "block" : "block"
-          }`}
+        className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10 ${isSearchingOnMobile ? "block" : "block"}`}
       >
         <div className="flex items-center justify-between">
           <Logo />
@@ -412,8 +415,7 @@ function Page() {
       <div className="p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden">
         {/* Left Side - Profile Section OR Cart View */}
         <div
-          className={`w-full md:w-[45%] md:overflow-y-auto md:h-full md:block ${isSearchingOnMobile ? "hidden" : "block"
-            }`}
+          className={`w-full md:w-[45%] md:overflow-y-auto md:h-full md:block ${isSearchingOnMobile ? "hidden" : "block"}`}
         >
           {showCart ? (
             <CartView />
@@ -428,7 +430,6 @@ function Page() {
                     height={400}
                     className="w-full object-cover rounded-xl h-50 md:h-90"
                     onError={(e) => {
-                      console.error("❌ Failed to load banner:", bannerUrl);
                       e.currentTarget.src = Banner.src;
                     }}
                   />
@@ -448,7 +449,6 @@ function Page() {
                       height={160}
                       className="rounded-full w-20 h-20 md:w-40 md:h-40 border-6 border-white object-cover"
                       onError={(e) => {
-                        console.error("❌ Failed to load logo:", logoUrl);
                         e.currentTarget.src = Profile.src;
                       }}
                     />
@@ -486,12 +486,6 @@ function Page() {
                 </div>
               </div>
               <div className="flex flex-row md:flex-col justify-center md:justify-normal mt-6 gap-4">
-                {/* <div className="flex items-center gap-3">
-                  <FacebookIcon />{" "}
-                  <span className="rounded-full bg-[#F5F5F5] text-sm p-2 hidden md:block">
-                    www.facebook.com
-                  </span>
-                </div> */}
                 {storeDetails?.metadata?.phone && (
                   <a
                     href={getWhatsAppUrl(storeDetails.metadata.phone)}
@@ -499,18 +493,12 @@ function Page() {
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 hover:opacity-80 transition-opacity"
                   >
-                    <WhatsappIcon />{" "}
+                    <WhatsappIcon />
                     <span className="rounded-full bg-[#F5F5F5] text-sm p-2 hidden md:block">
                       {storeDetails.metadata.phone}
                     </span>
                   </a>
                 )}
-                {/* <div className="flex items-center gap-3">
-                  <InstagramIcon />{" "}
-                  <span className="rounded-full bg-[#F5F5F5] text-sm p-2 hidden md:block">
-                    www.instagram.com
-                  </span>
-                </div> */}
               </div>
 
               {/* Reviews Section - Visible on desktop */}
@@ -579,7 +567,14 @@ function Page() {
           </div>
 
           {/* Products Grid */}
-          {isLoadingProducts ? (
+          {isFoodStore ? (
+            <FoodProductGrid
+              items={foodItems}
+              storeId={storeId}
+              isLoading={isLoadingProducts}
+              searchQuery={searchQuery}
+            />
+          ) : isLoadingProducts ? (
             <div className="flex items-center justify-center py-20">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4FCA6A] mx-auto mb-2"></div>
@@ -672,9 +667,15 @@ function Page() {
           )}
         </div>
       </div>
+
       <SubscriptionModal
         isOpen={showModal}
-        onSubscribe={dismissModal}
+        storeName={storeDetails.store_name}
+      />
+      <AvailabilityModal
+        isOpen={showAvailabilityModal}
+        storeName={storeDetails.store_name}
+        nextOpening={nextOpening}
       />
     </div>
   );

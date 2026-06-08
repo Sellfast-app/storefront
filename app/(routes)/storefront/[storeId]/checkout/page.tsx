@@ -4,7 +4,6 @@ import CartButton from '@/components/CartButton';
 import ArrowIcon from '@/components/svgIcons/ArrowIcon';
 import EditIcon from '@/components/svgIcons/EditIcon';
 import Logo from '@/components/svgIcons/Logo';
-import PaystackLogo from '@/components/svgIcons/PaystackLogo';
 import SaveIcon from '@/components/svgIcons/SaveIcon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -13,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogOverlay } from '@/components/ui/dialog';
 import Link from 'next/link';
+import Script from 'next/script';
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
@@ -145,54 +145,192 @@ interface DeliveryQuote {
 
 interface SelectedQuote {
   fee: number;
-  rate_card_id?: string | null;
+  rate_card_id?: string | number | null;
   name: string;
+  orderKey?: string;
 }
+
+interface CheckoutOrderResult {
+  data?: {
+    order?: {
+      id?: string;
+      order_number?: string;
+      order_total?: string | number;
+    };
+    payment?: {
+      reference?: string;
+      total_paid?: string | number;
+      authorization_url?: string;
+    };
+    transaction?: {
+      reference?: string;
+    };
+  };
+}
+
+// All possible delivery method values including relay for food stores
+type DeliveryMethodType = 'sendbox' | 'pickup' | 'vendor' | 'gig' | 'relay';
+type PaymentMethodType = 'paystack' | 'klump';
+type KlumpConstructor = typeof Klump;
+
+interface CustomerDetails {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  post_code: string;
+  country: string;
+}
+
+interface CheckoutDraft {
+  customerDetails: CustomerDetails;
+  phoneDialCode: string;
+  deliveryMethod: DeliveryMethodType | null;
+  deliveryNotes: string;
+  paymentMethod: PaymentMethodType;
+}
+
+const DEFAULT_CUSTOMER_DETAILS: CustomerDetails = {
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
+  city: '',
+  state: '',
+  post_code: '',
+  country: 'NG',
+};
+
+const getCheckoutDraftKey = (storeId: string) => `checkout_draft_${storeId}`;
+
+const getKlumpConstructor = (): KlumpConstructor | null => {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    return window.eval('typeof Klump !== "undefined" ? Klump : null') as KlumpConstructor | null;
+  } catch {
+    return null;
+  }
+};
+
+// Label map — what each backend value shows as on the frontend
+const DELIVERY_METHOD_LABELS: Record<DeliveryMethodType, string> = {
+  sendbox: 'SendBox',
+  pickup: 'Pick Up',
+  vendor: 'Vendor Delivery',
+  gig: 'GIG Logistics',
+  relay: 'Relay by Chowdeck',
+};
+
+const DELIVERY_METHOD_DESCRIPTIONS: Record<DeliveryMethodType, string> = {
+  sendbox: 'Delivered through our sendbox delivery service. Rates will be shown after saving.',
+  pickup: "You'll pick up your order from the store location.",
+  vendor: 'The vendor will handle delivery of your order.',
+  gig: 'Delivered through GIG Logistics. Rate will be calculated after saving.',
+  relay: 'Delivered through Relay by Chowdeck. Delivery fee will be calculated after saving.',
+};
 
 export default function CheckoutPage() {
   const params = useParams();
   const storeId = params.storeId as string;
   const [searchQuery] = useState('');
   const [isEditingAddress, setIsEditingAddress] = useState(false);
-  const [isEditingDelivery, setIsEditingDelivery] = useState(false);
+  const [isEditingDelivery, setIsEditingDelivery] = useState(true);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
-  const [deliveryMethod, setDeliveryMethod] = useState<'sendbox' | 'pickup' | 'vendor' | 'gig'>('sendbox');
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethodType | null>(null);
   const [phoneDialCode, setPhoneDialCode] = useState('+234');
   const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
+  const [isFoodStore, setIsFoodStore] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('paystack');
+  const [isKlumpReady, setIsKlumpReady] = useState(() => !!getKlumpConstructor());
+  const [loadedCheckoutDraftStoreId, setLoadedCheckoutDraftStoreId] = useState<string | null>(null);
 
-  // Quote-related state
   const [isFetchingQuote, setIsFetchingQuote] = useState(false);
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<SelectedQuote | null>(null);
   const [showSendboxModal, setShowSendboxModal] = useState(false);
-     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [quotePayload, setQuotePayload] = useState<any>(null); // store payload for reuse in order creation
-
-  const [customerDetails, setCustomerDetails] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    post_code: '',
-    country: 'NG'
+  const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
+    ...DEFAULT_CUSTOMER_DETAILS,
   });
 
-  const { cart, getCartTotal, clearCart  } = useCart();
+  const { cart, getCartTotal, clearCart, isFoodCart } = useCart();
   const isSearchingOnMobile = searchQuery.trim() !== '';
+
+  const isFood = isFoodCart();
+  const canUseKlump = !isFoodStore && !isFood;
 
   const itemsTotal = getCartTotal();
   const deliveryFee = selectedQuote?.fee || 0;
   const total = itemsTotal + deliveryFee;
 
-  // Determines if this delivery method needs a quote
-  const needsQuote = deliveryMethod === 'sendbox' || deliveryMethod === 'gig';
+  // Food orders must be quoted first because the backend returns the orderKey used to create the order.
+  const needsQuote =
+    deliveryMethod !== null &&
+    (isFood ||
+      deliveryMethod === 'sendbox' ||
+      deliveryMethod === 'gig' ||
+      deliveryMethod === 'relay');
 
-  // Whether the customer has completed the quote step
-  const quoteReady = !needsQuote || selectedQuote !== null;
+  useEffect(() => {
+    if (!storeId) return;
+
+    try {
+      const savedDraft = sessionStorage.getItem(getCheckoutDraftKey(storeId));
+      if (savedDraft) {
+        const draft = JSON.parse(savedDraft) as Partial<CheckoutDraft>;
+
+        if (draft.customerDetails) {
+          setCustomerDetails({
+            ...DEFAULT_CUSTOMER_DETAILS,
+            ...draft.customerDetails,
+          });
+        }
+        if (typeof draft.phoneDialCode === 'string') {
+          setPhoneDialCode(draft.phoneDialCode);
+        }
+        if (typeof draft.deliveryNotes === 'string') {
+          setDeliveryNotes(draft.deliveryNotes);
+        }
+        if (draft.deliveryMethod) {
+          setDeliveryMethod(draft.deliveryMethod);
+        }
+        if (draft.paymentMethod === 'paystack' || draft.paymentMethod === 'klump') {
+          setPaymentMethod(draft.paymentMethod);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore checkout draft:', error);
+      sessionStorage.removeItem(getCheckoutDraftKey(storeId));
+    } finally {
+      setLoadedCheckoutDraftStoreId(storeId);
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    if (!storeId || loadedCheckoutDraftStoreId !== storeId) return;
+
+    const draft: CheckoutDraft = {
+      customerDetails,
+      phoneDialCode,
+      deliveryMethod,
+      deliveryNotes,
+      paymentMethod,
+    };
+
+    sessionStorage.setItem(getCheckoutDraftKey(storeId), JSON.stringify(draft));
+  }, [
+    customerDetails,
+    deliveryMethod,
+    deliveryNotes,
+    loadedCheckoutDraftStoreId,
+    paymentMethod,
+    phoneDialCode,
+    storeId,
+  ]);
 
   useEffect(() => {
     const fetchStoreFulfillmentModes = async () => {
@@ -203,19 +341,24 @@ export default function CheckoutPage() {
         const result = await response.json();
 
         if (result.status === 'success' && result.data?.storeDetails) {
-          const modes = result.data.storeDetails.enabled_fulfillment_modes || [];
-          setEnabledFulfillmentModes(modes);
+          const storeDetails = result.data.storeDetails;
+          const businessType: string = storeDetails.business_type || '';
+          const isRestaurant = businessType === 'Restaurant/Food Service';
+          setIsFoodStore(isRestaurant);
 
-          if (modes.includes('sendbox')) setDeliveryMethod('sendbox');
-          else if (modes.includes('pickup')) setDeliveryMethod('pickup');
-          else if (modes.includes('vendor')) setDeliveryMethod('vendor');
-          else if (modes.includes('gig')) setDeliveryMethod('gig');
+          const modes: string[] = storeDetails.enabled_fulfillment_modes || [];
+          setEnabledFulfillmentModes(modes);
+          setDeliveryMethod(currentMethod =>
+            currentMethod && modes.includes(currentMethod) ? currentMethod : null
+          );
+          setIsEditingDelivery(true);
         }
       } catch (error) {
         console.error('❌ Error fetching store fulfillment modes:', error);
         toast.error('Failed to load delivery options');
-        setEnabledFulfillmentModes(['pickup', 'sendbox']);
-        setDeliveryMethod('sendbox');
+        setEnabledFulfillmentModes(['pickup']);
+        setDeliveryMethod(currentMethod => currentMethod === 'pickup' ? currentMethod : null);
+        setIsEditingDelivery(true);
       } finally {
         setIsLoadingModes(false);
       }
@@ -224,16 +367,33 @@ export default function CheckoutPage() {
     if (storeId) fetchStoreFulfillmentModes();
   }, [storeId]);
 
-  // Reset quote when delivery method or address changes
   useEffect(() => {
     setSelectedQuote(null);
     setDeliveryQuote(null);
   }, [deliveryMethod]);
 
+  useEffect(() => {
+    if (!canUseKlump && paymentMethod === 'klump') {
+      setPaymentMethod('paystack');
+    }
+  }, [canUseKlump, paymentMethod]);
+
+  useEffect(() => {
+    if (!canUseKlump || isKlumpReady) return;
+
+    const timer = window.setInterval(() => {
+      if (getKlumpConstructor()) {
+        setIsKlumpReady(true);
+        window.clearInterval(timer);
+      }
+    }, 300);
+
+    return () => window.clearInterval(timer);
+  }, [canUseKlump, isKlumpReady]);
+
   const handleEditAddress = () => setIsEditingAddress(true);
   const handleSaveAddress = () => setIsEditingAddress(false);
   const handleCancelEdit = () => setIsEditingAddress(false);
-  const handleEditDelivery = () => setIsEditingDelivery(true);
   const handleCancelDeliveryEdit = () => setIsEditingDelivery(false);
 
   const handleInputChange = (field: keyof typeof customerDetails, value: string) => {
@@ -242,7 +402,6 @@ export default function CheckoutPage() {
       if (field === 'country') updated.state = '';
       return updated;
     });
-    // Reset quote if address changes
     setSelectedQuote(null);
     setDeliveryQuote(null);
   };
@@ -254,6 +413,7 @@ export default function CheckoutPage() {
 
   const validateCheckout = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!deliveryMethod) { toast.error("Please select a delivery method"); return false; }
     if (!emailRegex.test(customerDetails.email)) { toast.error("Please enter a valid email address"); return false; }
     if (customerDetails.phone.length < 7) { toast.error("Please enter a valid phone number"); return false; }
     if (!customerDetails.name.trim()) { toast.error("Name is required"); return false; }
@@ -265,16 +425,28 @@ export default function CheckoutPage() {
     return true;
   };
 
+  const getCustomerInfo = () => ({
+    name: customerDetails.name,
+    email: customerDetails.email,
+    phone: `${phoneDialCode}${customerDetails.phone}`,
+    address: customerDetails.address,
+    city: customerDetails.city,
+    state: customerDetails.state,
+    post_code: customerDetails.post_code,
+    country: customerDetails.country,
+  });
+
+  // ── Regular product payload ─────────────────────────────────────────────────
   const buildBasePayload = () => ({
     store_id: storeId,
     items: cart.map(item => {
-         // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const orderItem: any = {
         product_id: item.product_id || item.originalProductId || item.id,
         quantity: item.quantity,
         price: item.price,
         discount: 0,
-        name: item.name
+        name: item.name,
       };
       if (item.variant && (item.variant.size || item.variant.color)) {
         orderItem.variant = { size: item.variant.size || "", color: item.variant.color || "" };
@@ -283,24 +455,56 @@ export default function CheckoutPage() {
     }),
     total_amount: itemsTotal,
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
-    payment_method: "paystack",
+    payment_method: paymentMethod,
     delivery_method: deliveryMethod,
-    customer_info: {
-      name: customerDetails.name,
-      email: customerDetails.email,
-      phone: `${phoneDialCode}${customerDetails.phone}`,
-      address: customerDetails.address,
-      city: customerDetails.city,
-      state: customerDetails.state,
-      post_code: customerDetails.post_code,
-      country: customerDetails.country
-    },
-    notes: deliveryNotes || "No delivery notes provided"
+    customer_info: getCustomerInfo(),
+    notes: deliveryNotes || "No delivery notes provided",
   });
 
-  // Called when user clicks "Save" in the delivery section
+  // ── Food order payload ──────────────────────────────────────────────────────
+  const buildFoodPayload = () => ({
+    store_id: storeId,
+    total_amount: itemsTotal,
+    total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
+    payment_method: "paystack",
+    delivery_method: deliveryMethod, // sends 'relay' or 'pickup' as-is to backend
+    customer_info: getCustomerInfo(),
+    notes: deliveryNotes || "No delivery notes provided",
+    items: cart.map(item => {
+      const sel = item.foodSelection!;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const orderItem: any = {
+        product_id: sel.productUid,
+        name: item.name,
+        weight: 0,
+        image: typeof item.image === 'string' ? item.image : '',
+      };
+      if (sel.type === 'Simple' && sel.portion) {
+        orderItem.portion = sel.portion.map(p => ({ uid: p.uid, quantity: item.quantity }));
+      }
+      if (sel.type === 'Customizable' && sel.addOnGroup) {
+        orderItem.servingType = sel.servingType;
+        orderItem.addOnGroup = sel.addOnGroup.map(g => ({
+          uid: g.uid,
+          addOnGroupOption: g.addOnGroupOption.map(o => ({ uid: o.uid, quantity: item.quantity })),
+        }));
+      }
+      if (sel.type === 'Bundle' && sel.bundleConfig) {
+        orderItem.bundleConfig = { uid: sel.bundleConfig.uid, quantity: item.quantity };
+      }
+      return orderItem;
+    }),
+  });
+
+  // ── Quote — for sendbox, gig, and relay ───────────────────────────────────
   const handleSaveDelivery = async () => {
+    if (!deliveryMethod) {
+      toast.error('Please select a delivery method');
+      return;
+    }
+
     if (!needsQuote) {
+      // pickup goes straight through — no quote needed
       setIsEditingDelivery(false);
       return;
     }
@@ -311,77 +515,88 @@ export default function CheckoutPage() {
     setIsEditingDelivery(false);
 
     try {
-      const payload = buildBasePayload();
-      setQuotePayload(payload);
+      const payload = isFood ? buildFoodPayload() : buildBasePayload();
 
-      console.log('📦 Fetching delivery quote:', JSON.stringify(payload, null, 2));
-
-      const response = await fetch('/api/orders/quote', {
+      const quoteUrl = isFood ? '/api/orders/food/quote' : '/api/orders/quote';
+      const response = await fetch(quoteUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
-      console.log('📥 FULL Quote response:', result);
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to fetch delivery quote');
+      if (process.env.NODE_ENV !== 'production' && isFood) {
+        console.log('Food quote parsed response:', result);
       }
+      if (!response.ok) throw new Error(result.message || 'Failed to fetch delivery quote');
 
-      const methodRaw = result.data?.delivery_method;
-
-      const method = methodRaw;
+      const method = result.data?.delivery_method;
       const quoteData = result.data?.quote;
 
-      console.log('🧪 delivery_method:', method);
-      console.log('🧪 quoteData:', quoteData);
+      if (isFood) {
+        const orderKey = result.data?.orderKey;
+        if (!orderKey) throw new Error('Food quote response did not include an order key');
 
-      // ✅ HANDLE SENDBOX (sendbox)
-      if (method === 'sendbox') {
-        const quotes: SendboxQuote[] = Array.isArray(quoteData) ? quoteData : [];
-
-        if (quotes.length === 0) {
-          toast.error('No delivery options available');
+        if (deliveryMethod === 'pickup' || method === 'pickup') {
+          setSelectedQuote({ fee: 0, rate_card_id: null, name: 'Store Pickup', orderKey });
+          toast.success('Pickup order details saved');
           return;
         }
 
-        setDeliveryQuote({
-          sendboxQuotes: quotes,
-          deliveryMethod: 'sendbox'
-        });
-
-        setShowSendboxModal(true);
-      }
-
-      // ✅ HANDLE GIG
-      else if (method === 'gig') {
-        const gigQuote: GigQuote = quoteData;
-
-        if (!gigQuote || !gigQuote.fee) {
-          throw new Error('Invalid GIG quote response');
+        if (deliveryMethod === 'vendor' || method === 'vendor') {
+          setSelectedQuote({
+            fee: 0,
+            rate_card_id: null,
+            name: 'Vendor Delivery',
+            orderKey,
+          });
+          toast.success('Vendor delivery details saved');
+          return;
         }
 
-        setDeliveryQuote({
-          gigQuote,
-          deliveryMethod: 'gig'
-        });
+        const relayQuote = Array.isArray(quoteData) ? quoteData[0] : quoteData;
+        if (!relayQuote && typeof quoteData !== 'number') {
+          throw new Error('No Relay delivery quote was returned');
+        }
+        const fee = typeof relayQuote?.fee === 'number'
+          ? relayQuote.fee
+          : typeof quoteData === 'number'
+          ? quoteData
+          : 0;
+        const rateCardId =
+          typeof relayQuote?.rate_card_id === 'string' || typeof relayQuote?.rate_card_id === 'number'
+            ? relayQuote.rate_card_id
+            : null;
+        if (!rateCardId) {
+          throw new Error('Relay quote response did not include a rate card id');
+        }
+        const quoteName = typeof relayQuote?.name === 'string' ? relayQuote.name : 'Relay by Chowdeck';
 
-        setSelectedQuote({
-          fee: gigQuote.fee,
-          rate_card_id: null,
-          name: 'GIG Logistics'
-        });
-
-        toast.success(`GIG delivery fee: ₦${gigQuote.fee.toLocaleString()} added to total`);
+        setSelectedQuote({ fee, rate_card_id: rateCardId, name: quoteName, orderKey });
+        toast.success(`Relay delivery fee: ₦${fee.toLocaleString()} added to total`);
+        return;
       }
 
-      // ❌ UNKNOWN RESPONSE
-      else {
-        console.error('❌ Unknown delivery method:', method);
+      if (method === 'sendbox') {
+        const quotes: SendboxQuote[] = Array.isArray(quoteData) ? quoteData : [];
+        if (quotes.length === 0) { toast.error('No delivery options available'); return; }
+        setDeliveryQuote({ sendboxQuotes: quotes, deliveryMethod: 'sendbox' });
+        setShowSendboxModal(true);
+      } else if (method === 'gig') {
+        const gigQuote: GigQuote = quoteData;
+        if (!gigQuote || !gigQuote.fee) throw new Error('Invalid GIG quote response');
+        setDeliveryQuote({ gigQuote, deliveryMethod: 'gig' });
+        setSelectedQuote({ fee: gigQuote.fee, rate_card_id: null, name: 'GIG Logistics' });
+        toast.success(`GIG delivery fee: ₦${gigQuote.fee.toLocaleString()} added to total`);
+      } else if (method === 'relay') {
+        // Relay quote — same shape as GIG (single fee, no rate_card_id)
+        const relayFee = typeof quoteData?.fee === 'number' ? quoteData.fee : quoteData;
+        const fee = typeof relayFee === 'number' ? relayFee : 0;
+        setSelectedQuote({ fee, rate_card_id: null, name: 'Relay by Chowdeck' });
+        toast.success(`Relay delivery fee: ₦${fee.toLocaleString()} added to total`);
+      } else {
         toast.error('Unsupported delivery method returned');
       }
-
     } catch (error) {
       console.error('Quote error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to get delivery quote');
@@ -396,27 +611,140 @@ export default function CheckoutPage() {
     toast.success(`${quote.name} selected — ₦${quote.fee.toLocaleString()} delivery fee added`);
   };
 
+  // ── Order creation ──────────────────────────────────────────────────────────
   const createOrder = async () => {
-       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload: any = { ...buildBasePayload() };
+    if (isFood) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const payload: any = {};
+      if (!selectedQuote?.orderKey) {
+        throw new Error('Please save delivery details to prepare this food order');
+      }
+      payload.orderKey = selectedQuote.orderKey;
+      if (selectedQuote.rate_card_id) {
+        payload.rate_card_id = selectedQuote.rate_card_id;
+      }
+      const response = await fetch('/api/orders/food/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || `Failed to create food order: ${response.status}`);
+      if (result.status !== 'success') throw new Error(result.message || 'Food order creation failed');
+      return result;
+    }
 
-    // Add rate_card_id for sendbox
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: any = { ...buildBasePayload() };
     if (deliveryMethod === 'sendbox' && selectedQuote?.rate_card_id) {
       payload.rate_card_id = selectedQuote.rate_card_id;
     }
-
     console.log('📦 Creating order:', JSON.stringify(payload, null, 2));
-
     const response = await fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
-
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || `Failed to create order: ${response.status}`);
     if (result.status !== 'success') throw new Error(result.message || 'Order creation failed');
     return result;
+  };
+
+  const getCustomerNameParts = () => {
+    const [firstName, ...rest] = customerDetails.name.trim().split(/\s+/);
+    return {
+      firstName: firstName || '',
+      lastName: rest.join(' '),
+    };
+  };
+
+  const launchKlumpCheckout = (orderResult: CheckoutOrderResult) => {
+    const publicKey = process.env.NEXT_PUBLIC_KLUMP_PUBLIC_KEY;
+
+    if (!publicKey) {
+      throw new Error('Klump public key is not configured');
+    }
+
+    const KlumpCheckout = getKlumpConstructor();
+
+    if (!KlumpCheckout) {
+      throw new Error('Klump checkout script is not available yet. Please refresh and try again.');
+    }
+
+    const orderDetails = orderResult.data?.order;
+    const paymentDetails = orderResult.data?.payment;
+    const transactionDetails = orderResult.data?.transaction;
+    const paymentReference = transactionDetails?.reference || paymentDetails?.reference || orderDetails?.order_number;
+    const { firstName, lastName } = getCustomerNameParts();
+    const cleanPhone = customerDetails.phone.replace(/\D/g, '');
+    const normalizedPhone = phoneDialCode === '+234' && cleanPhone && !cleanPhone.startsWith('0')
+      ? `0${cleanPhone}`
+      : cleanPhone;
+    const customerPhone = normalizedPhone.length === 11 ? normalizedPhone : undefined;
+    const customerFirstName = firstName.length >= 2 ? firstName : undefined;
+    const customerLastName = lastName.length >= 2 ? lastName : undefined;
+    const merchantReference = String(paymentReference || orderDetails?.order_number || Date.now());
+
+    localStorage.setItem('pending_order', JSON.stringify({
+      orderId: orderDetails?.order_number,
+      customerDetails: { ...customerDetails, phone: `${phoneDialCode}${customerDetails.phone}` },
+      cart,
+      total,
+      deliveryNotes,
+      orderData: orderResult,
+      paymentReference,
+      paymentProvider: 'klump',
+      verificationStatus: 'pending_backend_integration',
+    }));
+
+    localStorage.setItem('current_store_id', storeId);
+    localStorage.setItem('payment_reference', merchantReference);
+
+    new KlumpCheckout({
+      publicKey,
+      data: {
+        amount: Math.round(total),
+        shipping_fee: Math.round(deliveryFee),
+        currency: 'NGN',
+        ...(customerFirstName && { first_name: customerFirstName }),
+        ...(customerLastName && { last_name: customerLastName }),
+        email: customerDetails.email,
+        ...(customerPhone && { phone: customerPhone }),
+        merchant_reference: merchantReference,
+        redirect_url: `${window.location.origin}/payment/callback?provider=klump&store_id=${storeId}`,
+        meta_data: {
+          store_id: storeId,
+          order_id: orderDetails?.id,
+          order_number: orderDetails?.order_number,
+          payment_reference: merchantReference,
+        },
+        items: cart.map(item => ({
+          name: item.name,
+          unit_price: Math.round(item.price),
+          quantity: item.quantity,
+          image_url: typeof item.image === 'string' ? item.image : undefined,
+          item_url: `${window.location.origin}/storefront/${storeId}`,
+        })),
+      },
+      onLoad: () => {
+        setIsKlumpReady(true);
+      },
+      onSuccess: (response) => {
+        localStorage.setItem('klump_checkout_response', JSON.stringify(response));
+        sessionStorage.removeItem(getCheckoutDraftKey(storeId));
+        clearCart();
+        window.location.href = `/payment/callback?provider=klump&store_id=${storeId}&reference=${encodeURIComponent(merchantReference)}`;
+      },
+      onError: (error) => {
+        console.error('Klump checkout error:', error);
+        toast.error('Klump checkout failed. Please try again or use Paystack.');
+        setIsProcessingPayment(false);
+      },
+      onClose: () => {
+        setIsProcessingPayment(false);
+      },
+    });
   };
 
   const handleProceedToPayment = async () => {
@@ -425,17 +753,23 @@ export default function CheckoutPage() {
       toast.error('Please save delivery details to get a delivery quote first');
       return;
     }
-  
+
     setIsProcessingPayment(true);
     try {
       const orderResult = await createOrder();
+
+      if (paymentMethod === 'klump') {
+        launchKlumpCheckout(orderResult);
+        return;
+      }
+
       const orderDetails = orderResult.data?.order;
       const paymentDetails = orderResult.data?.payment;
       const transactionDetails = orderResult.data?.transaction;
-  
+
       if (orderDetails && paymentDetails) {
         const paymentReference = transactionDetails?.reference || paymentDetails.reference;
-  
+
         localStorage.setItem('pending_order', JSON.stringify({
           orderId: orderDetails.order_number,
           customerDetails: { ...customerDetails, phone: `${phoneDialCode}${customerDetails.phone}` },
@@ -443,15 +777,14 @@ export default function CheckoutPage() {
           total: Number(paymentDetails.total_paid) || Number(orderDetails.order_total),
           deliveryNotes,
           orderData: orderResult,
-          paymentReference
+          paymentReference,
         }));
-  
+
         localStorage.setItem('current_store_id', storeId);
         if (paymentReference) localStorage.setItem('payment_reference', paymentReference);
-  
-        // ✅ Clear the cart after successful order creation
+
+        sessionStorage.removeItem(getCheckoutDraftKey(storeId));
         clearCart();
-  
         toast.success("Redirecting to payment...");
         window.location.href = paymentDetails.authorization_url;
       } else {
@@ -463,6 +796,14 @@ export default function CheckoutPage() {
       setIsProcessingPayment(false);
     }
   };
+
+  // ── Delivery method section ─────────────────────────────────────────────────
+  // Food stores can use Relay, Pickup, or Vendor Delivery.
+  const visibleModes = isFoodStore
+    ? enabledFulfillmentModes.filter(
+        m => m === 'relay' || m === 'pickup' || m === 'vendor'
+      )
+    : enabledFulfillmentModes.filter(m => m !== 'relay');
 
   const DeliveryMethodSection = () => {
     if (isLoadingModes) {
@@ -476,7 +817,7 @@ export default function CheckoutPage() {
       );
     }
 
-    if (enabledFulfillmentModes.length === 0) {
+    if (visibleModes.length === 0) {
       return (
         <div className='mb-6'>
           <Label className='text-xs mb-3 block'>Delivery Method *</Label>
@@ -491,49 +832,31 @@ export default function CheckoutPage() {
       <div className='mb-6'>
         <Label className='text-xs mb-3 block'>Delivery Method *</Label>
         <RadioGroup
-          value={deliveryMethod}
-          onValueChange={(value: 'sendbox' | 'pickup' | 'vendor' | 'gig') => {
-            setDeliveryMethod(value);
+          value={deliveryMethod ?? undefined}
+          onValueChange={(value) => {
+            setDeliveryMethod(value as DeliveryMethodType);
             setSelectedQuote(null);
             setDeliveryQuote(null);
           }}
           className="space-y-3"
           disabled={!isEditingDelivery}
         >
-          {enabledFulfillmentModes.includes('sendbox') && (
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="sendbox" id="sendbox" />
-              <Label htmlFor="sendbox" className="text-sm font-normal cursor-pointer">
-                SendBox
+          {visibleModes.map(mode => (
+            <div key={mode} className="flex items-center space-x-2">
+              <RadioGroupItem value={mode} id={mode} />
+              <Label htmlFor={mode} className="text-sm font-normal cursor-pointer">
+                {DELIVERY_METHOD_LABELS[mode as DeliveryMethodType] ?? mode}
               </Label>
             </div>
-          )}
-          {enabledFulfillmentModes.includes('pickup') && (
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="pickup" id="pickup" />
-              <Label htmlFor="pickup" className="text-sm font-normal cursor-pointer">Pick Up</Label>
-            </div>
-          )}
-          {enabledFulfillmentModes.includes('vendor') && (
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="vendor" id="vendor" />
-              <Label htmlFor="vendor" className="text-sm font-normal cursor-pointer">Vendor Delivery</Label>
-            </div>
-          )}
-          {enabledFulfillmentModes.includes('gig') && (
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="gig" id="gig" />
-              <Label htmlFor="gig" className="text-sm font-normal cursor-pointer">GIG Logistics</Label>
-            </div>
-          )}
+          ))}
         </RadioGroup>
 
-        {deliveryMethod === 'sendbox' && <p className="text-xs text-[#A0A0A0] mt-2">Delivered through our sendbox delivery service. Rates will be shown after saving.</p>}
-        {deliveryMethod === 'pickup' && <p className="text-xs text-[#A0A0A0] mt-2">You&apos;ll pick up your order from the store location.</p>}
-        {deliveryMethod === 'vendor' && <p className="text-xs text-[#A0A0A0] mt-2">The vendor will handle delivery of your order.</p>}
-        {deliveryMethod === 'gig' && <p className="text-xs text-[#A0A0A0] mt-2">Delivered through GIG Logistics. Rate will be calculated after saving.</p>}
+        {deliveryMethod && DELIVERY_METHOD_DESCRIPTIONS[deliveryMethod] && (
+          <p className="text-xs text-[#A0A0A0] mt-2">
+            {DELIVERY_METHOD_DESCRIPTIONS[deliveryMethod]}
+          </p>
+        )}
 
-        {/* Show selected quote info */}
         {selectedQuote && (
           <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
             <div>
@@ -552,6 +875,15 @@ export default function CheckoutPage() {
         )}
       </div>
     );
+  };
+
+  const shipmentLabel = (method: DeliveryMethodType | null) => {
+    if (!method) return 'Select delivery method';
+    if (method === 'relay') return 'Relay by Chowdeck';
+    if (method === 'pickup') return 'Store Pickup';
+    if (method === 'vendor') return 'Fulfilled By Vendor';
+    if (method === 'gig') return 'GIG Logistics';
+    return 'Door Delivery';
   };
 
   return (
@@ -580,7 +912,7 @@ export default function CheckoutPage() {
                   <span className='text-sm'>₦{selectedQuote.fee.toLocaleString()}</span>
                 </div>
               )}
-              {(deliveryMethod === 'sendbox' || deliveryMethod === 'gig') && !selectedQuote && (
+              {needsQuote && !selectedQuote && (
                 <div className='flex items-center justify-between text-xs text-[#A0A0A0]'>
                   <span>Delivery fee</span>
                   <span>Calculated after saving delivery</span>
@@ -591,18 +923,65 @@ export default function CheckoutPage() {
                 <h4 className='font-bold'>₦{total.toLocaleString()}</h4>
               </div>
             </CardContent>
+            <CardContent className='pb-2 border-b border-[#F5F5F5] dark:border-[#1F1F1F] space-y-3 pt-4'>
+              <Label className='text-xs block'>Payment Method</Label>
+              <RadioGroup
+                value={paymentMethod}
+                onValueChange={(value) => setPaymentMethod(value as PaymentMethodType)}
+                className="space-y-3"
+              >
+                <div className="flex items-start space-x-2">
+                  <RadioGroupItem value="paystack" id="paystack" />
+                  <Label htmlFor="paystack" className="text-sm font-normal cursor-pointer">
+                    Paystack
+                    <span className="block text-xs text-[#A0A0A0]">Pay now with card, transfer, or bank options.</span>
+                  </Label>
+                </div>
+                {canUseKlump && (
+                  <div className="flex items-start space-x-2">
+                    <RadioGroupItem value="klump" id="klump" />
+                    <Label htmlFor="klump" className="text-sm font-normal cursor-pointer">
+                      Klump
+                      <span className="block text-xs text-[#A0A0A0]">
+                        {isKlumpReady
+                          ? 'Buy now, pay later. Available for non-food vendors only.'
+                          : 'Buy now, pay later. Checkout will open after you continue.'}
+                      </span>
+                    </Label>
+                  </div>
+                )}
+              </RadioGroup>
+              {canUseKlump && <div id="klump__checkout" className="hidden" />}
+              {canUseKlump && (
+                <Script
+                  id="klump-checkout-sdk"
+                  src="https://js.useklump.com/klump.js"
+                  strategy="afterInteractive"
+                  onLoad={() => setIsKlumpReady(!!getKlumpConstructor())}
+                />
+              )}
+            </CardContent>
             <CardFooter className='pt-4'>
               <Button
                 className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
                 onClick={handleProceedToPayment}
-                disabled={isProcessingPayment || cart.length === 0 || isLoadingModes || isFetchingQuote || (needsQuote && !selectedQuote)}
+                disabled={
+                  isProcessingPayment ||
+                  cart.length === 0 ||
+                  isLoadingModes ||
+                  isFetchingQuote ||
+                  !deliveryMethod ||
+                  (needsQuote && !selectedQuote)
+                }
               >
                 {isProcessingPayment ? (
                   <><Loader2 className='w-4 h-4 mr-2 animate-spin' /> Processing...</>
+                ) : !deliveryMethod ? (
+                  'Select a delivery method'
                 ) : needsQuote && !selectedQuote ? (
                   'Save delivery to continue'
                 ) : (
-                  'Proceed to Payment'
+                  paymentMethod === 'klump' ? 'Pay with Klump' : 'Proceed to Payment'
                 )}
               </Button>
             </CardFooter>
@@ -610,7 +989,12 @@ export default function CheckoutPage() {
 
           <p className='text-center text-sm mt-4'>
             By proceeding, you are automatically accepting the{' '}
-            <a href="#" className='text-[#4FCA6A]'>Terms & Conditions</a>
+            <Link
+              href={`/storefront/${storeId}/terms`}
+              className='font-medium text-[#4FCA6A] hover:underline'
+            >
+              Terms & Conditions
+            </Link>
           </p>
         </div>
 
@@ -631,8 +1015,8 @@ export default function CheckoutPage() {
                 </Button>
               ) : (
                 <div className='flex items-center gap-2'>
-                  <Button variant="outline" onClick={handleCancelEdit}> <X/> <span className="hidden sm:inline ml-2">Cancel</span></Button>
-                  <Button onClick={handleSaveAddress}><SaveIcon className="hidden sm:inline ml-2"/> <span >Save Changes</span></Button>
+                  <Button variant="outline" onClick={handleCancelEdit}><X /> <span className="hidden sm:inline ml-2">Cancel</span></Button>
+                  <Button onClick={handleSaveAddress}><SaveIcon className="hidden sm:inline ml-2" /> <span>Save Changes</span></Button>
                 </div>
               )}
             </CardHeader>
@@ -716,12 +1100,12 @@ export default function CheckoutPage() {
                 </Button>
               ) : (
                 <div className='flex items-center gap-2'>
-                  <Button variant="outline" onClick={handleCancelDeliveryEdit}><X/> <span className="hidden sm:inline ml-2">Cancel</span></Button>
+                  <Button variant="outline" onClick={handleCancelDeliveryEdit}><X /> <span className="hidden sm:inline ml-2">Cancel</span></Button>
                   <Button onClick={handleSaveDelivery} disabled={isFetchingQuote}>
                     {isFetchingQuote ? (
                       <><Loader2 className='w-4 h-4 mr-2 animate-spin' /> Getting quote...</>
                     ) : (
-                      <><SaveIcon className="hidden sm:inline ml-2"/> <span >Save Changes</span></>
+                      <><SaveIcon className="hidden sm:inline ml-2" /> <span>Save Changes</span></>
                     )}
                   </Button>
                 </div>
@@ -751,18 +1135,10 @@ export default function CheckoutPage() {
                   <div key={item.id} className='flex-shrink-0 w-[280px]'>
                     <div className='flex justify-between items-center'>
                       <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
-                      <span className='text-xs text-[#A0A0A0]'>
-                        {deliveryMethod === 'vendor' ? 'Fulfilled By Vendor' :
-                          deliveryMethod === 'pickup' ? 'Store Pickup' :
-                            deliveryMethod === 'gig' ? 'GIG Logistics' : 'Door Delivery'}
-                      </span>
+                      <span className='text-xs text-[#A0A0A0]'>{shipmentLabel(deliveryMethod)}</span>
                     </div>
                     <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
-                      <p className='text-sm font-medium'>
-                        {deliveryMethod === 'vendor' ? 'Vendor Delivery' :
-                          deliveryMethod === 'pickup' ? 'Store Pickup' :
-                            deliveryMethod === 'gig' ? 'GIG Delivery' : 'Door Delivery'}
-                      </p>
+                      <p className='text-sm font-medium'>{shipmentLabel(deliveryMethod)}</p>
                       <div className='flex gap-3 mt-3'>
                         <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg' />
                         <div className='flex flex-col justify-between'>
@@ -779,9 +1155,6 @@ export default function CheckoutPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* 3. Payment Method */}
-        
 
           <Link href={`/storefront/${storeId}`} className='flex text-sm items-center text-[#4FCA6A] mt-6 hover:underline'>
             <ArrowIcon /> Go back & continue shopping

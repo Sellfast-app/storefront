@@ -23,7 +23,7 @@ export async function GET(
       return NextResponse.json(
         { 
           status: 'error', 
-          message: `Failed to fetch store details: ${response.statusText}` 
+          message: `Failed to fetch store details: ${response.statusText}`
         },
         { status: response.status }
       )
