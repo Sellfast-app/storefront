@@ -196,7 +196,9 @@ function Page() {
       setError(null);
 
       try {
-        const response = await fetch(`/api/stores/${storeId}`);
+        const response = await fetch(`/api/stores/${storeId}`, {
+          cache: "no-store",
+        });
 
         if (!response.ok) {
           const errorData = await response.json();
