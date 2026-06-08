@@ -173,6 +173,38 @@ type DeliveryMethodType = 'sendbox' | 'pickup' | 'vendor' | 'gig' | 'relay';
 type PaymentMethodType = 'paystack' | 'klump';
 type KlumpConstructor = typeof Klump;
 
+interface CustomerDetails {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  post_code: string;
+  country: string;
+}
+
+interface CheckoutDraft {
+  customerDetails: CustomerDetails;
+  phoneDialCode: string;
+  deliveryMethod: DeliveryMethodType | null;
+  deliveryNotes: string;
+  paymentMethod: PaymentMethodType;
+}
+
+const DEFAULT_CUSTOMER_DETAILS: CustomerDetails = {
+  name: '',
+  email: '',
+  phone: '',
+  address: '',
+  city: '',
+  state: '',
+  post_code: '',
+  country: 'NG',
+};
+
+const getCheckoutDraftKey = (storeId: string) => `checkout_draft_${storeId}`;
+
 const getKlumpConstructor = (): KlumpConstructor | null => {
   if (typeof window === 'undefined') return null;
 
@@ -215,20 +247,14 @@ export default function CheckoutPage() {
   const [isFoodStore, setIsFoodStore] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('paystack');
   const [isKlumpReady, setIsKlumpReady] = useState(() => !!getKlumpConstructor());
+  const [loadedCheckoutDraftStoreId, setLoadedCheckoutDraftStoreId] = useState<string | null>(null);
 
   const [isFetchingQuote, setIsFetchingQuote] = useState(false);
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<SelectedQuote | null>(null);
   const [showSendboxModal, setShowSendboxModal] = useState(false);
-  const [customerDetails, setCustomerDetails] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    post_code: '',
-    country: 'NG',
+  const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
+    ...DEFAULT_CUSTOMER_DETAILS,
   });
 
   const { cart, getCartTotal, clearCart, isFoodCart } = useCart();
@@ -250,6 +276,63 @@ export default function CheckoutPage() {
       deliveryMethod === 'relay');
 
   useEffect(() => {
+    if (!storeId) return;
+
+    try {
+      const savedDraft = sessionStorage.getItem(getCheckoutDraftKey(storeId));
+      if (savedDraft) {
+        const draft = JSON.parse(savedDraft) as Partial<CheckoutDraft>;
+
+        if (draft.customerDetails) {
+          setCustomerDetails({
+            ...DEFAULT_CUSTOMER_DETAILS,
+            ...draft.customerDetails,
+          });
+        }
+        if (typeof draft.phoneDialCode === 'string') {
+          setPhoneDialCode(draft.phoneDialCode);
+        }
+        if (typeof draft.deliveryNotes === 'string') {
+          setDeliveryNotes(draft.deliveryNotes);
+        }
+        if (draft.deliveryMethod) {
+          setDeliveryMethod(draft.deliveryMethod);
+        }
+        if (draft.paymentMethod === 'paystack' || draft.paymentMethod === 'klump') {
+          setPaymentMethod(draft.paymentMethod);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore checkout draft:', error);
+      sessionStorage.removeItem(getCheckoutDraftKey(storeId));
+    } finally {
+      setLoadedCheckoutDraftStoreId(storeId);
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    if (!storeId || loadedCheckoutDraftStoreId !== storeId) return;
+
+    const draft: CheckoutDraft = {
+      customerDetails,
+      phoneDialCode,
+      deliveryMethod,
+      deliveryNotes,
+      paymentMethod,
+    };
+
+    sessionStorage.setItem(getCheckoutDraftKey(storeId), JSON.stringify(draft));
+  }, [
+    customerDetails,
+    deliveryMethod,
+    deliveryNotes,
+    loadedCheckoutDraftStoreId,
+    paymentMethod,
+    phoneDialCode,
+    storeId,
+  ]);
+
+  useEffect(() => {
     const fetchStoreFulfillmentModes = async () => {
       try {
         setIsLoadingModes(true);
@@ -265,14 +348,16 @@ export default function CheckoutPage() {
 
           const modes: string[] = storeDetails.enabled_fulfillment_modes || [];
           setEnabledFulfillmentModes(modes);
-          setDeliveryMethod(null);
+          setDeliveryMethod(currentMethod =>
+            currentMethod && modes.includes(currentMethod) ? currentMethod : null
+          );
           setIsEditingDelivery(true);
         }
       } catch (error) {
         console.error('❌ Error fetching store fulfillment modes:', error);
         toast.error('Failed to load delivery options');
         setEnabledFulfillmentModes(['pickup']);
-        setDeliveryMethod(null);
+        setDeliveryMethod(currentMethod => currentMethod === 'pickup' ? currentMethod : null);
         setIsEditingDelivery(true);
       } finally {
         setIsLoadingModes(false);
@@ -647,6 +732,7 @@ export default function CheckoutPage() {
       },
       onSuccess: (response) => {
         localStorage.setItem('klump_checkout_response', JSON.stringify(response));
+        sessionStorage.removeItem(getCheckoutDraftKey(storeId));
         clearCart();
         window.location.href = `/payment/callback?provider=klump&store_id=${storeId}&reference=${encodeURIComponent(merchantReference)}`;
       },
@@ -697,6 +783,7 @@ export default function CheckoutPage() {
         localStorage.setItem('current_store_id', storeId);
         if (paymentReference) localStorage.setItem('payment_reference', paymentReference);
 
+        sessionStorage.removeItem(getCheckoutDraftKey(storeId));
         clearCart();
         toast.success("Redirecting to payment...");
         window.location.href = paymentDetails.authorization_url;
