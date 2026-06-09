@@ -80,7 +80,19 @@ export default function CartView() {
                   <div className="flex items-center gap-2 text-xs border rounded-xl p-1 bg-[#E0E0E0]">
                     <button
                       onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      className="p-1 hover:bg-gray-200 rounded"
+                      disabled={
+                        item.maxQuantity !== undefined &&
+                        item.foodSelection?.productUid !== undefined &&
+                        cart
+                          .filter(
+                            cartItem =>
+                              cartItem.foodSelection?.productUid ===
+                              item.foodSelection?.productUid
+                          )
+                          .reduce((total, cartItem) => total + cartItem.quantity, 0) >=
+                          item.maxQuantity
+                      }
+                      className="p-1 hover:bg-gray-200 rounded disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <PlusIcon className="w-4 h-4" />
                     </button>

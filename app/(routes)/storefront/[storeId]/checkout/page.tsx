@@ -482,8 +482,10 @@ export default function CheckoutPage() {
       if (sel.type === 'Simple' && sel.portion) {
         orderItem.portion = sel.portion.map(p => ({ uid: p.uid, quantity: item.quantity }));
       }
-      if (sel.type === 'Customizable' && sel.addOnGroup) {
+      if (sel.type === 'Customizable') {
         orderItem.servingType = sel.servingType;
+      }
+      if (sel.addOnGroup) {
         orderItem.addOnGroup = sel.addOnGroup.map(g => ({
           uid: g.uid,
           addOnGroupOption: g.addOnGroupOption.map(o => ({ uid: o.uid, quantity: item.quantity })),
