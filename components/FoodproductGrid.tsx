@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Clock, Flame, Leaf } from "lucide-react";
 import { FoodItem } from "@/lib/mockdata";
+import { getFoodCardPrice } from "@/lib/foodPricing";
 import { useCart } from "@/context/CartContext";
 import { toast } from "sonner";
 
@@ -73,19 +74,6 @@ function getPrepTimeRange(item: FoodItem): string | null {
     const min = Math.min(...item.portion.map((p) => p.startPrepTime));
     const max = Math.max(...item.portion.map((p) => p.endPrepTime));
     return `${min} - ${max} mins`;
-  }
-  return null;
-}
-
-function getBasePrice(item: FoodItem): number | null {
-  if (item.type === "Simple" && item.portion.length > 0) {
-    return Math.min(...item.portion.map((p) => p.price));
-  }
-  if (item.type === "Customizable" && item.addOnGroup.length > 0) {
-    const minAddOn = Math.min(
-      ...item.addOnGroup.flatMap((g) => g.addOnOptions.map((o) => o.price))
-    );
-    return minAddOn;
   }
   return null;
 }
@@ -183,7 +171,7 @@ function FoodCard({
   const status = STATUS_CONFIG[item.status] || STATUS_CONFIG["Available Today"];
   const typeConfig = TYPE_CONFIG[item.type] || TYPE_CONFIG["Simple"];
   const prepTime = getPrepTimeRange(item);
-  const basePrice = getBasePrice(item);
+  const basePrice = getFoodCardPrice(item);
   const servingLabel = getServingLabel(item);
   const isUnavailable = item.status === "Out of Stock";
   const canAddDirectly = item.type === "Simple" && item.portion.length === 1;
