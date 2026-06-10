@@ -282,7 +282,9 @@ function Page() {
     const fetchFoodItems = async () => {
       setIsLoadingProducts(true);
       try {
-        const response = await fetch(`/api/stores/${storeId}/food`);
+        const response = await fetch(`/api/stores/${storeId}/food`, {
+          cache: "no-store",
+        });
 
         if (!response.ok) throw new Error("Failed to fetch food items");
 

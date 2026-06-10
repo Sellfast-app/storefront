@@ -1,6 +1,12 @@
 // app/api/stores/[storeId]/food/[foodId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ storeId: string; foodId: string }> }
@@ -58,7 +64,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ status: "success", data: item });
+    return NextResponse.json(
+      { status: "success", data: item },
+      { headers: NO_STORE_HEADERS }
+    );
 
   }   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   catch (error: any) {
