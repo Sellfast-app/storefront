@@ -18,6 +18,7 @@ import { useCart } from "@/context/CartContext";
 import { PlusIcon, Clock, Flame, Leaf, ChevronLeft, ChevronRight } from "lucide-react";
 import MinusIcon from "@/components/svgIcons/MinusIcon";
 import { AddOnGroup, AddOnOption, FoodItem, Portion } from "@/lib/mockdata";
+import { getFoodCardPrice } from "@/lib/foodPricing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -770,11 +771,7 @@ function Page() {
                 item.name.toLowerCase().includes(searchQuery.toLowerCase())
               )
               .map((item) => {
-                const minPrice = item.type === "Simple" && item.portion.length > 0
-                  ? Math.min(...item.portion.map((p) => p.price))
-                  : item.type === "Customizable" && item.addOnGroup.length > 0
-                  ? Math.min(...item.addOnGroup.flatMap((g) => g.addOnOptions.map((o) => o.price)))
-                  : null;
+                const cardPrice = getFoodCardPrice(item);
 
                 return (
                   <Link key={item.uid} href={`/storefront/${storeId}/food/${item.uid}`}>
@@ -791,8 +788,8 @@ function Page() {
                       <div className="p-2">
                         <p className="text-xs font-medium line-clamp-2">{item.name}</p>
                         <div className="flex items-center justify-between mt-1.5">
-                          {minPrice !== null && (
-                            <span className="text-sm font-semibold">₦{minPrice.toLocaleString()}</span>
+                          {cardPrice !== null && (
+                            <span className="text-sm font-semibold">₦{cardPrice.toLocaleString()}</span>
                           )}
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                             item.type === "Customizable"
