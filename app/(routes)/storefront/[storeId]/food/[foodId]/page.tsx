@@ -23,7 +23,11 @@ import { getFoodCardPrice } from "@/lib/foodPricing";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SelectedAddOns {
-  [groupUid: string]: AddOnOption[];
+  [groupUid: string]: SelectedAddOnOption[];
+}
+
+interface SelectedAddOnOption extends AddOnOption {
+  quantity: number;
 }
 
 // ─── Image Carousel ───────────────────────────────────────────────────────────
@@ -189,7 +193,7 @@ function Page() {
         if (isSelected) {
           return { ...prev, [group.uid]: [] };
         }
-        return { ...prev, [group.uid]: [option] };
+        return { ...prev, [group.uid]: [{ ...option, quantity: 1 }] };
       } else {
         const isSelected = current.some((o) => o.uid === option.uid);
 
@@ -197,13 +201,31 @@ function Page() {
           return { ...prev, [group.uid]: current.filter((o) => o.uid !== option.uid) };
         }
 
-        return { ...prev, [group.uid]: [...current, option] };
+        return { ...prev, [group.uid]: [...current, { ...option, quantity: 1 }] };
       }
     });
   };
 
   const isAddOnSelected = (groupUid: string, optionUid: string) =>
     (selectedAddOns[groupUid] || []).some((o) => o.uid === optionUid);
+
+  const getAddOnQuantity = (groupUid: string, optionUid: string) =>
+    (selectedAddOns[groupUid] || []).find((o) => o.uid === optionUid)?.quantity || 0;
+
+  const updateAddOnQuantity = (groupUid: string, optionUid: string, change: number) => {
+    setSelectedAddOns((prev) => {
+      const current = prev[groupUid] || [];
+      const next = current
+        .map((option) =>
+          option.uid === optionUid
+            ? { ...option, quantity: option.quantity + change }
+            : option
+        )
+        .filter((option) => option.quantity > 0);
+
+      return { ...prev, [groupUid]: next };
+    });
+  };
 
   // ── Price calculation ────────────────────────────────────────────────────
 
@@ -216,14 +238,14 @@ function Page() {
       )?.price || 0;
       const addOnTotal = Object.values(selectedAddOns)
         .flat()
-        .reduce((sum, o) => sum + o.price, 0);
+        .reduce((sum, o) => sum + (o.price * o.quantity), 0);
       return servingTypePrice + addOnTotal;
     }
     if (food.type === "Bundle") {
       const bundleTotal = food.bundleConfig.reduce((sum, b) => sum + b.price, 0);
       const addOnTotal = Object.values(selectedAddOns)
         .flat()
-        .reduce((sum, o) => sum + o.price, 0);
+        .reduce((sum, o) => sum + (o.price * o.quantity), 0);
       return bundleTotal + addOnTotal;
     }
     return 0;
@@ -260,7 +282,7 @@ function Page() {
     if (food.type === "Customizable") {
       const addOnKey = Object.values(selectedAddOns)
         .flat()
-        .map((o) => o.uid)
+        .map((o) => `${o.uid}:${o.quantity}`)
         .sort()
         .join("-");
       return `${food.uid}-${selectedServingType}-${addOnKey}`;
@@ -268,7 +290,7 @@ function Page() {
     if (food.type === "Bundle") {
       const addOnKey = Object.values(selectedAddOns)
         .flat()
-        .map((o) => o.uid)
+        .map((o) => `${o.uid}:${o.quantity}`)
         .sort()
         .join("-");
       return `${food.uid}-${addOnKey}`;
@@ -304,7 +326,7 @@ function Page() {
 
     const addOnNames = Object.values(selectedAddOns)
       .flat()
-      .map((o) => o.name)
+      .map((o) => o.quantity > 1 ? `${o.name} x${o.quantity}` : o.name)
       .join(", ");
 
     const itemName = food.type === "Simple" && selectedPortion
@@ -330,7 +352,7 @@ function Page() {
           .filter(([, options]) => options.length > 0)
           .map(([groupUid, options]) => ({
             uid: groupUid,
-            addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: 1 })),
+            addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: o.quantity })),
           })),
       }),
       ...(food.type === "Bundle" && food.bundleConfig.length > 0 && {
@@ -339,7 +361,7 @@ function Page() {
           .filter(([, options]) => options.length > 0)
           .map(([groupUid, options]) => ({
             uid: groupUid,
-            addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: 1 })),
+            addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: o.quantity })),
           })),
       }),
     };
@@ -576,17 +598,28 @@ function Page() {
                             </div>
                             {selected.length > 0 && (
                               <span className="text-xs text-[#4FCA6A] font-medium">
-                                {selected.map((o) => o.name).join(", ")}
+                                {selected
+                                  .map((o) => o.quantity > 1 ? `${o.name} x${o.quantity}` : o.name)
+                                  .join(", ")}
                               </span>
                             )}
                           </div>
                           <div className="space-y-2">
                             {group.addOnOptions.map((option) => {
                               const isSelected = isAddOnSelected(group.uid, option.uid);
+                              const addOnQuantity = getAddOnQuantity(group.uid, option.uid);
                               return (
-                                <button
+                                <div
                                   key={option.uid}
                                   onClick={() => handleAddOnToggle(group, option)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === " ") {
+                                      event.preventDefault();
+                                      handleAddOnToggle(group, option);
+                                    }
+                                  }}
+                                  role="button"
+                                  tabIndex={0}
                                   className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition-all ${
                                     isSelected
                                       ? "border-[#4FCA6A] bg-[#4FCA6A]/5"
@@ -601,10 +634,39 @@ function Page() {
                                     </div>
                                     <span className="font-medium">{option.name}</span>
                                   </div>
-                                  <span className="text-[#4FCA6A] font-semibold">
-                                    +₦{option.price.toLocaleString()}
-                                  </span>
-                                </button>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-[#4FCA6A] font-semibold">
+                                      +₦{option.price.toLocaleString()}
+                                    </span>
+                                    {isSelected && (
+                                      <div
+                                        className="flex items-center gap-1 rounded-lg border border-[#4FCA6A]/30 bg-white p-0.5"
+                                        onClick={(event) => event.stopPropagation()}
+                                        onKeyDown={(event) => event.stopPropagation()}
+                                      >
+                                        <button
+                                          type="button"
+                                          aria-label={`Increase ${option.name} quantity`}
+                                          onClick={() => updateAddOnQuantity(group.uid, option.uid, 1)}
+                                          className="rounded p-1 text-[#4FCA6A] hover:bg-[#4FCA6A]/10"
+                                        >
+                                          <PlusIcon className="h-3.5 w-3.5" />
+                                        </button>
+                                        <span className="min-w-5 text-center text-xs font-semibold">
+                                          {addOnQuantity}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          aria-label={`Decrease ${option.name} quantity`}
+                                          onClick={() => updateAddOnQuantity(group.uid, option.uid, -1)}
+                                          className="rounded p-1 text-gray-500 hover:bg-gray-100"
+                                        >
+                                          <MinusIcon className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
                               );
                             })}
                           </div>
@@ -651,17 +713,28 @@ function Page() {
                             </div>
                             {selected.length > 0 && (
                               <span className="text-xs text-[#4FCA6A] font-medium">
-                                {selected.map((o) => o.name).join(", ")}
+                                {selected
+                                  .map((o) => o.quantity > 1 ? `${o.name} x${o.quantity}` : o.name)
+                                  .join(", ")}
                               </span>
                             )}
                           </div>
                           <div className="space-y-2">
                             {group.addOnOptions.map((option) => {
                               const isSelected = isAddOnSelected(group.uid, option.uid);
+                              const addOnQuantity = getAddOnQuantity(group.uid, option.uid);
                               return (
-                                <button
+                                <div
                                   key={option.uid}
                                   onClick={() => handleAddOnToggle(group, option)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter" || event.key === " ") {
+                                      event.preventDefault();
+                                      handleAddOnToggle(group, option);
+                                    }
+                                  }}
+                                  role="button"
+                                  tabIndex={0}
                                   className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition-all ${
                                     isSelected
                                       ? "border-[#4FCA6A] bg-[#4FCA6A]/5"
@@ -676,10 +749,39 @@ function Page() {
                                     </div>
                                     <span className="font-medium">{option.name}</span>
                                   </div>
-                                  <span className="text-[#4FCA6A] font-semibold">
-                                    +₦{option.price.toLocaleString()}
-                                  </span>
-                                </button>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-[#4FCA6A] font-semibold">
+                                      +₦{option.price.toLocaleString()}
+                                    </span>
+                                    {isSelected && (
+                                      <div
+                                        className="flex items-center gap-1 rounded-lg border border-[#4FCA6A]/30 bg-white p-0.5"
+                                        onClick={(event) => event.stopPropagation()}
+                                        onKeyDown={(event) => event.stopPropagation()}
+                                      >
+                                        <button
+                                          type="button"
+                                          aria-label={`Increase ${option.name} quantity`}
+                                          onClick={() => updateAddOnQuantity(group.uid, option.uid, 1)}
+                                          className="rounded p-1 text-[#4FCA6A] hover:bg-[#4FCA6A]/10"
+                                        >
+                                          <PlusIcon className="h-3.5 w-3.5" />
+                                        </button>
+                                        <span className="min-w-5 text-center text-xs font-semibold">
+                                          {addOnQuantity}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          aria-label={`Decrease ${option.name} quantity`}
+                                          onClick={() => updateAddOnQuantity(group.uid, option.uid, -1)}
+                                          className="rounded p-1 text-gray-500 hover:bg-gray-100"
+                                        >
+                                          <MinusIcon className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
                               );
                             })}
                           </div>
