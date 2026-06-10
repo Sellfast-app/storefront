@@ -25,10 +25,6 @@ interface SelectedAddOns {
   [groupUid: string]: AddOnOption[];
 }
 
-interface SelectedBundleItems {
-  [bundleUid: string]: number; // count selected for each bundle slot
-}
-
 // ─── Image Carousel ───────────────────────────────────────────────────────────
 
 function ImageCarousel({ images, name }: { images: string[]; name: string }) {
@@ -188,17 +184,19 @@ function Page() {
     setSelectedAddOns((prev) => {
       const current = prev[group.uid] || [];
       if (group.selection === "single") {
-        // Single choice — replace
-        return { ...prev, [group.uid]: [option] };
-      } else {
-        // Multiple — toggle, respect maxSelection
         const isSelected = current.some((o) => o.uid === option.uid);
         if (isSelected) {
-          return { ...prev, [group.uid]: current.filter((o) => o.uid !== option.uid) };
-        } else if (current.length < group.maxSelection) {
-          return { ...prev, [group.uid]: [...current, option] };
+          return { ...prev, [group.uid]: [] };
         }
-        return prev;
+        return { ...prev, [group.uid]: [option] };
+      } else {
+        const isSelected = current.some((o) => o.uid === option.uid);
+
+        if (isSelected) {
+          return { ...prev, [group.uid]: current.filter((o) => o.uid !== option.uid) };
+        }
+
+        return { ...prev, [group.uid]: [...current, option] };
       }
     });
   };
@@ -221,12 +219,20 @@ function Page() {
       return servingTypePrice + addOnTotal;
     }
     if (food.type === "Bundle") {
-      return food.bundleConfig.reduce((sum, b) => sum + b.price, 0);
+      const bundleTotal = food.bundleConfig.reduce((sum, b) => sum + b.price, 0);
+      const addOnTotal = Object.values(selectedAddOns)
+        .flat()
+        .reduce((sum, o) => sum + o.price, 0);
+      return bundleTotal + addOnTotal;
     }
     return 0;
   })();
 
   const totalPrice = basePrice * quantity;
+  const bundleMaxQuantity =
+    food?.type === "Bundle" && food.bundleConfig.length > 0
+      ? Math.min(...food.bundleConfig.map((bundle) => bundle.maxCount))
+      : null;
 
   // ── Validation ───────────────────────────────────────────────────────────
 
@@ -258,6 +264,14 @@ function Page() {
         .join("-");
       return `${food.uid}-${selectedServingType}-${addOnKey}`;
     }
+    if (food.type === "Bundle") {
+      const addOnKey = Object.values(selectedAddOns)
+        .flat()
+        .map((o) => o.uid)
+        .sort()
+        .join("-");
+      return `${food.uid}-${addOnKey}`;
+    }
     return food.uid;
   };
 
@@ -266,9 +280,26 @@ function Page() {
     const item = cart.find((c) => c.id === id);
     return item?.quantity || 0;
   })();
+  const currentBundleCartQty =
+    food?.type === "Bundle"
+      ? cart
+          .filter(item => item.foodSelection?.productUid === food.uid)
+          .reduce((total, item) => total + item.quantity, 0)
+      : 0;
+  const remainingBundleQuantity =
+    bundleMaxQuantity === null
+      ? null
+      : Math.max(0, bundleMaxQuantity - currentBundleCartQty);
 
   const handleAddToCart = () => {
     if (!food || !isReadyToAdd) return;
+
+    const quantityToAdd =
+      remainingBundleQuantity === null
+        ? quantity
+        : Math.min(quantity, remainingBundleQuantity);
+
+    if (quantityToAdd <= 0) return;
 
     const addOnNames = Object.values(selectedAddOns)
       .flat()
@@ -294,13 +325,21 @@ function Page() {
       }),
       ...(food.type === "Customizable" && {
         servingType: selectedServingType,
-        addOnGroup: Object.entries(selectedAddOns).map(([groupUid, options]) => ({
-          uid: groupUid,
-          addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: 1 })),
-        })),
+        addOnGroup: Object.entries(selectedAddOns)
+          .filter(([, options]) => options.length > 0)
+          .map(([groupUid, options]) => ({
+            uid: groupUid,
+            addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: 1 })),
+          })),
       }),
       ...(food.type === "Bundle" && food.bundleConfig.length > 0 && {
         bundleConfig: { uid: food.bundleConfig[0].uid, quantity: 1 },
+        addOnGroup: Object.entries(selectedAddOns)
+          .filter(([, options]) => options.length > 0)
+          .map(([groupUid, options]) => ({
+            uid: groupUid,
+            addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: 1 })),
+          })),
       }),
     };
 
@@ -311,9 +350,10 @@ function Page() {
         price: basePrice,
         image: food.product_images[0] || Banner,
         description: food.description,
+        ...(bundleMaxQuantity !== null && { maxQuantity: bundleMaxQuantity }),
         foodSelection,
       },
-      quantity
+      quantityToAdd
     );
   };
 
@@ -413,7 +453,20 @@ function Page() {
                         <MinusIcon className="w-4 h-4" />
                       </button>
                       <span className="px-4 bg-card h-full flex items-center">{quantity}</span>
-                      <button onClick={() => setQuantity((q) => q + 1)} className="p-1 hover:bg-gray-200 rounded">
+                      <button
+                        onClick={() =>
+                          setQuantity((q) =>
+                            remainingBundleQuantity === null
+                              ? q + 1
+                              : Math.min(Math.max(1, remainingBundleQuantity), q + 1)
+                          )
+                        }
+                        disabled={
+                          remainingBundleQuantity !== null &&
+                          (remainingBundleQuantity === 0 || quantity >= remainingBundleQuantity)
+                        }
+                        className="p-1 hover:bg-gray-200 rounded disabled:cursor-not-allowed disabled:opacity-40"
+                      >
                         <PlusIcon className="w-4 h-4" />
                       </button>
                     </div>
@@ -562,24 +615,76 @@ function Page() {
 
                 {/* ── BUNDLE: Bundle slots ───────────────────────────────── */}
                 {food.type === "Bundle" && food.bundleConfig.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold mb-2">Bundle Includes</h3>
-                    <div className="space-y-2">
-                      {food.bundleConfig.map((bundle) => (
-                        <div
-                          key={bundle.uid}
-                          className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-100 bg-gray-50"
-                        >
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">{bundle.name}</span>
-                            <span className="text-xs text-gray-400">{bundle.category} · up to {bundle.maxCount} items</span>
+                  <div className="space-y-5">
+                    <div>
+                      <h3 className="text-sm font-semibold mb-2">Bundle Includes</h3>
+                      <div className="space-y-2">
+                        {food.bundleConfig.map((bundle) => (
+                          <div
+                            key={bundle.uid}
+                            className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-100 bg-gray-50"
+                          >
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{bundle.name}</span>
+                              <span className="text-xs text-gray-400">{bundle.category}</span>
+                            </div>
+                            <span className="text-sm font-semibold text-[#4FCA6A]">
+                              ₦{bundle.price.toLocaleString()}
+                            </span>
                           </div>
-                          <span className="text-sm font-semibold text-[#4FCA6A]">
-                            ₦{bundle.price.toLocaleString()}
-                          </span>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
+
+                    {food.addOnGroup.map((group) => {
+                      const selected = selectedAddOns[group.uid] || [];
+                      return (
+                        <div key={group.uid}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <h3 className="text-sm font-semibold">{group.name}</h3>
+                              <p className="text-xs text-gray-400">
+                                {group.selection === "single" ? "Choose one" : `Choose up to ${group.maxSelection}`}
+                                {group.isRequired && <span className="text-red-500 ml-1">*</span>}
+                              </p>
+                            </div>
+                            {selected.length > 0 && (
+                              <span className="text-xs text-[#4FCA6A] font-medium">
+                                {selected.map((o) => o.name).join(", ")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            {group.addOnOptions.map((option) => {
+                              const isSelected = isAddOnSelected(group.uid, option.uid);
+                              return (
+                                <button
+                                  key={option.uid}
+                                  onClick={() => handleAddOnToggle(group, option)}
+                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition-all ${
+                                    isSelected
+                                      ? "border-[#4FCA6A] bg-[#4FCA6A]/5"
+                                      : "border-gray-100 hover:border-gray-200"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                      isSelected ? "border-[#4FCA6A] bg-[#4FCA6A]" : "border-gray-300"
+                                    }`}>
+                                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                    </div>
+                                    <span className="font-medium">{option.name}</span>
+                                  </div>
+                                  <span className="text-[#4FCA6A] font-semibold">
+                                    +₦{option.price.toLocaleString()}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -603,8 +708,15 @@ function Page() {
                         Sold Out
                       </span>
                     ) : (
-                      <Button onClick={handleAddToCart} disabled={!isReadyToAdd}>
-                        {currentCartQty > 0 ? `In Cart (${currentCartQty})` : "Add to Cart"}
+                      <Button
+                        onClick={handleAddToCart}
+                        disabled={!isReadyToAdd || remainingBundleQuantity === 0}
+                      >
+                        {remainingBundleQuantity === 0
+                          ? `Bundle Limit Reached (${currentBundleCartQty})`
+                          : currentCartQty > 0
+                          ? `In Cart (${currentCartQty})`
+                          : "Add to Cart"}
                       </Button>
                     )}
                   </CardContent>
