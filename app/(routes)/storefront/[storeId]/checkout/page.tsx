@@ -488,7 +488,10 @@ export default function CheckoutPage() {
       if (sel.addOnGroup) {
         orderItem.addOnGroup = sel.addOnGroup.map(g => ({
           uid: g.uid,
-          addOnGroupOption: g.addOnGroupOption.map(o => ({ uid: o.uid, quantity: item.quantity })),
+          addOnGroupOption: g.addOnGroupOption.map(o => ({
+            uid: o.uid,
+            quantity: o.quantity * item.quantity,
+          })),
         }));
       }
       if (sel.type === 'Bundle' && sel.bundleConfig) {
