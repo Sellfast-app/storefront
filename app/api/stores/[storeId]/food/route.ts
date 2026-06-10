@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+  Pragma: "no-cache",
+  Expires: "0",
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ storeId: string }> }
@@ -49,7 +55,7 @@ export async function GET(
           method: "GET",
           headers,
           signal: controller.signal,
-          next: { revalidate: 60 }, // ISR: revalidate every 60 seconds
+          cache: "no-store",
         }
       );
 
@@ -70,7 +76,7 @@ export async function GET(
       
       console.log(`🍔 Storefront: Fetched ${result.data?.length || 0} food items for store ${storeId}`);
       
-      return NextResponse.json(result);
+      return NextResponse.json(result, { headers: NO_STORE_HEADERS });
 
     }   // eslint-disable-next-line @typescript-eslint/no-explicit-any
     catch (fetchError: any) {

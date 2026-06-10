@@ -133,7 +133,9 @@ function Page() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(`/api/stores/${storeId}/food/${foodId}`);
+        const response = await fetch(`/api/stores/${storeId}/food/${foodId}`, {
+          cache: "no-store",
+        });
         if (!response.ok) throw new Error("Failed to fetch food item");
         const result = await response.json();
         if (result.status === "success" && result.data) {
@@ -166,7 +168,9 @@ function Page() {
     const fetchRelated = async () => {
       if (!storeId) return;
       try {
-        const response = await fetch(`/api/stores/${storeId}/food`);
+        const response = await fetch(`/api/stores/${storeId}/food`, {
+          cache: "no-store",
+        });
         if (!response.ok) return;
         const result = await response.json();
         if (result.status === "success" && Array.isArray(result.data)) {
