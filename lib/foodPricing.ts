@@ -9,5 +9,9 @@ export function getFoodCardPrice(item: FoodItem): number | null {
     return item.servingTypePricing?.[0]?.price ?? null;
   }
 
+  if (item.type === "Bundle") {
+    return item.bundleConfig[0]?.price ?? null;
+  }
+
   return null;
 }
