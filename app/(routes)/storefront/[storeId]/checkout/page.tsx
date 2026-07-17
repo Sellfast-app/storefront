@@ -168,6 +168,16 @@ interface CheckoutOrderResult {
   };
 }
 
+interface AppliedCoupon {
+  code: string;
+  amount: number;
+  store_id?: string;
+  store_name?: string;
+  startDate?: string;
+  expiryDate?: string;
+  usageLimit?: number;
+}
+
 // All possible delivery method values including relay for food stores
 type DeliveryMethodType = 'sendbox' | 'pickup' | 'vendor' | 'gig' | 'relay';
 type PaymentMethodType = 'paystack' | 'klump';
@@ -253,6 +263,9 @@ export default function CheckoutPage() {
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<SelectedQuote | null>(null);
   const [showSendboxModal, setShowSendboxModal] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
     ...DEFAULT_CUSTOMER_DETAILS,
   });
@@ -264,8 +277,11 @@ export default function CheckoutPage() {
   const canUseKlump = !isFoodStore && !isFood;
 
   const itemsTotal = getCartTotal();
-  const deliveryFee = selectedQuote?.fee || 0;
-  const total = itemsTotal + deliveryFee;
+  const couponDiscount = appliedCoupon ? Math.min(itemsTotal, appliedCoupon.amount) : 0;
+  const remainingItemsTotal = Math.max(itemsTotal - couponDiscount, 0);
+  const deliveryFee = appliedCoupon ? 0 : selectedQuote?.fee || 0;
+  const total = remainingItemsTotal + deliveryFee;
+  const isZeroBalanceOrder = appliedCoupon !== null && total === 0;
 
   // Food orders must be quoted first because the backend returns the orderKey used to create the order.
   const needsQuote =
@@ -411,6 +427,81 @@ export default function CheckoutPage() {
     if (value.length <= 200) setDeliveryNotes(value);
   };
 
+  const validateCouponCode = async (code: string): Promise<AppliedCoupon> => {
+    const response = await fetch('/api/coupon/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storeId, code }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.status !== 'success' || !result.data) {
+      throw new Error(result.message || 'Coupon not approved. Check the code and try again.');
+    }
+
+    const amount = Number(result.data.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('Coupon response did not include a valid discount amount.');
+    }
+
+    return {
+      code: String(result.data.code || code),
+      amount,
+      store_id: result.data.store_id,
+      store_name: result.data.store_name,
+      startDate: result.data.startDate,
+      expiryDate: result.data.expiryDate,
+      usageLimit: result.data.usageLimit,
+    };
+  };
+
+  const handleApplyCoupon = async () => {
+    const normalizedCode = couponCode.trim().toUpperCase();
+
+    if (!normalizedCode) {
+      toast.error('Enter a coupon code');
+      return;
+    }
+
+    if (!isFoodStore) {
+      toast.error('Coupon not approved for this storefront.');
+      return;
+    }
+
+    if (!enabledFulfillmentModes.includes('vendor')) {
+      toast.error('Coupon requires Vendor Delivery, which is not available for this storefront.');
+      return;
+    }
+
+    setIsApplyingCoupon(true);
+
+    try {
+      const coupon = await validateCouponCode(normalizedCode);
+
+      setAppliedCoupon(coupon);
+      setCouponCode(coupon.code);
+      setDeliveryMethod('vendor');
+      setSelectedQuote(null);
+      setDeliveryQuote(null);
+      setIsEditingDelivery(true);
+      toast.success(`Coupon applied successfully. ₦${coupon.amount.toLocaleString()} has been applied to your order.`);
+    } catch (error) {
+      setAppliedCoupon(null);
+      toast.error(error instanceof Error ? error.message : 'Coupon not approved. Check the code and try again.');
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setSelectedQuote(null);
+    setDeliveryQuote(null);
+    setIsEditingDelivery(true);
+  };
+
   const validateCheckout = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!deliveryMethod) { toast.error("Please select a delivery method"); return false; }
@@ -453,10 +544,24 @@ export default function CheckoutPage() {
       }
       return orderItem;
     }),
-    total_amount: itemsTotal,
+    total_amount: remainingItemsTotal,
+    original_items_total: itemsTotal,
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
-    payment_method: paymentMethod,
+    payment_method: isZeroBalanceOrder ? 'coupon' : paymentMethod,
     delivery_method: deliveryMethod,
+    delivery_fee: deliveryFee,
+    ...(appliedCoupon && {
+      coupon_code: appliedCoupon.code,
+      coupon: {
+        code: appliedCoupon.code,
+        coupon_value: appliedCoupon.amount,
+        applied_discount: couponDiscount,
+        unused_value: Math.max(appliedCoupon.amount - couponDiscount, 0),
+        remaining_item_balance: remainingItemsTotal,
+        free_delivery: true,
+        required_delivery_method: 'vendor',
+      },
+    }),
     customer_info: getCustomerInfo(),
     notes: deliveryNotes || "No delivery notes provided",
   });
@@ -464,10 +569,24 @@ export default function CheckoutPage() {
   // ── Food order payload ──────────────────────────────────────────────────────
   const buildFoodPayload = () => ({
     store_id: storeId,
-    total_amount: itemsTotal,
+    total_amount: remainingItemsTotal,
+    original_items_total: itemsTotal,
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
-    payment_method: "paystack",
+    payment_method: isZeroBalanceOrder ? 'coupon' : "paystack",
     delivery_method: deliveryMethod, // sends 'relay' or 'pickup' as-is to backend
+    delivery_fee: deliveryFee,
+    ...(appliedCoupon && {
+      coupon_code: appliedCoupon.code,
+      coupon: {
+        code: appliedCoupon.code,
+        coupon_value: appliedCoupon.amount,
+        applied_discount: couponDiscount,
+        unused_value: Math.max(appliedCoupon.amount - couponDiscount, 0),
+        remaining_item_balance: remainingItemsTotal,
+        free_delivery: true,
+        required_delivery_method: 'vendor',
+      },
+    }),
     customer_info: getCustomerInfo(),
     notes: deliveryNotes || "No delivery notes provided",
     items: cart.map(item => {
@@ -620,11 +739,13 @@ export default function CheckoutPage() {
   const createOrder = async () => {
     if (isFood) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const payload: any = {};
+      const payload: any = { ...buildFoodPayload() };
       if (!selectedQuote?.orderKey) {
         throw new Error('Please save delivery details to prepare this food order');
       }
-      payload.orderKey = selectedQuote.orderKey;
+      if (!appliedCoupon) {
+        payload.orderKey = selectedQuote.orderKey;
+      }
       if (selectedQuote.rate_card_id) {
         payload.rate_card_id = selectedQuote.rate_card_id;
       }
@@ -761,7 +882,35 @@ export default function CheckoutPage() {
 
     setIsProcessingPayment(true);
     try {
+      if (appliedCoupon) {
+        const freshCoupon = await validateCouponCode(appliedCoupon.code);
+        if (freshCoupon.amount !== appliedCoupon.amount) {
+          throw new Error('Coupon value changed. Please apply the coupon again.');
+        }
+        setAppliedCoupon(freshCoupon);
+      }
+
       const orderResult = await createOrder();
+
+      if (isZeroBalanceOrder) {
+        const orderDetails = orderResult.data?.order;
+        localStorage.setItem('pending_order', JSON.stringify({
+          orderId: orderDetails?.order_number,
+          customerDetails: { ...customerDetails, phone: `${phoneDialCode}${customerDetails.phone}` },
+          cart,
+          total,
+          deliveryNotes,
+          orderData: orderResult,
+          coupon: appliedCoupon,
+          paymentStatus: 'fully_covered_by_coupon',
+        }));
+        localStorage.setItem('current_store_id', storeId);
+        sessionStorage.removeItem(getCheckoutDraftKey(storeId));
+        clearCart();
+        toast.success('Your order has been placed successfully.');
+        window.location.href = `/payment/success?store_id=${storeId}&reference=${encodeURIComponent(appliedCoupon?.code || 'coupon')}&status=fully_covered_by_coupon`;
+        return;
+      }
 
       if (paymentMethod === 'klump') {
         launchKlumpCheckout(orderResult);
@@ -783,6 +932,7 @@ export default function CheckoutPage() {
           deliveryNotes,
           orderData: orderResult,
           paymentReference,
+          coupon: appliedCoupon,
         }));
 
         localStorage.setItem('current_store_id', storeId);
@@ -806,7 +956,7 @@ export default function CheckoutPage() {
   // Food stores can use Relay, Pickup, or Vendor Delivery.
   const visibleModes = isFoodStore
     ? enabledFulfillmentModes.filter(
-        m => m === 'relay' || m === 'pickup' || m === 'vendor'
+        m => (appliedCoupon ? m === 'vendor' : m === 'relay' || m === 'pickup' || m === 'vendor')
       )
     : enabledFulfillmentModes.filter(m => m !== 'relay');
 
@@ -839,6 +989,10 @@ export default function CheckoutPage() {
         <RadioGroup
           value={deliveryMethod ?? undefined}
           onValueChange={(value) => {
+            if (appliedCoupon && value !== 'vendor') {
+              toast.error('This coupon requires Vendor Delivery.');
+              return;
+            }
             setDeliveryMethod(value as DeliveryMethodType);
             setSelectedQuote(null);
             setDeliveryQuote(null);
@@ -859,6 +1013,11 @@ export default function CheckoutPage() {
         {deliveryMethod && DELIVERY_METHOD_DESCRIPTIONS[deliveryMethod] && (
           <p className="text-xs text-[#A0A0A0] mt-2">
             {DELIVERY_METHOD_DESCRIPTIONS[deliveryMethod]}
+          </p>
+        )}
+        {appliedCoupon && (
+          <p className="text-xs text-[#4FCA6A] mt-2">
+            Coupon applied: Vendor Delivery is free and Relay is unavailable for this order.
           </p>
         )}
 
@@ -914,10 +1073,28 @@ export default function CheckoutPage() {
               {selectedQuote && (
                 <div className='flex items-center justify-between'>
                   <span className='text-sm'>Delivery Fee ({selectedQuote.name})</span>
-                  <span className='text-sm'>₦{selectedQuote.fee.toLocaleString()}</span>
+                  <span className='text-sm'>{appliedCoupon ? 'Free' : `₦${selectedQuote.fee.toLocaleString()}`}</span>
                 </div>
               )}
-              {needsQuote && !selectedQuote && (
+              {appliedCoupon && !selectedQuote && (
+                <div className='flex items-center justify-between'>
+                  <span className='text-sm'>Delivery Fee (Vendor Delivery)</span>
+                  <span className='text-sm'>Free</span>
+                </div>
+              )}
+              {appliedCoupon && (
+                <>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-sm'>Coupon ({appliedCoupon.code})</span>
+                    <span className='text-sm text-[#4FCA6A]'>-₦{couponDiscount.toLocaleString()}</span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-sm'>Remaining item balance</span>
+                    <span className='text-sm'>₦{remainingItemsTotal.toLocaleString()}</span>
+                  </div>
+                </>
+              )}
+              {needsQuote && !selectedQuote && !appliedCoupon && (
                 <div className='flex items-center justify-between text-xs text-[#A0A0A0]'>
                   <span>Delivery fee</span>
                   <span>Calculated after saving delivery</span>
@@ -930,40 +1107,77 @@ export default function CheckoutPage() {
             </CardContent>
             <CardContent className='pb-2 border-b border-[#F5F5F5] dark:border-[#1F1F1F] space-y-3 pt-4'>
               <Label className='text-xs block'>Payment Method</Label>
-              <RadioGroup
-                value={paymentMethod}
-                onValueChange={(value) => setPaymentMethod(value as PaymentMethodType)}
-                className="space-y-3"
-              >
-                <div className="flex items-start space-x-2">
-                  <RadioGroupItem value="paystack" id="paystack" />
-                  <Label htmlFor="paystack" className="text-sm font-normal cursor-pointer">
-                    Paystack
-                    <span className="block text-xs text-[#A0A0A0]">Pay now with card, transfer, or bank options.</span>
-                  </Label>
+              <div className="space-y-3 rounded-lg border border-[#F5F5F5] p-3 dark:border-[#1F1F1F]">
+                <Label className='text-xs mb-1'>Have a coupon code?</Label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value.toUpperCase());
+                      if (appliedCoupon) setAppliedCoupon(null);
+                    }}
+                    placeholder="Enter coupon code"
+                    disabled={isApplyingCoupon}
+                    className="flex-1"
+                  />
+                  {appliedCoupon ? (
+                    <Button type="button" variant="outline" onClick={handleRemoveCoupon}>
+                      Remove
+                    </Button>
+                  ) : (
+                    <Button type="button" onClick={handleApplyCoupon} disabled={isApplyingCoupon || isLoadingModes}>
+                      {isApplyingCoupon ? <><Loader2 className='w-4 h-4 mr-2 animate-spin' /> Applying...</> : 'Apply coupon'}
+                    </Button>
+                  )}
                 </div>
-                {canUseKlump && (
-                  <div className="flex items-start space-x-2">
-                    <RadioGroupItem value="klump" id="klump" />
-                    <Label htmlFor="klump" className="text-sm font-normal cursor-pointer">
-                      Klump
-                      <span className="block text-xs text-[#A0A0A0]">
-                        {isKlumpReady
-                          ? 'Buy now, pay later. Available for non-food vendors only.'
-                          : 'Buy now, pay later. Checkout will open after you continue.'}
-                      </span>
-                    </Label>
+                {appliedCoupon && (
+                  <div className="rounded-lg border border-[#4FCA6A]/30 bg-[#4FCA6A]/10 p-3 text-sm text-[#2E7D42]">
+                    Coupon applied successfully. ₦{couponDiscount.toLocaleString()} has been applied to your order.
                   </div>
                 )}
-              </RadioGroup>
-              {canUseKlump && <div id="klump__checkout" className="hidden" />}
-              {canUseKlump && (
-                <Script
-                  id="klump-checkout-sdk"
-                  src="https://js.useklump.com/klump.js"
-                  strategy="afterInteractive"
-                  onLoad={() => setIsKlumpReady(!!getKlumpConstructor())}
-                />
+              </div>
+              {isZeroBalanceOrder ? (
+                <div className="rounded-lg border border-[#4FCA6A]/30 bg-[#4FCA6A]/10 p-3 text-sm text-[#2E7D42]">
+                  Fully covered by coupon. No payment gateway is required.
+                </div>
+              ) : (
+                <>
+                  <RadioGroup
+                    value={paymentMethod}
+                    onValueChange={(value) => setPaymentMethod(value as PaymentMethodType)}
+                    className="space-y-3"
+                  >
+                    <div className="flex items-start space-x-2">
+                      <RadioGroupItem value="paystack" id="paystack" />
+                      <Label htmlFor="paystack" className="text-sm font-normal cursor-pointer">
+                        Paystack
+                        <span className="block text-xs text-[#A0A0A0]">Pay now with card, transfer, or bank options.</span>
+                      </Label>
+                    </div>
+                    {canUseKlump && (
+                      <div className="flex items-start space-x-2">
+                        <RadioGroupItem value="klump" id="klump" />
+                        <Label htmlFor="klump" className="text-sm font-normal cursor-pointer">
+                          Klump
+                          <span className="block text-xs text-[#A0A0A0]">
+                            {isKlumpReady
+                              ? 'Buy now, pay later. Available for non-food vendors only.'
+                              : 'Buy now, pay later. Checkout will open after you continue.'}
+                          </span>
+                        </Label>
+                      </div>
+                    )}
+                  </RadioGroup>
+                  {canUseKlump && <div id="klump__checkout" className="hidden" />}
+                  {canUseKlump && (
+                    <Script
+                      id="klump-checkout-sdk"
+                      src="https://js.useklump.com/klump.js"
+                      strategy="afterInteractive"
+                      onLoad={() => setIsKlumpReady(!!getKlumpConstructor())}
+                    />
+                  )}
+                </>
               )}
             </CardContent>
             <CardFooter className='pt-4'>
@@ -985,6 +1199,8 @@ export default function CheckoutPage() {
                   'Select a delivery method'
                 ) : needsQuote && !selectedQuote ? (
                   'Save delivery to continue'
+                ) : isZeroBalanceOrder ? (
+                  'Place order'
                 ) : (
                   paymentMethod === 'klump' ? 'Pay with Klump' : 'Proceed to Payment'
                 )}
