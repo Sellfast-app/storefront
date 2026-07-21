@@ -603,6 +603,7 @@ export default function CheckoutPage() {
       }
       if (sel.type === 'Customizable') {
         orderItem.servingType = sel.servingType;
+        orderItem.quantity_customizable = item.quantity;
       }
       if (sel.addOnGroup) {
         orderItem.addOnGroup = sel.addOnGroup.map(g => ({
