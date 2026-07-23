@@ -610,7 +610,7 @@ export default function CheckoutPage() {
           uid: g.uid,
           addOnGroupOption: g.addOnGroupOption.map(o => ({
             uid: o.uid,
-            quantity: o.quantity * item.quantity,
+            quantity: sel.type === 'Customizable' ? o.quantity : o.quantity * item.quantity,
           })),
         }));
       }
