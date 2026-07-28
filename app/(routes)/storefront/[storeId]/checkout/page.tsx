@@ -286,6 +286,7 @@ export default function CheckoutPage() {
   const total = remainingItemsTotal + deliveryFee;
   const isZeroBalanceOrder = appliedCoupon !== null && total === 0;
   const orderPayloadItemsTotal = isZeroBalanceOrder ? itemsTotal : remainingItemsTotal;
+  const hasCouponVendorDelivery = appliedCoupon !== null && deliveryMethod === 'vendor';
 
   // Food orders must be quoted first because the backend returns the orderKey used to create the order.
   const needsQuote =
@@ -388,9 +389,10 @@ export default function CheckoutPage() {
   }, [storeId]);
 
   useEffect(() => {
+    if (appliedCoupon && deliveryMethod === 'vendor') return;
     setSelectedQuote(null);
     setDeliveryQuote(null);
-  }, [deliveryMethod]);
+  }, [appliedCoupon, deliveryMethod]);
 
   useEffect(() => {
     if (!canUseKlump && paymentMethod === 'klump') {
@@ -486,9 +488,9 @@ export default function CheckoutPage() {
       setAppliedCoupon(coupon);
       setCouponCode(coupon.code);
       setDeliveryMethod('vendor');
-      setSelectedQuote(null);
+      setSelectedQuote({ fee: 0, rate_card_id: null, name: 'Vendor Delivery' });
       setDeliveryQuote(null);
-      setIsEditingDelivery(true);
+      setIsEditingDelivery(false);
       toast.success(`Coupon applied successfully. ₦${coupon.amount.toLocaleString()} has been applied to your order.`);
     } catch (error) {
       setAppliedCoupon(null);
@@ -747,13 +749,13 @@ export default function CheckoutPage() {
     if (isFood) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const payload: any = { ...buildFoodPayload() };
-      if (!selectedQuote?.orderKey) {
+      if (!hasCouponVendorDelivery && !selectedQuote?.orderKey) {
         throw new Error('Please save delivery details to prepare this food order');
       }
-      if (!appliedCoupon) {
+      if (!appliedCoupon && selectedQuote?.orderKey) {
         payload.orderKey = selectedQuote.orderKey;
       }
-      if (selectedQuote.rate_card_id) {
+      if (selectedQuote?.rate_card_id) {
         payload.rate_card_id = selectedQuote.rate_card_id;
       }
       const response = await fetch('/api/orders/food/create', {
@@ -882,7 +884,7 @@ export default function CheckoutPage() {
 
   const handleProceedToPayment = async () => {
     if (!validateCheckout()) return;
-    if (needsQuote && !selectedQuote) {
+    if (needsQuote && !selectedQuote && !hasCouponVendorDelivery) {
       toast.error('Please save delivery details to get a delivery quote first');
       return;
     }
@@ -1124,7 +1126,12 @@ export default function CheckoutPage() {
                     value={couponCode}
                     onChange={(e) => {
                       setCouponCode(e.target.value.toUpperCase());
-                      if (appliedCoupon) setAppliedCoupon(null);
+                      if (appliedCoupon) {
+                        setAppliedCoupon(null);
+                        setSelectedQuote(null);
+                        setDeliveryQuote(null);
+                        setIsEditingDelivery(true);
+                      }
                     }}
                     placeholder="Enter coupon code"
                     disabled={isApplyingCoupon}
@@ -1200,14 +1207,14 @@ export default function CheckoutPage() {
                   isLoadingModes ||
                   isFetchingQuote ||
                   !deliveryMethod ||
-                  (needsQuote && !selectedQuote)
+                  (needsQuote && !selectedQuote && !hasCouponVendorDelivery)
                 }
               >
                 {isProcessingPayment ? (
                   <><Loader2 className='w-4 h-4 mr-2 animate-spin' /> Processing...</>
                 ) : !deliveryMethod ? (
                   'Select a delivery method'
-                ) : needsQuote && !selectedQuote ? (
+                ) : needsQuote && !selectedQuote && !hasCouponVendorDelivery ? (
                   'Save delivery to continue'
                 ) : isZeroBalanceOrder ? (
                   'Place order'
