@@ -157,6 +157,9 @@ interface CheckoutOrderResult {
       order_number?: string;
       order_total?: string | number;
     };
+    id?: string;
+    order_number?: string;
+    order_total?: string | number;
     payment?: {
       reference?: string;
       total_paid?: string | number;
@@ -282,6 +285,7 @@ export default function CheckoutPage() {
   const deliveryFee = appliedCoupon ? 0 : selectedQuote?.fee || 0;
   const total = remainingItemsTotal + deliveryFee;
   const isZeroBalanceOrder = appliedCoupon !== null && total === 0;
+  const orderPayloadItemsTotal = isZeroBalanceOrder ? itemsTotal : remainingItemsTotal;
 
   // Food orders must be quoted first because the backend returns the orderKey used to create the order.
   const needsQuote =
@@ -544,12 +548,13 @@ export default function CheckoutPage() {
       }
       return orderItem;
     }),
-    total_amount: remainingItemsTotal,
+    total_amount: orderPayloadItemsTotal,
     original_items_total: itemsTotal,
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
     payment_method: isZeroBalanceOrder ? 'coupon' : paymentMethod,
     delivery_method: deliveryMethod,
     delivery_fee: deliveryFee,
+    coupon_applied: Boolean(appliedCoupon),
     ...(appliedCoupon && {
       coupon_code: appliedCoupon.code,
       coupon: {
@@ -569,12 +574,13 @@ export default function CheckoutPage() {
   // ── Food order payload ──────────────────────────────────────────────────────
   const buildFoodPayload = () => ({
     store_id: storeId,
-    total_amount: remainingItemsTotal,
+    total_amount: orderPayloadItemsTotal,
     original_items_total: itemsTotal,
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
     payment_method: isZeroBalanceOrder ? 'coupon' : "paystack",
     delivery_method: deliveryMethod, // sends 'relay' or 'pickup' as-is to backend
     delivery_fee: deliveryFee,
+    coupon_applied: Boolean(appliedCoupon),
     ...(appliedCoupon && {
       coupon_code: appliedCoupon.code,
       coupon: {
@@ -894,9 +900,12 @@ export default function CheckoutPage() {
       const orderResult = await createOrder();
 
       if (isZeroBalanceOrder) {
-        const orderDetails = orderResult.data?.order;
+        const orderDetails = orderResult.data?.order || orderResult.data;
+        if (!orderDetails?.order_number) {
+          throw new Error('Order details not found in response');
+        }
         localStorage.setItem('pending_order', JSON.stringify({
-          orderId: orderDetails?.order_number,
+          orderId: orderDetails.order_number,
           customerDetails: { ...customerDetails, phone: `${phoneDialCode}${customerDetails.phone}` },
           cart,
           total,
@@ -909,7 +918,7 @@ export default function CheckoutPage() {
         sessionStorage.removeItem(getCheckoutDraftKey(storeId));
         clearCart();
         toast.success('Your order has been placed successfully.');
-        window.location.href = `/payment/success?store_id=${storeId}&reference=${encodeURIComponent(appliedCoupon?.code || 'coupon')}&status=fully_covered_by_coupon`;
+        window.location.href = `/payment/success?store_id=${storeId}&reference=${encodeURIComponent(orderDetails.order_number)}&status=fully_covered_by_coupon`;
         return;
       }
 
@@ -922,7 +931,7 @@ export default function CheckoutPage() {
       const paymentDetails = orderResult.data?.payment;
       const transactionDetails = orderResult.data?.transaction;
 
-      if (orderDetails && paymentDetails) {
+      if (orderDetails && paymentDetails?.authorization_url) {
         const paymentReference = transactionDetails?.reference || paymentDetails.reference;
 
         localStorage.setItem('pending_order', JSON.stringify({
