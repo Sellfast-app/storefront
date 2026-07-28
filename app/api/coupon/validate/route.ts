@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const COUPON_API_BASE_URL =
-  process.env.NEXT_PUBLIC_COUPON_API_BASE_URL || "https://staging.swiftree.app";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 const INTERNAL_SECRET = process.env.SWIFTREE_INTERNAL_SECRET;
 
 export async function POST(request: NextRequest) {
   try {
-    if (!INTERNAL_SECRET) {
+    if (!API_BASE_URL || !INTERNAL_SECRET) {
       return NextResponse.json(
         { status: "failed", message: "Server configuration error", data: null },
         { status: 500 }
@@ -31,7 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${COUPON_API_BASE_URL}/api/coupon/validate`, {
+    const response = await fetch(`${API_BASE_URL}/api/coupon/validate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
