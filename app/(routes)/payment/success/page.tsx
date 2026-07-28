@@ -17,10 +17,14 @@ export default function PaymentSuccessPage() {
   const storeId = searchParams.get('store_id')
   const provider = searchParams.get('provider')
   const verification = searchParams.get('verification')
+  const status = searchParams.get('status')
   
   const [countdown, setCountdown] = useState(10)
    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [orderDetails, setOrderDetails] = useState<any>(null)
+  const isCouponCoveredOrder =
+    status === 'fully_covered_by_coupon' ||
+    orderDetails?.paymentStatus === 'fully_covered_by_coupon'
 
   useEffect(() => {
     // Retrieve order details from localStorage
@@ -82,10 +86,12 @@ export default function PaymentSuccessPage() {
             {/* Success Message */}
             <div className="text-center mb-8">
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3">
-                Payment Successful! 
+                {isCouponCoveredOrder ? 'Order Placed!' : 'Payment Successful!'}
               </h1>
               <p className="text-gray-600 dark:text-gray-300 text-lg">
-                {provider === 'klump' && verification === 'pending'
+                {isCouponCoveredOrder
+                  ? 'Your order was fully covered by coupon and is being processed.'
+                  : provider === 'klump' && verification === 'pending'
                   ? 'Your Klump checkout was completed. Payment verification is pending backend integration.'
                   : 'Your order has been confirmed and is being processed'}
               </p>
@@ -96,9 +102,19 @@ export default function PaymentSuccessPage() {
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mb-8 space-y-3">
                 {reference && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Payment Reference</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {isCouponCoveredOrder ? 'Order Reference' : 'Payment Reference'}
+                    </span>
                     <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
                       {reference}
+                    </span>
+                  </div>
+                )}
+                {isCouponCoveredOrder && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Payment Status</span>
+                    <span className="text-sm font-semibold text-green-600 dark:text-green-400">
+                      Fully covered by coupon
                     </span>
                   </div>
                 )}
@@ -110,9 +126,11 @@ export default function PaymentSuccessPage() {
                     </span>
                   </div>
                 )}
-                {orderDetails?.total && (
+                {typeof orderDetails?.total === 'number' && (
                   <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Paid</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {isCouponCoveredOrder ? 'Amount Due' : 'Total Paid'}
+                    </span>
                     <span className="text-lg font-bold text-green-600 dark:text-green-400">
                       ₦{orderDetails.total.toLocaleString()}
                     </span>
