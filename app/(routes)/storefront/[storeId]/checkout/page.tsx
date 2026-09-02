@@ -181,9 +181,14 @@ interface AppliedCoupon {
   usageLimit?: number;
 }
 
+interface StorePaymentMethod {
+  provider: string;
+  subAccountIdentifier?: string | null;
+}
+
 // All possible delivery method values including relay for food stores
 type DeliveryMethodType = 'sendbox' | 'pickup' | 'vendor' | 'gig' | 'relay';
-type PaymentMethodType = 'paystack' | 'klump';
+type PaymentMethodType = 'paystack' | 'klump' | 'crypto';
 type KlumpConstructor = typeof Klump;
 
 interface CustomerDetails {
@@ -245,6 +250,16 @@ const DELIVERY_METHOD_DESCRIPTIONS: Record<DeliveryMethodType, string> = {
   relay: 'Delivered through Relay by Chowdeck. Delivery fee will be calculated after saving.',
 };
 
+const normalizePaymentMethods = (methods: StorePaymentMethod[]) => {
+  const providers = methods.map((method) => String(method.provider || '').toLowerCase());
+
+  return {
+    paystack: providers.length === 0 || providers.includes('paystack'),
+    klump: providers.includes('klump'),
+    crypto: providers.includes('crypto') || providers.includes('kuvarpay'),
+  };
+};
+
 export default function CheckoutPage() {
   const params = useParams();
   const storeId = params.storeId as string;
@@ -256,6 +271,12 @@ export default function CheckoutPage() {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethodType | null>(null);
   const [phoneDialCode, setPhoneDialCode] = useState('+234');
   const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
+  const [enabledPaymentMethods, setEnabledPaymentMethods] = useState({
+    paystack: true,
+    klump: false,
+    crypto: false,
+  });
+  const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
   const [isFoodStore, setIsFoodStore] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('paystack');
@@ -319,7 +340,7 @@ export default function CheckoutPage() {
         if (draft.deliveryMethod) {
           setDeliveryMethod(draft.deliveryMethod);
         }
-        if (draft.paymentMethod === 'paystack' || draft.paymentMethod === 'klump') {
+        if (draft.paymentMethod === 'paystack' || draft.paymentMethod === 'klump' || draft.paymentMethod === 'crypto') {
           setPaymentMethod(draft.paymentMethod);
         }
       }
@@ -389,6 +410,30 @@ export default function CheckoutPage() {
   }, [storeId]);
 
   useEffect(() => {
+    const fetchStorePaymentMethods = async () => {
+      try {
+        setIsLoadingPaymentMethods(true);
+        const response = await fetch(`/api/stores/${storeId}/payment-methods`);
+        const result = await response.json();
+
+        if (!response.ok || result.status === 'error') {
+          throw new Error(result.message || 'Failed to fetch payment methods');
+        }
+
+        const methods: StorePaymentMethod[] = Array.isArray(result.data) ? result.data : [];
+        setEnabledPaymentMethods(normalizePaymentMethods(methods));
+      } catch (error) {
+        console.error('Error fetching payment methods:', error);
+        setEnabledPaymentMethods({ paystack: true, klump: false, crypto: false });
+      } finally {
+        setIsLoadingPaymentMethods(false);
+      }
+    };
+
+    if (storeId) fetchStorePaymentMethods();
+  }, [storeId]);
+
+  useEffect(() => {
     if (appliedCoupon && deliveryMethod === 'vendor') return;
     setSelectedQuote(null);
     setDeliveryQuote(null);
@@ -398,7 +443,13 @@ export default function CheckoutPage() {
     if (!canUseKlump && paymentMethod === 'klump') {
       setPaymentMethod('paystack');
     }
-  }, [canUseKlump, paymentMethod]);
+    if (paymentMethod === 'klump' && !enabledPaymentMethods.klump) {
+      setPaymentMethod('paystack');
+    }
+    if (paymentMethod === 'crypto' && !enabledPaymentMethods.crypto) {
+      setPaymentMethod('paystack');
+    }
+  }, [canUseKlump, enabledPaymentMethods.crypto, enabledPaymentMethods.klump, paymentMethod]);
 
   useEffect(() => {
     if (!canUseKlump || isKlumpReady) return;
@@ -884,6 +935,10 @@ export default function CheckoutPage() {
 
   const handleProceedToPayment = async () => {
     if (!validateCheckout()) return;
+    if (paymentMethod === 'crypto') {
+      toast.error('Crypto checkout is not available yet. Please use another payment method.');
+      return;
+    }
     if (needsQuote && !selectedQuote && !hasCouponVendorDelivery) {
       toast.error('Please save delivery details to get a delivery quote first');
       return;
@@ -1164,14 +1219,16 @@ export default function CheckoutPage() {
                     onValueChange={(value) => setPaymentMethod(value as PaymentMethodType)}
                     className="space-y-3"
                   >
-                    <div className="flex items-start space-x-2">
-                      <RadioGroupItem value="paystack" id="paystack" />
-                      <Label htmlFor="paystack" className="text-sm font-normal cursor-pointer">
-                        Paystack
-                        <span className="block text-xs text-[#A0A0A0]">Pay now with card, transfer, or bank options.</span>
-                      </Label>
-                    </div>
-                    {canUseKlump && (
+                    {enabledPaymentMethods.paystack && (
+                      <div className="flex items-start space-x-2">
+                        <RadioGroupItem value="paystack" id="paystack" />
+                        <Label htmlFor="paystack" className="text-sm font-normal cursor-pointer">
+                          Paystack
+                          <span className="block text-xs text-[#A0A0A0]">Pay now with card, transfer, or bank options.</span>
+                        </Label>
+                      </div>
+                    )}
+                    {canUseKlump && enabledPaymentMethods.klump && (
                       <div className="flex items-start space-x-2">
                         <RadioGroupItem value="klump" id="klump" />
                         <Label htmlFor="klump" className="text-sm font-normal cursor-pointer">
@@ -1184,9 +1241,23 @@ export default function CheckoutPage() {
                         </Label>
                       </div>
                     )}
+                    {enabledPaymentMethods.crypto && (
+                      <div className="flex items-start space-x-2 opacity-70">
+                        <RadioGroupItem value="crypto" id="crypto" disabled />
+                        <Label htmlFor="crypto" className="text-sm font-normal">
+                          Crypto
+                          <span className="block text-xs text-[#A0A0A0]">
+                            Crypto pricing is pending backend converted-price details.
+                          </span>
+                        </Label>
+                      </div>
+                    )}
                   </RadioGroup>
-                  {canUseKlump && <div id="klump__checkout" className="hidden" />}
-                  {canUseKlump && (
+                  {isLoadingPaymentMethods && (
+                    <p className="text-xs text-[#A0A0A0]">Loading store payment methods...</p>
+                  )}
+                  {canUseKlump && enabledPaymentMethods.klump && <div id="klump__checkout" className="hidden" />}
+                  {canUseKlump && enabledPaymentMethods.klump && (
                     <Script
                       id="klump-checkout-sdk"
                       src="https://js.useklump.com/klump.js"
