@@ -20,7 +20,8 @@ import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
 import StateRegionSelect from '@/components/stateRegionSelect';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Truck, X } from 'lucide-react';
+import { Loader2, Truck, X, Copy } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 const countryToCode: Record<string, string> = {
   "Afghanistan": "AF", "Albania": "AL", "Algeria": "DZ", "Andorra": "AD", "Angola": "AO",
@@ -186,6 +187,17 @@ interface StorePaymentMethod {
   subAccountIdentifier?: string | null;
 }
 
+interface CryptoPaymentInit {
+  reference: string;
+  depositAddress: string;
+  fromCurrency: string;
+  fromNetwork: string;
+  fromAmount: number;
+  toCurrency: string;
+  toAmount: number;
+  status: string;
+}
+
 // All possible delivery method values including relay for food stores
 type DeliveryMethodType = 'sendbox' | 'pickup' | 'vendor' | 'gig' | 'relay';
 type PaymentMethodType = 'paystack' | 'klump' | 'crypto';
@@ -282,6 +294,16 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('paystack');
   const [isKlumpReady, setIsKlumpReady] = useState(() => !!getKlumpConstructor());
   const [loadedCheckoutDraftStoreId, setLoadedCheckoutDraftStoreId] = useState<string | null>(null);
+
+  const [cryptoChains, setCryptoChains] = useState<string[]>([]);
+  const [cryptoCurrencies, setCryptoCurrencies] = useState<{ ticker: string; name: string }[]>([]);
+  const [selectedCryptoChain, setSelectedCryptoChain] = useState('');
+  const [selectedCryptoCurrency, setSelectedCryptoCurrency] = useState('');
+  const [isLoadingCryptoChains, setIsLoadingCryptoChains] = useState(false);
+  const [isLoadingCryptoCurrencies, setIsLoadingCryptoCurrencies] = useState(false);
+  const [cryptoConvertedPrice, setCryptoConvertedPrice] = useState<{ fromAmount: number; fromCurrency: string } | null>(null);
+  const [isConvertingCryptoPrice, setIsConvertingCryptoPrice] = useState(false);
+  const [cryptoPaymentInit, setCryptoPaymentInit] = useState<CryptoPaymentInit | null>(null);
 
   const [isFetchingQuote, setIsFetchingQuote] = useState(false);
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
@@ -452,6 +474,93 @@ export default function CheckoutPage() {
   }, [canUseKlump, enabledPaymentMethods.crypto, enabledPaymentMethods.klump, paymentMethod]);
 
   useEffect(() => {
+    if (paymentMethod !== 'crypto' || cryptoChains.length > 0) return;
+
+    const fetchChains = async () => {
+      setIsLoadingCryptoChains(true);
+      try {
+        const response = await fetch('/api/payments/crypto/chains');
+        const result = await response.json();
+        if (!response.ok || result.status === 'error') {
+          throw new Error(result.message || 'Failed to load crypto networks');
+        }
+        setCryptoChains(Array.isArray(result.data) ? result.data : []);
+      } catch (error) {
+        console.error('Error loading crypto networks:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to load crypto networks');
+      } finally {
+        setIsLoadingCryptoChains(false);
+      }
+    };
+
+    fetchChains();
+  }, [paymentMethod, cryptoChains.length]);
+
+  useEffect(() => {
+    if (!selectedCryptoChain) {
+      setCryptoCurrencies([]);
+      setSelectedCryptoCurrency('');
+      return;
+    }
+
+    const fetchCurrencies = async () => {
+      setIsLoadingCryptoCurrencies(true);
+      try {
+        const response = await fetch(`/api/payments/crypto/currencies?network=${encodeURIComponent(selectedCryptoChain)}`);
+        const result = await response.json();
+        if (!response.ok || result.status === 'error') {
+          throw new Error(result.message || 'Failed to load crypto currencies');
+        }
+        const list: { ticker: string; name: string }[] = Array.isArray(result.data)
+          ? result.data.map((c: { ticker: string; name: string }) => ({ ticker: c.ticker, name: c.name }))
+          : [];
+        setCryptoCurrencies(list);
+        setSelectedCryptoCurrency((current) =>
+          current && list.some((c) => c.ticker === current) ? current : ''
+        );
+      } catch (error) {
+        console.error('Error loading crypto currencies:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to load crypto currencies');
+      } finally {
+        setIsLoadingCryptoCurrencies(false);
+      }
+    };
+
+    fetchCurrencies();
+  }, [selectedCryptoChain]);
+
+  useEffect(() => {
+    if (!selectedCryptoChain || !selectedCryptoCurrency || total <= 0) {
+      setCryptoConvertedPrice(null);
+      return;
+    }
+
+    const fetchConvertedPrice = async () => {
+      setIsConvertingCryptoPrice(true);
+      try {
+        const response = await fetch('/api/payments/crypto/converted-price', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ network: selectedCryptoChain, currency: selectedCryptoCurrency, amount: total }),
+        });
+        const result = await response.json();
+        if (!response.ok || result.status === 'error') {
+          throw new Error(result.message || 'Failed to convert price');
+        }
+        setCryptoConvertedPrice({ fromAmount: result.data.fromAmount, fromCurrency: selectedCryptoCurrency });
+      } catch (error) {
+        console.error('Error converting crypto price:', error);
+        setCryptoConvertedPrice(null);
+        toast.error(error instanceof Error ? error.message : 'Failed to convert price for selected crypto currency');
+      } finally {
+        setIsConvertingCryptoPrice(false);
+      }
+    };
+
+    fetchConvertedPrice();
+  }, [selectedCryptoChain, selectedCryptoCurrency, total]);
+
+  useEffect(() => {
     if (!canUseKlump || isKlumpReady) return;
 
     const timer = window.setInterval(() => {
@@ -584,6 +693,17 @@ export default function CheckoutPage() {
     country: customerDetails.country,
   });
 
+  // Backend accepts payment_method 'kuvarpay' for crypto — 'crypto' is only our internal UI value.
+  const resolvePaymentMethod = () => {
+    if (isZeroBalanceOrder) return 'coupon';
+    return paymentMethod === 'crypto' ? 'kuvarpay' : paymentMethod;
+  };
+
+  const cryptoOptionField = () =>
+    !isZeroBalanceOrder && paymentMethod === 'crypto' && selectedCryptoChain && selectedCryptoCurrency
+      ? { crypto_option: { network: selectedCryptoChain, currency: selectedCryptoCurrency } }
+      : {};
+
   // ── Regular product payload ─────────────────────────────────────────────────
   const buildBasePayload = () => ({
     store_id: storeId,
@@ -604,7 +724,8 @@ export default function CheckoutPage() {
     total_amount: orderPayloadItemsTotal,
     original_items_total: itemsTotal,
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
-    payment_method: isZeroBalanceOrder ? 'coupon' : paymentMethod,
+    payment_method: resolvePaymentMethod(),
+    ...cryptoOptionField(),
     delivery_method: deliveryMethod,
     delivery_fee: deliveryFee,
     coupon_applied: Boolean(appliedCoupon),
@@ -630,7 +751,8 @@ export default function CheckoutPage() {
     total_amount: orderPayloadItemsTotal,
     original_items_total: itemsTotal,
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
-    payment_method: isZeroBalanceOrder ? 'coupon' : "paystack",
+    payment_method: resolvePaymentMethod(),
+    ...cryptoOptionField(),
     delivery_method: deliveryMethod, // sends 'relay' or 'pickup' as-is to backend
     delivery_fee: deliveryFee,
     coupon_applied: Boolean(appliedCoupon),
@@ -935,8 +1057,8 @@ export default function CheckoutPage() {
 
   const handleProceedToPayment = async () => {
     if (!validateCheckout()) return;
-    if (paymentMethod === 'crypto') {
-      toast.error('Crypto checkout is not available yet. Please use another payment method.');
+    if (paymentMethod === 'crypto' && !isZeroBalanceOrder && (!selectedCryptoChain || !selectedCryptoCurrency)) {
+      toast.error('Please select a crypto network and currency before continuing.');
       return;
     }
     if (needsQuote && !selectedQuote && !hasCouponVendorDelivery) {
@@ -981,6 +1103,33 @@ export default function CheckoutPage() {
 
       if (paymentMethod === 'klump') {
         launchKlumpCheckout(orderResult);
+        return;
+      }
+
+      if (paymentMethod === 'crypto') {
+        const orderDetails = orderResult.data?.order;
+        const paymentInit = orderResult.data?.paymentInit as CryptoPaymentInit | undefined;
+
+        if (!orderDetails || !paymentInit?.depositAddress) {
+          throw new Error('Crypto payment details not found in response');
+        }
+
+        localStorage.setItem('pending_order', JSON.stringify({
+          orderId: orderDetails.order_number,
+          customerDetails: { ...customerDetails, phone: `${phoneDialCode}${customerDetails.phone}` },
+          cart,
+          total,
+          deliveryNotes,
+          orderData: orderResult,
+          paymentReference: paymentInit.reference,
+          coupon: appliedCoupon,
+        }));
+        localStorage.setItem('current_store_id', storeId);
+        localStorage.setItem('payment_reference', paymentInit.reference);
+
+        sessionStorage.removeItem(getCheckoutDraftKey(storeId));
+        clearCart();
+        setCryptoPaymentInit(paymentInit);
         return;
       }
 
@@ -1242,14 +1391,54 @@ export default function CheckoutPage() {
                       </div>
                     )}
                     {enabledPaymentMethods.crypto && (
-                      <div className="flex items-start space-x-2 opacity-70">
-                        <RadioGroupItem value="crypto" id="crypto" disabled />
-                        <Label htmlFor="crypto" className="text-sm font-normal">
-                          Crypto
-                          <span className="block text-xs text-[#A0A0A0]">
-                            Crypto pricing is pending backend converted-price details.
-                          </span>
-                        </Label>
+                      <div className="space-y-3">
+                        <div className="flex items-start space-x-2">
+                          <RadioGroupItem value="crypto" id="crypto" />
+                          <Label htmlFor="crypto" className="text-sm font-normal cursor-pointer">
+                            Crypto
+                            <span className="block text-xs text-[#A0A0A0]">Pay with a supported cryptocurrency.</span>
+                          </Label>
+                        </div>
+                        {paymentMethod === 'crypto' && (
+                          <div className="grid grid-cols-1 gap-3 pl-6 sm:grid-cols-2">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Network</Label>
+                              <Select value={selectedCryptoChain} onValueChange={setSelectedCryptoChain}>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder={isLoadingCryptoChains ? 'Loading...' : 'Select network'} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {cryptoChains.map((chain) => (
+                                    <SelectItem key={chain} value={chain}>{chain.toUpperCase()}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Currency</Label>
+                              <Select value={selectedCryptoCurrency} onValueChange={setSelectedCryptoCurrency} disabled={!selectedCryptoChain}>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder={isLoadingCryptoCurrencies ? 'Loading...' : 'Select currency'} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {cryptoCurrencies.map((currency) => (
+                                    <SelectItem key={currency.ticker} value={currency.ticker}>
+                                      {currency.ticker} — {currency.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {isConvertingCryptoPrice && (
+                              <p className="col-span-full text-xs text-[#A0A0A0]">Converting price...</p>
+                            )}
+                            {cryptoConvertedPrice && !isConvertingCryptoPrice && (
+                              <p className="col-span-full text-xs font-medium text-foreground">
+                                You will pay ≈ {cryptoConvertedPrice.fromAmount} {cryptoConvertedPrice.fromCurrency}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </RadioGroup>
@@ -1513,6 +1702,68 @@ export default function CheckoutPage() {
               Cancel
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!cryptoPaymentInit} onOpenChange={() => { }}>
+        <DialogOverlay className="backdrop-blur-xs" />
+        <DialogContent className="sm:max-w-md [&>button]:hidden">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">Complete Your Crypto Payment</DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              Send exactly the amount below to the deposit address to complete your order.
+            </p>
+          </DialogHeader>
+
+          {cryptoPaymentInit && (
+            <div className="space-y-4 mt-2">
+              <div className="flex justify-center rounded-lg border p-4 bg-white">
+                <QRCodeSVG value={cryptoPaymentInit.depositAddress} size={176} />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Amount to send</Label>
+                <p className="text-lg font-bold">
+                  {cryptoPaymentInit.fromAmount} {cryptoPaymentInit.fromCurrency}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Network: {cryptoPaymentInit.fromNetwork.toUpperCase()}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Deposit address</Label>
+                <div className="flex items-center gap-2 rounded-lg border p-2">
+                  <p className="flex-1 text-xs font-mono break-all">{cryptoPaymentInit.depositAddress}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(cryptoPaymentInit.depositAddress);
+                      toast.success('Address copied');
+                    }}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+                Send only {cryptoPaymentInit.fromCurrency} on the {cryptoPaymentInit.fromNetwork.toUpperCase()} network to this address. Sending any other asset or using a different network may result in permanent loss of funds.
+                We&apos;ll confirm your payment and update your order once it&apos;s received — you can check your order status by email.
+              </div>
+
+              <Button
+                className="w-full"
+                onClick={() => {
+                  const storedOrderId = JSON.parse(localStorage.getItem('pending_order') || '{}').orderId;
+                  window.location.href = `/payment/success?store_id=${storeId}&reference=${encodeURIComponent(cryptoPaymentInit.reference)}&status=pending_crypto${storedOrderId ? `&order=${encodeURIComponent(storedOrderId)}` : ''}`;
+                }}
+              >
+                I&apos;ve sent the payment
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
