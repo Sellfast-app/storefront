@@ -25,6 +25,7 @@ export default function PaymentSuccessPage() {
   const isCouponCoveredOrder =
     status === 'fully_covered_by_coupon' ||
     orderDetails?.paymentStatus === 'fully_covered_by_coupon'
+  const isPendingCrypto = status === 'pending_crypto'
 
   useEffect(() => {
     // Retrieve order details from localStorage
@@ -86,11 +87,13 @@ export default function PaymentSuccessPage() {
             {/* Success Message */}
             <div className="text-center mb-8">
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-3">
-                {isCouponCoveredOrder ? 'Order Placed!' : 'Payment Successful!'}
+                {isCouponCoveredOrder ? 'Order Placed!' : isPendingCrypto ? 'Order Placed — Payment Pending' : 'Payment Successful!'}
               </h1>
               <p className="text-gray-600 dark:text-gray-300 text-lg">
                 {isCouponCoveredOrder
                   ? 'Your order was fully covered by coupon and is being processed.'
+                  : isPendingCrypto
+                  ? "We're waiting to receive your crypto payment. Your order will be processed as soon as it's confirmed."
                   : provider === 'klump' && verification === 'pending'
                   ? 'Your Klump checkout was completed. Payment verification is pending backend integration.'
                   : 'Your order has been confirmed and is being processed'}
@@ -115,6 +118,14 @@ export default function PaymentSuccessPage() {
                     <span className="text-sm text-gray-600 dark:text-gray-400">Payment Status</span>
                     <span className="text-sm font-semibold text-green-600 dark:text-green-400">
                       Fully covered by coupon
+                    </span>
+                  </div>
+                )}
+                {isPendingCrypto && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Payment Status</span>
+                    <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                      Awaiting crypto payment
                     </span>
                   </div>
                 )}
