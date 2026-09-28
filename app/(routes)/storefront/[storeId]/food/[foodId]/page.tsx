@@ -15,7 +15,7 @@ import FilterIcon from "@/components/svgIcons/FilterIcon";
 import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
 import { useCart } from "@/context/CartContext";
-import { PlusIcon, Clock, Flame, Leaf, ChevronLeft, ChevronRight } from "lucide-react";
+import { PlusIcon, Clock, Flame, Leaf, ChevronLeft, ChevronRight, CreditCard, MessageCircle, Truck } from "lucide-react";
 import MinusIcon from "@/components/svgIcons/MinusIcon";
 import { AddOnGroup, AddOnOption, FoodItem, Portion } from "@/lib/mockdata";
 import { getFoodCardPrice } from "@/lib/foodPricing";
@@ -521,6 +521,20 @@ function Page() {
                       </div>
                     </>
                   )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    { icon: Truck, label: "Vendor delivery", text: "Food orders can be fulfilled directly by the vendor." },
+                    { icon: CreditCard, label: "Coupon-ready", text: "Free-delivery coupons can skip payment at zero balance." },
+                    { icon: MessageCircle, label: "Chat checkout", text: "Menu ordering can extend to WhatsApp and web chat." },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-xl border border-gray-100 bg-white p-3">
+                      <item.icon className="h-4 w-4 text-[#4FCA6A]" />
+                      <p className="mt-2 text-xs font-semibold">{item.label}</p>
+                      <p className="mt-1 text-[11px] leading-4 text-gray-500">{item.text}</p>
+                    </div>
+                  ))}
                 </div>
 
                 {/* ── SIMPLE: Portion selector ───────────────────────────── */}

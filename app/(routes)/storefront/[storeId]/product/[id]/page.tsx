@@ -11,7 +11,7 @@ import SearchIcon from '@/components/svgIcons/SearchIcon'
 import FilterIcon from '@/components/svgIcons/FilterIcon'
 import CartIcon from '@/components/svgIcons/CartIcon'
 import { Button } from '@/components/ui/button'
-import { PlusIcon } from 'lucide-react';
+import { CreditCard, MessageCircle, PlusIcon, Truck } from 'lucide-react';
 import MinusIcon from '@/components/svgIcons/MinusIcon';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ratingBreakdown } from '@/lib/mockdata'
@@ -614,6 +614,20 @@ function Page() {
                 <div className='flex justify-between items-center mt-6'>
                   <div className='text-xs text-[#4FCA6A]'>SKU: {product.product_sku}</div>
                   <div className='text-xs'>Est. {product.est_prod_days_from}-{product.est_prod_days_to} days</div>
+                </div>
+
+                <div className='mt-5 grid gap-3 sm:grid-cols-3'>
+                  {[
+                    { icon: Truck, label: 'Localized delivery', text: 'Pickup, manual or automated logistics.' },
+                    { icon: CreditCard, label: 'Secure payment', text: 'Paystack, Klump and crypto-ready checkout.' },
+                    { icon: MessageCircle, label: 'Chat ordering', text: 'Continue via WhatsApp or web chat.' },
+                  ].map((item) => (
+                    <div key={item.label} className='rounded-xl border border-[#F5F5F5] bg-white p-3'>
+                      <item.icon className='h-4 w-4 text-[#4FCA6A]' />
+                      <p className='mt-2 text-xs font-semibold'>{item.label}</p>
+                      <p className='mt-1 text-[11px] leading-4 text-[#71717A]'>{item.text}</p>
+                    </div>
+                  ))}
                 </div>
 
                 <div className='mt-4'>
