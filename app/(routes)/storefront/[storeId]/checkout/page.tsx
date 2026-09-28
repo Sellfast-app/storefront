@@ -1302,7 +1302,7 @@ export default function CheckoutPage() {
               <div className='flex items-center justify-between gap-3'>
                 <div>
                   <p className='text-xs font-medium uppercase tracking-[0.18em] text-[#4FCA6A]'>
-                    V2 checkout
+                    Secure checkout
                   </p>
                   <h3 className='mt-1 text-sm font-semibold'>
                     {isZeroBalanceOrder ? 'Coupon covers this order' : 'Secure checkout'}

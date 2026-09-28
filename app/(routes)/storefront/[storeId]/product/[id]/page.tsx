@@ -18,6 +18,7 @@ import { ratingBreakdown } from '@/lib/mockdata'
 import { useCart } from '@/context/CartContext'
 import CartButton from '@/components/CartButton'
 import CartView from '@/components/CartView'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // Import Swiper React components
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -394,10 +395,24 @@ function Page() {
 
   if (isLoading) {
     return (
-      <div className='flex items-center justify-center h-screen bg-[#FCFCFC]'>
-        <div className='text-center'>
-          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-[#4FCA6A] mx-auto mb-4'></div>
-          <p className='text-gray-600'>Loading product...</p>
+      <div className='min-h-screen bg-[#FCFCFC] px-4 py-6 md:px-8'>
+        <div className='mx-auto grid max-w-7xl gap-8 lg:grid-cols-[minmax(0,1fr)_420px]'>
+          <div className='space-y-4'>
+            <Skeleton className='aspect-square w-full rounded-2xl' />
+            <div className='grid grid-cols-4 gap-3'>
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className='aspect-square rounded-xl' />
+              ))}
+            </div>
+          </div>
+          <div className='space-y-5'>
+            <Skeleton className='h-6 w-2/3' />
+            <Skeleton className='h-10 w-1/2' />
+            <Skeleton className='h-4 w-full' />
+            <Skeleton className='h-4 w-5/6' />
+            <Skeleton className='h-12 w-full rounded-xl' />
+            <Skeleton className='h-12 w-full rounded-xl' />
+          </div>
         </div>
       </div>
     )

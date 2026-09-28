@@ -149,7 +149,7 @@ export function TicketSelection({ event }: TicketSelectionProps) {
         <div className="rounded-xl border border-[#F0F0F0] bg-[#F7FFF9] p-4 dark:border-[#2A2A2A]">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-primary" />
-            <p className="text-sm font-semibold">Checkout preview</p>
+            <p className="text-sm font-semibold">Checkout summary</p>
           </div>
           <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
             <div className="flex items-center justify-between">
