@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Minus, Plus, ShoppingBag, Ticket } from "lucide-react";
+import { CheckCircle2, CreditCard, Mail, Minus, Plus, ShoppingBag, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -39,6 +39,7 @@ export function TicketSelection({ event }: TicketSelectionProps) {
   const markupFee = selectedTickets.reduce((sum, item) => sum + 500 * item.quantity, 0);
   const total = subtotal + markupFee;
   const totalQuantity = selectedTickets.reduce((sum, item) => sum + item.quantity, 0);
+  const paymentReady = totalQuantity > 0;
 
   const updateQuantity = (ticket: TicketType, nextQuantity: number) => {
     const available = Math.max(ticket.quantity - ticket.sold, 0);
@@ -144,6 +145,39 @@ export function TicketSelection({ event }: TicketSelectionProps) {
           <ShoppingBag className="h-4 w-4" />
           Continue to checkout
         </Button>
+
+        <div className="rounded-xl border border-[#F0F0F0] bg-[#F7FFF9] p-4 dark:border-[#2A2A2A]">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold">Checkout preview</p>
+          </div>
+          <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center justify-between">
+              <span>Selected tickets</span>
+              <span className="font-medium text-foreground">{totalQuantity}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Payment route</span>
+              <span className="font-medium text-foreground">
+                {paymentReady ? "Paystack / enabled provider" : "Select tickets first"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Confirmation</span>
+              <span className="font-medium text-foreground">Email + SMS</span>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="rounded-lg bg-white p-3">
+              <CreditCard className="h-4 w-4 text-primary" />
+              <p className="mt-2 text-xs font-medium">Payment confirmation</p>
+            </div>
+            <div className="rounded-lg bg-white p-3">
+              <Mail className="h-4 w-4 text-primary" />
+              <p className="mt-2 text-xs font-medium">Ticket email issued</p>
+            </div>
+          </div>
+        </div>
 
         <p className="text-center text-xs text-muted-foreground">
           Tickets are available on website, WhatsApp AI, and web chat channels.
