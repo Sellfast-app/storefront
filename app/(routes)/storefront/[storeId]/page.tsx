@@ -23,6 +23,9 @@ import FoodProductGrid from "@/components/FoodproductGrid";
 import {
   MapPin,
   Menu,
+  CreditCard,
+  Globe2,
+  MessageCircle,
   Search,
   ShoppingBag,
   SlidersHorizontal,
@@ -30,6 +33,7 @@ import {
   Store,
   Truck,
   UserRound,
+  WalletCards,
 } from "lucide-react";
 
 interface StoreDetails {
@@ -228,6 +232,78 @@ function V2StoreHeader({
   );
 }
 
+function V2LocalizationStrip({
+  storeDetails,
+}: {
+  storeDetails: StoreDetails;
+}) {
+  const country = storeDetails.metadata?.country || "Nigeria";
+  const state = storeDetails.metadata?.state || storeDetails.metadata?.city || "Lagos";
+  const currency =
+    country.toLowerCase().includes("ghana")
+      ? "GHS"
+      : country.toLowerCase().includes("kenya")
+        ? "KES"
+        : country.toLowerCase().includes("united kingdom")
+          ? "GBP"
+          : country.toLowerCase().includes("rwanda")
+            ? "RWF"
+            : "NGN";
+
+  return (
+    <section className="border-b border-[#EEF1EE] bg-white">
+      <div className="mx-auto grid max-w-7xl gap-3 px-4 py-3 text-sm text-[#4B5563] md:grid-cols-3 lg:px-6">
+        <div className="flex items-center gap-2">
+          <Globe2 className="h-4 w-4 text-primary" />
+          <span>{country} storefront</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <WalletCards className="h-4 w-4 text-primary" />
+          <span>Prices shown in {currency}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-primary" />
+          <span>Pickup and delivery for {state}</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function V2CheckoutRoutes() {
+  const routes = [
+    {
+      icon: ShoppingBag,
+      title: "Website checkout",
+      description: "Browse, add to cart and pay directly on the storefront.",
+    },
+    {
+      icon: MessageCircle,
+      title: "WhatsApp ordering",
+      description: "Continue the conversation with the vendor's AI sales assistant.",
+    },
+    {
+      icon: CreditCard,
+      title: "Secure payments",
+      description: "Paystack, Nomba and crypto-ready checkout surfaces.",
+    },
+  ];
+
+  return (
+    <section className="mt-10 grid gap-4 md:grid-cols-3">
+      {routes.map((route) => (
+        <div key={route.title} className="rounded-2xl border bg-white p-5">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <route.icon className="h-5 w-5" />
+          </div>
+          <h3 className="mt-4 text-sm font-semibold">{route.title}</h3>
+          <p className="mt-2 text-sm text-[#71717A]">{route.description}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function V2RetailStorefront({
   storeId,
   storeDetails,
@@ -259,6 +335,7 @@ function V2RetailStorefront({
         setSearchQuery={setSearchQuery}
         toggleCart={toggleCart}
       />
+      <V2LocalizationStrip storeDetails={storeDetails} />
 
       <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
         {showCart ? (
@@ -435,6 +512,8 @@ function V2RetailStorefront({
                 ))}
               </div>
             </section>
+
+            <V2CheckoutRoutes />
           </>
         )}
       </main>
@@ -469,6 +548,7 @@ function V2FoodStorefront({
         setSearchQuery={setSearchQuery}
         toggleCart={toggleCart}
       />
+      <V2LocalizationStrip storeDetails={storeDetails} />
 
       {showCart ? (
         <main className="mx-auto max-w-2xl px-4 py-6 lg:px-6">
@@ -586,6 +666,7 @@ function V2FoodStorefront({
                   isLoading={isLoadingProducts}
                   searchQuery={searchQuery}
                 />
+                <V2CheckoutRoutes />
               </div>
             </div>
           </section>
