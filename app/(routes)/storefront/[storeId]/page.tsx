@@ -12,7 +12,7 @@ import { useCart } from "@/context/CartContext";
 import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
 import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
-import { SubscriptionModal } from "@/components/SubscriptionModal";
+// import { SubscriptionModal } from "@/components/SubscriptionModal";
 import { AvailabilityModal } from "@/components/AvailabilityModal";
 import {
   StoreAvailabilityEntry,
@@ -1007,7 +1007,6 @@ function Page() {
   const [error, setError] = useState<string | null>(null);
   const [vendorId, setVendorId] = useState<string | undefined>(undefined);
   const {
-    showModal,
     hasActiveSubscription,
     isLoading: isCheckingSubscription,
   } = useSubscriptionCheck(vendorId);
@@ -1282,10 +1281,11 @@ function Page() {
           getWhatsAppUrl={getWhatsAppUrl}
           events={mockEvents}
         />
+        {/* Temporarily disabled for V2 storefront previews.
         <SubscriptionModal
           isOpen={showModal}
           storeName={storeDetails.store_name}
-        />
+        /> */}
         <AvailabilityModal
           isOpen={showAvailabilityModal}
           storeName={storeDetails.store_name}
@@ -1314,10 +1314,11 @@ function Page() {
           foodItems={foodItems}
           isLoadingProducts={isLoadingProducts}
         />
+        {/* Temporarily disabled for V2 storefront previews.
         <SubscriptionModal
           isOpen={showModal}
           storeName={storeDetails.store_name}
-        />
+        /> */}
         <AvailabilityModal
           isOpen={showAvailabilityModal}
           storeName={storeDetails.store_name}
@@ -1346,10 +1347,11 @@ function Page() {
         isLoadingProducts={isLoadingProducts}
         handleAddToCart={handleAddToCart}
       />
+      {/* Temporarily disabled for V2 storefront previews.
       <SubscriptionModal
         isOpen={showModal}
         storeName={storeDetails.store_name}
-      />
+      /> */}
       <AvailabilityModal
         isOpen={showAvailabilityModal}
         storeName={storeDetails.store_name}
