@@ -4,12 +4,12 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { MOCK_FOOD_STORE_ID, MOCK_RETAIL_STORE_ID } from '@/lib/storefront-mock'
+
+const DEFAULT_STORE_ID = MOCK_RETAIL_STORE_ID
 
 export default function StorefrontIndex() {
   const router = useRouter()
-
-  // You can set a default store ID here or redirect to a store selection page
-  const DEFAULT_STORE_ID = 'e4a18e22-b3c4-4af9-9fd0-baf5ae22b2f1'
 
   useEffect(() => {
     // Automatically redirect to default store after 2 seconds
@@ -31,15 +31,22 @@ export default function StorefrontIndex() {
           </div>
         </div>
         <h2 className='text-2xl font-bold mb-4'>Welcome to Swiftree Storefront</h2>
-        <p className='text-gray-600 mb-6'>Redirecting to store...</p>
+        <p className='text-gray-600 mb-6'>Redirecting to the V2 demo storefront...</p>
         <Button 
           onClick={() => router.push(`/storefront/${DEFAULT_STORE_ID}`)}
           className='bg-[#4FCA6A] hover:bg-[#45b85e]'
         >
-          Go to Store Now
+          View Retail Demo
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/storefront/${MOCK_FOOD_STORE_ID}`)}
+          className='ml-2'
+        >
+          View Food Demo
         </Button>
         <p className='text-sm text-gray-500 mt-4'>
-          Looking for a specific store? Use the full URL with store ID.
+          Use a real store ID in the URL when you want the backend-backed storefront.
         </p>
       </div>
     </div>

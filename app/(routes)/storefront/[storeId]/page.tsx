@@ -19,9 +19,24 @@ import {
   useStoreAvailability,
 } from "@/hooks/useStoreAvailability";
 import { FoodItem } from "@/lib/mockdata";
+import {
+  isMockEventStorefront,
+  isMockFoodStorefront,
+  isMockRetailStorefront,
+  mockEventStoreDetails,
+  mockFoodStoreDetails,
+  mockRetailProducts,
+  mockRetailStoreDetails,
+  mockStorefrontFoodItems,
+  mockStoreReviews,
+} from "@/lib/storefront-mock";
+import { Event, getPublishedEvents } from "@/lib/events-data";
+import { TicketSelection } from "@/app/(routes)/events/[eventId]/_components/TicketSelection";
 import FoodProductGrid from "@/components/FoodproductGrid";
 import {
+  CalendarDays,
   CheckCircle2,
+  Clock,
   MapPin,
   Menu,
   CreditCard,
@@ -32,10 +47,13 @@ import {
   SlidersHorizontal,
   Star,
   Store,
+  Ticket,
   Truck,
   UserRound,
+  Users,
   WalletCards,
 } from "lucide-react";
+import { format } from "date-fns";
 
 interface StoreDetails {
   id: string;
@@ -140,6 +158,7 @@ const StarRating = ({ rating }: { rating: number }) => {
 
 const getImageUrl = (imagePath: string | null): string | null => {
   if (!imagePath) return null;
+  if (imagePath.startsWith("/")) return imagePath;
   if (imagePath.startsWith("http")) return imagePath;
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
   return `${API_BASE_URL}${imagePath}`;
@@ -174,6 +193,10 @@ interface V2RetailTemplateProps extends V2TemplateProps {
 interface V2FoodTemplateProps extends V2TemplateProps {
   foodItems: FoodItem[];
   isLoadingProducts: boolean;
+}
+
+interface V2EventTemplateProps extends V2TemplateProps {
+  events: Event[];
 }
 
 function V2StoreHeader({
@@ -754,6 +777,219 @@ function V2FoodStorefront({
   );
 }
 
+function V2EventStorefront({
+  storeId,
+  storeDetails,
+  searchQuery,
+  setSearchQuery,
+  toggleCart,
+  showCart,
+  logoUrl,
+  events,
+}: V2EventTemplateProps) {
+  const [selectedEventId, setSelectedEventId] = useState(events[0]?.id || "");
+  const filteredEvents = events.filter((event) =>
+    `${event.name} ${event.location} ${event.organizerName}`
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
+  const selectedEvent =
+    events.find((event) => event.id === selectedEventId) || filteredEvents[0] || events[0];
+  const featuredEvent = selectedEvent || events[0];
+
+  return (
+    <div className="min-h-screen bg-[#FAFAFA] text-[#111827]">
+      <V2StoreHeader
+        storeDetails={storeDetails}
+        logoUrl={logoUrl}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        toggleCart={toggleCart}
+      />
+      <V2LocalizationStrip storeDetails={storeDetails} />
+
+      <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
+        {showCart ? (
+          <div className="mx-auto max-w-2xl">
+            <CartView />
+          </div>
+        ) : (
+          <>
+            <section className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+              <div className="relative min-h-[390px] overflow-hidden rounded-2xl bg-[#061400]">
+                {featuredEvent && (
+                  <Image
+                    src={featuredEvent.coverImage}
+                    alt={featuredEvent.name}
+                    fill
+                    priority
+                    className="object-cover opacity-75"
+                    sizes="(max-width: 1024px) 100vw, 60vw"
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#061400]/95 via-[#061400]/60 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-8">
+                  <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs backdrop-blur">
+                    <Ticket className="h-3.5 w-3.5" />
+                    Events & ticketing storefront
+                  </div>
+                  <h1 className="max-w-2xl text-3xl font-semibold md:text-5xl">
+                    {featuredEvent?.name || storeDetails.store_name}
+                  </h1>
+                  <p className="mt-3 max-w-xl text-sm text-white/80 md:text-base">
+                    {featuredEvent?.description || storeDetails.store_description}
+                  </p>
+                  {featuredEvent && (
+                    <div className="mt-6 flex flex-wrap gap-3 text-sm text-white/85">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-2">
+                        <CalendarDays className="h-4 w-4" />
+                        {format(new Date(featuredEvent.startDate), "dd MMM yyyy")}
+                      </span>
+                      <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-2">
+                        <Clock className="h-4 w-4" />
+                        {featuredEvent.startTime} - {featuredEvent.endTime}
+                      </span>
+                      <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-2">
+                        <MapPin className="h-4 w-4" />
+                        {featuredEvent.location}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+                {[
+                  ["Events", events.length],
+                  [
+                    "Tickets sold",
+                    events
+                      .reduce(
+                        (sum, event) =>
+                          sum + event.tickets.reduce((ticketSum, ticket) => ticketSum + ticket.sold, 0),
+                        0
+                      )
+                      .toLocaleString(),
+                  ],
+                  ["Channels", "Web + Chat"],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl border bg-white p-5">
+                    <p className="text-xs text-[#71717A]">{label}</p>
+                    <p className="mt-2 text-2xl font-semibold">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_420px]">
+              <div>
+                <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold">Upcoming events</h2>
+                    <p className="text-sm text-[#71717A]">
+                      Select an event to preview ticket tiers and checkout.
+                    </p>
+                  </div>
+                  <div className="relative md:w-80">
+                    <Input
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Search events"
+                      className="h-11 rounded-full border-[#ECECEC] bg-white pl-11"
+                    />
+                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71717A]" />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  {filteredEvents.map((event) => {
+                    const lowestPaidTicket = event.tickets
+                      .filter((ticket) => ticket.type === "paid")
+                      .reduce<number | null>((lowest, ticket) => {
+                        const price = ticket.price ?? 0;
+                        if (lowest === null) return price;
+                        return Math.min(lowest, price);
+                      }, null);
+
+                    return (
+                      <button
+                        key={event.id}
+                        type="button"
+                        onClick={() => setSelectedEventId(event.id)}
+                        className={`group overflow-hidden rounded-2xl border bg-white text-left transition ${
+                          selectedEvent?.id === event.id
+                            ? "border-[#4FCA6A] shadow-sm"
+                            : "border-[#F0F0F0] hover:border-[#DDE7DD]"
+                        }`}
+                      >
+                        <div className="relative aspect-[16/9] overflow-hidden">
+                          <Image
+                            src={event.coverImage}
+                            alt={event.name}
+                            fill
+                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                            sizes="(max-width: 768px) 100vw, 50vw"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                          <div className="absolute bottom-3 left-3 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+                            {format(new Date(event.startDate), "dd MMM yyyy")}
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <h3 className="line-clamp-2 text-base font-semibold">{event.name}</h3>
+                          <p className="mt-2 line-clamp-2 text-xs text-[#71717A]">
+                            {event.description}
+                          </p>
+                          <div className="mt-4 grid gap-2 text-xs text-[#71717A]">
+                            <span className="inline-flex items-center gap-2">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {event.location}
+                            </span>
+                            <span className="inline-flex items-center gap-2">
+                              <Users className="h-3.5 w-3.5" />
+                              {event.organizerName}
+                            </span>
+                          </div>
+                          <div className="mt-4 flex items-center justify-between border-t pt-3">
+                            <div>
+                              <p className="text-[11px] text-[#71717A]">Tickets from</p>
+                              <p className="text-sm font-semibold">
+                                {lowestPaidTicket === null
+                                  ? "Free"
+                                  : `₦${lowestPaidTicket.toLocaleString()}`}
+                              </p>
+                            </div>
+                            <span className="rounded-full bg-[#005B1414] px-3 py-1 text-xs font-medium text-primary">
+                              Select
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <aside className="lg:sticky lg:top-24 lg:self-start">
+                {selectedEvent ? (
+                  <TicketSelection event={selectedEvent} />
+                ) : (
+                  <div className="rounded-2xl border bg-white p-6 text-sm text-[#71717A]">
+                    No event selected.
+                  </div>
+                )}
+              </aside>
+            </section>
+
+            <V2CheckoutRoutes />
+            <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
 function Page() {
   const params = useParams();
   const storeId = params.storeId as string;
@@ -785,6 +1021,11 @@ function Page() {
     !isOpen;
 
   const { addToCart } = useCart();
+  const isMockRetailStore = isMockRetailStorefront(storeId);
+  const isMockFoodStore = isMockFoodStorefront(storeId);
+  const isMockEventStore = isMockEventStorefront(storeId);
+  const isMockStore = isMockRetailStore || isMockFoodStore || isMockEventStore;
+  const mockEvents = getPublishedEvents();
 
   // Fetch store details
   useEffect(() => {
@@ -795,6 +1036,29 @@ function Page() {
       setError(null);
 
       try {
+        if (isMockStore) {
+          const details = isMockEventStore
+            ? mockEventStoreDetails
+            : isMockFoodStore
+              ? mockFoodStoreDetails
+              : mockRetailStoreDetails;
+          setStoreDetails({ ...details, id: storeId });
+          setStoreReviews(mockStoreReviews);
+          setListings(
+            isMockEventStore
+              ? mockEvents.length
+              : isMockFoodStore
+                ? mockStorefrontFoodItems.length
+                : mockRetailProducts.length
+          );
+          setRatings(4.8);
+          setVendorId(details.vendor_id);
+          document.cookie = `vendor_id=${details.vendor_id}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+          document.cookie = `vendor_email=${encodeURIComponent("demo@swiftree.app")}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+          document.cookie = `storefront_store_id=${storeId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+          return;
+        }
+
         const response = await fetch(`/api/stores/${storeId}`);
 
         if (!response.ok) {
@@ -837,15 +1101,23 @@ function Page() {
     };
 
     fetchStoreData();
-  }, [storeId]);
+  }, [isMockEventStore, isMockFoodStore, isMockStore, mockEvents.length, storeId]);
 
   // Fetch products — regular stores
   useEffect(() => {
-    if (!storeId || isFoodBusinessType(storeDetails?.business_type)) return;
+    if (!storeId || isMockEventStore || isFoodBusinessType(storeDetails?.business_type)) {
+      if (isMockEventStore) setIsLoadingProducts(false);
+      return;
+    }
 
     const fetchProducts = async () => {
       setIsLoadingProducts(true);
       try {
+        if (isMockRetailStore) {
+          setProducts(mockRetailProducts.map((product) => ({ ...product, store_id: storeId })));
+          return;
+        }
+
         const queryParams = new URLSearchParams({
           page: "1",
           pageSize: "50",
@@ -872,7 +1144,7 @@ function Page() {
     };
 
     fetchProducts();
-  }, [storeId, storeDetails?.business_type]);
+  }, [isMockEventStore, isMockRetailStore, storeId, storeDetails?.business_type]);
 
   // Fetch food items — Restaurant/Food Service stores
   useEffect(() => {
@@ -881,6 +1153,11 @@ function Page() {
     const fetchFoodItems = async () => {
       setIsLoadingProducts(true);
       try {
+        if (isMockFoodStore) {
+          setFoodItems(mockStorefrontFoodItems.map((item) => ({ ...item, storeId })));
+          return;
+        }
+
         const response = await fetch(`/api/stores/${storeId}/food`, {
           cache: "no-store",
         });
@@ -899,7 +1176,7 @@ function Page() {
     };
 
     fetchFoodItems();
-  }, [storeId, storeDetails?.business_type]);
+  }, [isMockFoodStore, storeId, storeDetails?.business_type]);
 
   const filteredProducts = products.filter((product) =>
     product.product_name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -984,6 +1261,37 @@ function Page() {
           </Link>
         </div>
       </div>
+    );
+  }
+
+  if (isMockEventStore) {
+    return (
+      <>
+        <V2EventStorefront
+          storeId={storeId}
+          storeDetails={storeDetails}
+          storeReviews={storeReviews}
+          listings={listings}
+          ratings={ratings}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          toggleCart={toggleCart}
+          showCart={showCart}
+          logoUrl={logoUrl}
+          bannerUrl={bannerUrl}
+          getWhatsAppUrl={getWhatsAppUrl}
+          events={mockEvents}
+        />
+        <SubscriptionModal
+          isOpen={showModal}
+          storeName={storeDetails.store_name}
+        />
+        <AvailabilityModal
+          isOpen={showAvailabilityModal}
+          storeName={storeDetails.store_name}
+          nextOpening={nextOpening}
+        />
+      </>
     );
   }
 

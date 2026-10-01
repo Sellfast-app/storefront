@@ -15,6 +15,7 @@ import { CreditCard, MessageCircle, PlusIcon, Truck } from 'lucide-react';
 import MinusIcon from '@/components/svgIcons/MinusIcon';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ratingBreakdown } from '@/lib/mockdata'
+import { isMockRetailStorefront, mockRetailProducts } from '@/lib/storefront-mock'
 import { useCart } from '@/context/CartContext'
 import CartButton from '@/components/CartButton'
 import CartView from '@/components/CartView'
@@ -117,6 +118,7 @@ function Page() {
   const [thumbsSwiper, setThumbsSwiper] = useState<any>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
+  const isMockRetailStore = isMockRetailStorefront(storeId);
 
   // Variant state
   const [parsedVariants, setParsedVariants] = useState<ProductVariant[]>([]);
@@ -130,6 +132,13 @@ function Page() {
       setIsLoading(true)
       setError(null)
       try {
+        if (isMockRetailStore) {
+          const mockProduct = mockRetailProducts.find((item) => item.id === productId);
+          if (!mockProduct) throw new Error('Product not found');
+          setProduct({ ...mockProduct, store_id: storeId });
+          return;
+        }
+
         const response = await fetch(`/api/stores/${storeId}/products/${productId}`)
         if (!response.ok) throw new Error('Failed to fetch product')
         const result = await response.json()
@@ -146,7 +155,7 @@ function Page() {
       }
     }
     fetchProduct()
-  }, [storeId, productId])
+  }, [isMockRetailStore, storeId, productId])
 
   // Fetch related products
   useEffect(() => {
@@ -154,6 +163,16 @@ function Page() {
       if (!storeId) return
       setIsLoadingRelated(true)
       try {
+        if (isMockRetailStore) {
+          setRelatedProducts(
+            mockRetailProducts
+              .filter((item) => item.id !== productId)
+              .map((item) => ({ ...item, store_id: storeId }))
+              .slice(0, 6)
+          );
+          return;
+        }
+
         const queryParams = new URLSearchParams({ page: '1', pageSize: '6', status: 'ready' })
         const response = await fetch(`/api/stores/${storeId}/products?${queryParams.toString()}`)
         if (!response.ok) throw new Error('Failed to fetch related products')
@@ -169,7 +188,7 @@ function Page() {
       }
     }
     fetchRelatedProducts()
-  }, [storeId, productId])
+  }, [isMockRetailStore, storeId, productId])
 
   useEffect(() => {
     setIsMounted(true);
