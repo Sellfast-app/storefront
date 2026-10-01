@@ -21,6 +21,7 @@ import {
 import { FoodItem } from "@/lib/mockdata";
 import FoodProductGrid from "@/components/FoodproductGrid";
 import {
+  CheckCircle2,
   MapPin,
   Menu,
   CreditCard,
@@ -304,6 +305,81 @@ function V2CheckoutRoutes() {
   );
 }
 
+function StorefrontLeadForm({
+  storeId,
+  storeName,
+}: {
+  storeId: string;
+  storeName: string;
+}) {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("loading");
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/leads", {
+        body: JSON.stringify({ email, storeId }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(result?.message || "Unable to join list right now");
+      }
+
+      setStatus("success");
+      setMessage("You're on the list. We'll keep you updated.");
+      setEmail("");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Unable to join list right now");
+    }
+  }
+
+  return (
+    <section className="mt-10 rounded-3xl border border-[#E7EFE5] bg-[#061400] p-5 text-white md:p-8">
+      <div className="grid gap-5 md:grid-cols-[1fr_auto] md:items-center">
+        <div>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Stay connected
+          </div>
+          <h2 className="text-2xl font-semibold">Get updates from {storeName}</h2>
+          <p className="mt-2 max-w-xl text-sm text-white/70">
+            Drop your email for restocks, offers and new product announcements.
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="w-full md:w-[420px]">
+          <div className="flex flex-col gap-2 rounded-2xl bg-white p-2 sm:flex-row">
+            <Input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              required
+              placeholder="Enter your email"
+              className="h-11 flex-1 border-0 bg-transparent text-[#111827] shadow-none focus-visible:ring-0"
+            />
+            <Button disabled={status === "loading"} className="h-11 rounded-xl px-5">
+              {status === "loading" ? "Submitting..." : "Submit"}
+            </Button>
+          </div>
+          {message && (
+            <p className={`mt-2 text-xs ${status === "error" ? "text-red-200" : "text-white/70"}`}>
+              {message}
+            </p>
+          )}
+        </form>
+      </div>
+    </section>
+  );
+}
+
 function V2RetailStorefront({
   storeId,
   storeDetails,
@@ -514,6 +590,7 @@ function V2RetailStorefront({
             </section>
 
             <V2CheckoutRoutes />
+            <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
           </>
         )}
       </main>
@@ -667,6 +744,7 @@ function V2FoodStorefront({
                   searchQuery={searchQuery}
                 />
                 <V2CheckoutRoutes />
+                <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
               </div>
             </div>
           </section>
