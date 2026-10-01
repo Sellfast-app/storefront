@@ -722,7 +722,10 @@ function V2EventStorefront({
     (sum, item) => sum + (item.ticket.price || 0) * item.quantity,
     0
   );
-  const serviceFee = selectedTickets.reduce((sum, item) => sum + 740 * item.quantity, 0);
+  const serviceFee = selectedTickets.reduce(
+    (sum, item) => sum + (item.ticket.type === "paid" ? 740 * item.quantity : 0),
+    0
+  );
   const ticketTotal = ticketSubtotal + serviceFee;
   const totalTickets = selectedTickets.reduce((sum, item) => sum + item.quantity, 0);
   const updateTicketQuantity = (ticketId: string, nextQuantity: number, limit: number) => {
@@ -908,7 +911,11 @@ function V2EventStorefront({
                             <span>
                               {quantity} x {ticket.name}
                             </span>
-                            <span>₦{((ticket.price || 0) * quantity).toLocaleString()}</span>
+                            <span>
+                              {ticket.type === "free"
+                                ? "Free"
+                                : `₦${((ticket.price || 0) * quantity).toLocaleString()}`}
+                            </span>
                           </div>
                         ))}
                         <div className="border-t pt-5">
