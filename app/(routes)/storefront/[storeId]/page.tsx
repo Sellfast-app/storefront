@@ -38,7 +38,6 @@ import {
   Clock,
   MapPin,
   Menu,
-  Globe2,
   Search,
   ShoppingBag,
   SlidersHorizontal,
@@ -47,7 +46,6 @@ import {
   Ticket,
   Truck,
   UserRound,
-  WalletCards,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -252,44 +250,6 @@ function V2StoreHeader({
   );
 }
 
-function V2LocalizationStrip({
-  storeDetails,
-}: {
-  storeDetails: StoreDetails;
-}) {
-  const country = storeDetails.metadata?.country || "Nigeria";
-  const state = storeDetails.metadata?.state || storeDetails.metadata?.city || "Lagos";
-  const currency =
-    country.toLowerCase().includes("ghana")
-      ? "GHS"
-      : country.toLowerCase().includes("kenya")
-        ? "KES"
-        : country.toLowerCase().includes("united kingdom")
-          ? "GBP"
-          : country.toLowerCase().includes("rwanda")
-            ? "RWF"
-            : "NGN";
-
-  return (
-    <section className="border-b border-[#EEF1EE] bg-white">
-      <div className="mx-auto grid max-w-7xl gap-3 px-4 py-3 text-sm text-[#4B5563] md:grid-cols-3 lg:px-6">
-        <div className="flex items-center gap-2">
-          <Globe2 className="h-4 w-4 text-primary" />
-          <span>{country} storefront</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <WalletCards className="h-4 w-4 text-primary" />
-          <span>Prices shown in {currency}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-primary" />
-          <span>Pickup and delivery for {state}</span>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function StorefrontLeadForm({
   storeId,
   storeName,
@@ -396,7 +356,6 @@ function V2RetailStorefront({
         setSearchQuery={setSearchQuery}
         toggleCart={toggleCart}
       />
-      <V2LocalizationStrip storeDetails={storeDetails} />
 
       <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
         {showCart ? (
@@ -448,7 +407,6 @@ function V2RetailStorefront({
                 {[
                   ["Listings", listings],
                   ["Rating", ratings],
-                  ["Orders", "Web + Chat"],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-2xl border bg-white p-5">
                     <p className="text-xs text-[#71717A]">{label}</p>
@@ -609,7 +567,6 @@ function V2FoodStorefront({
         setSearchQuery={setSearchQuery}
         toggleCart={toggleCart}
       />
-      <V2LocalizationStrip storeDetails={storeDetails} />
 
       {showCart ? (
         <main className="mx-auto max-w-2xl px-4 py-6 lg:px-6">
@@ -788,7 +745,6 @@ function V2EventStorefront({
         setSearchQuery={setSearchQuery}
         toggleCart={toggleCart}
       />
-      <V2LocalizationStrip storeDetails={storeDetails} />
 
       <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
         {showCart ? (
