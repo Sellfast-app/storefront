@@ -38,9 +38,7 @@ import {
   Clock,
   MapPin,
   Menu,
-  CreditCard,
   Globe2,
-  MessageCircle,
   Search,
   ShoppingBag,
   SlidersHorizontal,
@@ -288,40 +286,6 @@ function V2LocalizationStrip({
           <span>Pickup and delivery for {state}</span>
         </div>
       </div>
-    </section>
-  );
-}
-
-function V2CheckoutRoutes() {
-  const routes = [
-    {
-      icon: ShoppingBag,
-      title: "Website checkout",
-      description: "Browse, add to cart and pay directly on the storefront.",
-    },
-    {
-      icon: MessageCircle,
-      title: "WhatsApp ordering",
-      description: "Continue the conversation with the vendor's AI sales assistant.",
-    },
-    {
-      icon: CreditCard,
-      title: "Secure payments",
-      description: "Paystack, Nomba and crypto-ready checkout surfaces.",
-    },
-  ];
-
-  return (
-    <section className="mt-10 grid gap-4 md:grid-cols-3">
-      {routes.map((route) => (
-        <div key={route.title} className="rounded-2xl border bg-white p-5">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <route.icon className="h-5 w-5" />
-          </div>
-          <h3 className="mt-4 text-sm font-semibold">{route.title}</h3>
-          <p className="mt-2 text-sm text-[#71717A]">{route.description}</p>
-        </div>
-      ))}
     </section>
   );
 }
@@ -610,7 +574,6 @@ function V2RetailStorefront({
               </div>
             </section>
 
-            <V2CheckoutRoutes />
             <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
           </>
         )}
@@ -764,7 +727,6 @@ function V2FoodStorefront({
                   isLoading={isLoadingProducts}
                   searchQuery={searchQuery}
                 />
-                <V2CheckoutRoutes />
                 <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
               </div>
             </div>
@@ -1023,7 +985,6 @@ function V2EventStorefront({
               </aside>
             </section>
 
-            <V2CheckoutRoutes />
             <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
           </>
         )}

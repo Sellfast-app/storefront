@@ -37,8 +37,7 @@ export const mockEvents: Event[] = [
     name: "Detty December Concert",
     description:
       "An electrifying night of Afrobeat, Afropop, and highlife music featuring Nigeria's biggest stars. Expect non-stop hits, breathtaking performances, and an energy that will keep you dancing till dawn.",
-    coverImage:
-      "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&h=400&fit=crop",
+    coverImage: "/what-is-a-presale-for-tickets.webp",
     bannerColor: "#FF6B35",
     startDate: "2026-12-20",
     endDate: "2026-12-20",
@@ -98,8 +97,7 @@ export const mockEvents: Event[] = [
     name: "Lagos Tech Summit 2026",
     description:
       "West Africa's premier technology conference bringing together founders, developers, investors, and innovators. Three days of keynotes, workshops, panel discussions, and networking opportunities.",
-    coverImage:
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop",
+    coverImage: "/what-is-a-presale-for-tickets.webp",
     bannerColor: "#0F172A",
     startDate: "2026-11-10",
     endDate: "2026-11-12",
@@ -169,8 +167,7 @@ export const mockEvents: Event[] = [
     name: "Art Basel Lagos Preview",
     description:
       "A curated exhibition showcasing contemporary African art from emerging and established artists across the continent. Featuring painting, sculpture, photography, and mixed media installations.",
-    coverImage:
-      "https://images.unsplash.com/photo-1578301978693-85fa913c58d8?w=800&h=400&fit=crop",
+    coverImage: "/what-is-a-presale-for-tickets.webp",
     bannerColor: "#7C3AED",
     startDate: "2026-10-15",
     endDate: "2026-10-20",
