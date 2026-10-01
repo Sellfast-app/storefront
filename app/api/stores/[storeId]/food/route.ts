@@ -1,5 +1,6 @@
 // app/api/stores/[storeId]/food/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { isMockFoodStorefront, mockStorefrontFoodItems } from "@/lib/storefront-mock";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -20,6 +21,17 @@ export async function GET(
       return NextResponse.json(
         { status: "error", message: "Store ID is required" },
         { status: 400 }
+      );
+    }
+
+    if (isMockFoodStorefront(storeId)) {
+      return NextResponse.json(
+        {
+          status: "success",
+          message: "OK",
+          data: mockStorefrontFoodItems.map((item) => ({ ...item, storeId })),
+        },
+        { headers: NO_STORE_HEADERS }
       );
     }
 

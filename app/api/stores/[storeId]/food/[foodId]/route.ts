@@ -1,5 +1,6 @@
 // app/api/stores/[storeId]/food/[foodId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { isMockFoodStorefront, mockStorefrontFoodItems } from "@/lib/storefront-mock";
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
@@ -18,6 +19,24 @@ export async function GET(
       return NextResponse.json(
         { status: "error", message: "Store ID and Food ID are required" },
         { status: 400 }
+      );
+    }
+
+    if (isMockFoodStorefront(storeId)) {
+      const item = mockStorefrontFoodItems.find(
+        (food) => food.uid === foodId || String(food.id) === foodId
+      );
+
+      if (!item) {
+        return NextResponse.json(
+          { status: "error", message: "Food item not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(
+        { status: "success", data: { ...item, storeId } },
+        { headers: NO_STORE_HEADERS }
       );
     }
 
