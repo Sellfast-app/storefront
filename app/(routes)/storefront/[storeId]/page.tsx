@@ -32,6 +32,7 @@ import {
 } from "@/lib/storefront-mock";
 import { Event, getPublishedEvents } from "@/lib/events-data";
 import FoodProductGrid from "@/components/FoodproductGrid";
+import BannerCarousel from "@/components/BannerCarousel";
 import {
   CalendarDays,
   CheckCircle2,
@@ -60,6 +61,8 @@ interface StoreDetails {
   bot_url: string | null;
   logo: string | null;
   banner: string | null;
+  banner_style?: "portrait" | "carousel";
+  banner_images?: string[];
   cac: string | null;
   tin: string | null;
   doctype: string | null;
@@ -575,14 +578,21 @@ function V2FoodStorefront({
       ) : (
         <main>
           <section className="relative h-[360px] overflow-hidden md:h-[430px]">
-            <Image
-              src={bannerUrl || Banner}
-              alt={`${storeDetails.store_name} banner`}
-              fill
-              priority
-              className="object-cover"
-              sizes="100vw"
-            />
+            {storeDetails.banner_style === "carousel" ? (
+              <BannerCarousel
+                images={storeDetails.banner_images || []}
+                autoplayInterval={5000}
+              />
+            ) : (
+              <Image
+                src={bannerUrl || Banner}
+                alt={`${storeDetails.store_name} banner`}
+                fill
+                priority
+                className="object-cover"
+                sizes="100vw"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
             <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center px-4 lg:px-6">
               <div className="max-w-2xl">
@@ -1007,7 +1017,7 @@ function Page() {
             : isMockFoodStore
               ? mockFoodStoreDetails
               : mockRetailStoreDetails;
-          setStoreDetails({ ...details, id: storeId });
+          setStoreDetails({ ...details, id: storeId } as StoreDetails);
           setStoreReviews(mockStoreReviews);
           setListings(
             isMockEventStore
@@ -1034,7 +1044,7 @@ function Page() {
         const result = await response.json();
 
         if (result.status === "success" && result.data) {
-          setStoreDetails(result.data.storeDetails);
+          setStoreDetails(result.data.storeDetails as StoreDetails);
           setStoreReviews(result.data.reviews.items || []);
           setListings(result.data.total_listings || 0);
           setRatings(result.data.ratings || 0);
@@ -1186,7 +1196,10 @@ function Page() {
   };
 
   const logoUrl = storeDetails?.logo ? getImageUrl(storeDetails.logo) : null;
-  const bannerUrl = storeDetails?.banner ? getImageUrl(storeDetails.banner) : null;
+  const bannerUrl =
+    storeDetails?.banner && storeDetails.banner_style !== "carousel"
+      ? getImageUrl(storeDetails.banner)
+      : null;
 
   if (isLoading) {
     return (
@@ -1325,7 +1338,6 @@ function Page() {
       />
     </>
   );
-
 }
 
 export default Page;

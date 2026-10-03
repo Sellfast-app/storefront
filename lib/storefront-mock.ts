@@ -40,6 +40,8 @@ export const mockRetailStoreDetails = {
   bot_url: "https://wa.me/2348012345678",
   logo: "/profile.png",
   banner: "/Banner.png",
+  banner_style: "portrait",
+  banner_images: ["/Banner.png"],
   cac: null,
   tin: null,
   doctype: null,
@@ -84,6 +86,8 @@ export const mockFoodStoreDetails = {
     phone: "08098765432",
     owner_name: "Green Bowl Kitchen",
   },
+  banner_style: "carousel",
+  banner_images: ["/Banner.png", "/Rice.png"],
 };
 
 export const mockEventStoreDetails = {
