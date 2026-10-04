@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { ChevronLeft, ChevronRight, Clock, Flame, Leaf, ShoppingBag } from "lucide-react";
 import { FoodItem } from "@/lib/mockdata";
 import { getFoodCardPrice } from "@/lib/foodPricing";
@@ -168,7 +167,6 @@ function FoodCard({
   const servingLabel = getServingLabel(item);
   const isUnavailable = item.status === "Out of Stock";
   const canAddDirectly = item.type === "Simple" && item.portion.length === 1;
-  const detailHref = `/storefront/${storeId}/food/${item.uid}`;
 
   const actionLabel =
     canAddDirectly
@@ -224,7 +222,19 @@ function FoodCard({
         }}
         aria-label={`Open details for ${item.name}`}
       >
-        <Link href={detailHref} className="relative block">
+        <div
+          className="relative block"
+          onClick={() => setModalOpen(true)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setModalOpen(true);
+            }
+          }}
+          aria-label={`View details for ${item.name}`}
+        >
           <ImageCarousel images={item.product_images} name={item.name} />
 
           <div
@@ -233,15 +243,23 @@ function FoodCard({
             <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
             {status.label}
           </div>
-        </Link>
+        </div>
 
         <div className="flex flex-col gap-1.5 p-2.5 flex-1">
-          <Link
-            href={`/storefront/${storeId}/food/${item.uid}`}
-            className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight hover:text-[#4FCA6A] transition-colors"
+          <span
+            className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight hover:text-[#4FCA6A] transition-colors cursor-pointer"
+            onClick={() => setModalOpen(true)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setModalOpen(true);
+              }
+            }}
           >
             {item.name}
-          </Link>
+          </span>
 
           <div className="flex flex-wrap items-center gap-1">
             <span
