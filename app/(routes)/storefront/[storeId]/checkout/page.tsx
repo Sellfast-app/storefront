@@ -1258,31 +1258,13 @@ export default function CheckoutPage() {
   };
 
   const shipmentLabel = (method: DeliveryMethodType | null) => {
-    if (!method) return 'Select delivery method';
-    if (method === 'relay') return 'Relay by Chowdeck';
-    if (method === 'pickup') return 'Store Pickup';
-    if (method === 'vendor') return 'Fulfilled By Vendor';
-    if (method === 'gig') return 'GIG Logistics';
-    return 'Door Delivery';
-  };
-
-  const checkoutSteps = [
-    {
-      label: 'Customer info',
-      active: Boolean(customerDetails.name && customerDetails.phone && customerDetails.email),
-      icon: ShieldCheck,
-    },
-    {
-      label: 'Delivery route',
-      active: Boolean(deliveryMethod && (!needsQuote || selectedQuote || hasCouponVendorDelivery)),
-      icon: MapPin,
-    },
-    {
-      label: isZeroBalanceOrder ? 'Place order' : 'Payment',
-      active: isZeroBalanceOrder || Boolean(paymentMethod),
-      icon: CreditCard,
-    },
-  ];
+  if (!method) return 'Select delivery method';
+  if (method === 'relay') return 'Relay by Chowdeck';
+  if (method === 'pickup') return 'Store Pickup';
+  if (method === 'vendor') return 'Fulfilled By Vendor';
+  if (method === 'gig') return 'GIG Logistics';
+  return 'Door Delivery';
+};
 
   return (
     <div className='flex flex-col bg-[#FCFCFC]'>
@@ -1297,39 +1279,7 @@ export default function CheckoutPage() {
       <div className='p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden'>
         {/* Left: Order Summary */}
         <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full order-2 md:order-1 ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
-          <Card className='mb-4 shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
-            <CardContent className='p-4'>
-              <div className='flex items-center justify-between gap-3'>
-                <div>
-                  <p className='text-xs font-medium uppercase tracking-[0.18em] text-[#4FCA6A]'>
-                    Secure checkout
-                  </p>
-                  <h3 className='mt-1 text-sm font-semibold'>
-                    {isZeroBalanceOrder ? 'Coupon covers this order' : 'Secure checkout'}
-                  </h3>
-                </div>
-                <span className='rounded-full bg-[#4FCA6A]/10 px-3 py-1 text-xs font-medium text-[#2E7D42]'>
-                  {isZeroBalanceOrder ? 'No gateway needed' : paymentMethod.toUpperCase()}
-                </span>
-              </div>
-              <div className='mt-4 grid gap-2 sm:grid-cols-3'>
-                {checkoutSteps.map((step) => (
-                  <div
-                    key={step.label}
-                    className={`rounded-xl border p-3 ${
-                      step.active ? 'border-[#4FCA6A]/30 bg-[#4FCA6A]/10' : 'border-[#F1F1F1] bg-white'
-                    }`}
-                  >
-                    <step.icon className={`h-4 w-4 ${step.active ? 'text-[#4FCA6A]' : 'text-[#A0A0A0]'}`} />
-                    <p className='mt-2 text-xs font-medium'>{step.label}</p>
-                  </div>
-                ))}
-              </div>
-              <p className='mt-3 text-xs text-[#71717A]'>
-                Delivery, discounts and payment routing update as the customer completes checkout.
-              </p>
-            </CardContent>
-          </Card>
+          
           <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
             <CardContent className='pb-2 border-b border-[#F5F5F5] dark:border-[#1F1F1F] space-y-4 pt-6'>
               <h3 className='font-semibold'>Order Summary</h3>
