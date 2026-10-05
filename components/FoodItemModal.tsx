@@ -27,6 +27,18 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
   const [selectedServingType, setSelectedServingType] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<Record<string, SelectedAddOnOption[]>>({});
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
   useEffect(() => {
     if (item) {
       setImageIndex(0);
@@ -138,8 +150,8 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={() => onOpenChange(false)} />
+      {/* Backdrop with blur */}
+      <div className="absolute inset-0 backdrop-blur-xs bg-black/50" onClick={() => onOpenChange(false)} />
 
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
