@@ -762,7 +762,6 @@ function V2RetailStorefront({
   allProducts,
   isLoadingProducts,
   handleAddToCart,
-  getWhatsAppUrl,
 }: V2RetailTemplateProps) {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
@@ -889,25 +888,6 @@ function V2RetailStorefront({
                         {banner.headline}
                       </h1>
                       <p className="mt-3 text-sm text-white/75 md:text-base">{banner.sub}</p>
-                      <div className="mt-6 flex flex-wrap gap-3">
-                        <Button className="rounded-full bg-[#005B14] px-6 hover:bg-[#004610]">
-                          Shop Now
-                        </Button>
-                        {storeDetails.metadata?.phone && (
-                          <a
-                            href={getWhatsAppUrl(storeDetails.metadata.phone)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button
-                              variant="outline"
-                              className="rounded-full border-white/40 bg-white/10 text-white backdrop-blur hover:bg-white/20"
-                            >
-                              Chat on WhatsApp
-                            </Button>
-                          </a>
-                        )}
-                      </div>
                     </div>
                   </div>
                 </div>
