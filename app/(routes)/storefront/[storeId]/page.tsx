@@ -360,114 +360,116 @@ function RetailStorefrontFooter({
   ];
 
   return (
-    <footer className="mt-16 border-t border-[#E5E7EB] bg-[#F7F8F7] text-[#272B2A]">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-[1.2fr_0.8fr_0.9fr_1.25fr] lg:px-8">
-        <div>
-          <div className="mb-8 flex items-center gap-3">
-            {logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt={storeDetails.store_name}
-                width={56}
-                height={56}
-                className="h-12 w-12 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#005B14] shadow-sm">
-                <Store className="h-5 w-5" />
-              </div>
-            )}
-            <p className="text-base font-semibold">{storeDetails.store_name}</p>
-          </div>
-          {storeDetails.store_description && (
-            <p className="mb-7 max-w-xs text-sm leading-6 text-[#666D69]">
-              {storeDetails.store_description}
-            </p>
-          )}
-          <div className="space-y-4 text-sm text-[#666D69]">
-            <div className="flex items-start gap-3">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>
-                {[storeDetails.metadata?.address, storeDetails.metadata?.city, storeDetails.metadata?.state, storeDetails.metadata?.country]
-                  .filter(Boolean)
-                  .join(", ") || "Store address unavailable"}
-              </span>
+    <footer className="mt-16 bg-[url('/storefront-footer-bg.png')] bg-cover bg-center text-white">
+      <div className="bg-[#061400]/20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-[1.2fr_0.8fr_0.9fr_1.25fr] lg:px-8">
+          <div>
+            <div className="mb-8 flex items-center gap-3">
+              {logoUrl ? (
+                <Image
+                  src={logoUrl}
+                  alt={storeDetails.store_name}
+                  width={56}
+                  height={56}
+                  className="h-12 w-12 rounded-full object-cover ring-2 ring-white/20"
+                />
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white ring-2 ring-white/20">
+                  <Store className="h-5 w-5" />
+                </div>
+              )}
+              <p className="text-base font-semibold">{storeDetails.store_name}</p>
             </div>
-            {storeDetails.metadata?.phone && (
-              <a href={`tel:${storeDetails.metadata.phone}`} className="flex items-center gap-3 hover:text-[#005B14]">
-                <Phone className="h-4 w-4" />
-                {storeDetails.metadata.phone}
-              </a>
-            )}
-          </div>
-          <div className="mt-7 flex items-center gap-3">
-            {socialLinks.length > 0 ? (
-              socialLinks.map(({ label, href, icon: Icon }) => (
-                <a
-                  key={label}
-                  href={href || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={label}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#DADFDA] text-[#666D69] transition-colors hover:border-[#005B14] hover:text-[#005B14]"
-                >
-                  <Icon className="h-4 w-4" />
-                </a>
-              ))
-            ) : storeDetails.metadata?.phone ? (
-              <a
-                href={`https://wa.me/${storeDetails.metadata.phone.replace(/\D/g, "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Contact store"
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#DADFDA] text-[#666D69] transition-colors hover:border-[#005B14] hover:text-[#005B14]"
-              >
-                <Mail className="h-4 w-4" />
-              </a>
-            ) : null}
-          </div>
-        </div>
-
-        <FooterLinkColumn title="Store Links" links={storeLinks} />
-        <FooterLinkColumn title="Useful Links" links={usefulLinks} />
-
-        <div>
-          <h3 className="text-sm font-bold uppercase tracking-wide text-[#272B2A]">
-            Stay Updated
-          </h3>
-          <p className="mt-4 text-sm leading-6 text-[#666D69]">
-            Get new arrivals, restocks and store updates from {storeDetails.store_name}.
-          </p>
-          <form onSubmit={handleSubmit} className="mt-5">
-            <div className="flex overflow-hidden rounded-full border border-[#DADFDA] bg-white p-1 shadow-sm">
-              <Input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                required
-                placeholder="Enter your email"
-                className="h-11 flex-1 border-0 bg-transparent px-4 text-sm shadow-none focus-visible:ring-0"
-              />
-              <Button
-                type="submit"
-                disabled={status === "loading"}
-                className="h-11 rounded-full bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57]"
-              >
-                {status === "loading" ? "..." : "Join"}
-              </Button>
-            </div>
-            {message && (
-              <p className={`mt-2 text-xs ${status === "error" ? "text-red-500" : "text-[#005B14]"}`}>
-                {message}
+            {storeDetails.store_description && (
+              <p className="mb-7 max-w-xs text-sm leading-6 text-white/70">
+                {storeDetails.store_description}
               </p>
             )}
-          </form>
+            <div className="space-y-4 text-sm text-white/70">
+              <div className="flex items-start gap-3">
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  {[storeDetails.metadata?.address, storeDetails.metadata?.city, storeDetails.metadata?.state, storeDetails.metadata?.country]
+                    .filter(Boolean)
+                    .join(", ") || "Store address unavailable"}
+                </span>
+              </div>
+              {storeDetails.metadata?.phone && (
+                <a href={`tel:${storeDetails.metadata.phone}`} className="flex items-center gap-3 hover:text-white">
+                  <Phone className="h-4 w-4" />
+                  {storeDetails.metadata.phone}
+                </a>
+              )}
+            </div>
+            <div className="mt-7 flex items-center gap-3">
+              {socialLinks.length > 0 ? (
+                socialLinks.map(({ label, href, icon: Icon }) => (
+                  <a
+                    key={label}
+                    href={href || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 text-white/75 transition-colors hover:border-white hover:text-white"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                ))
+              ) : storeDetails.metadata?.phone ? (
+                <a
+                  href={`https://wa.me/${storeDetails.metadata.phone.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Contact store"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 text-white/75 transition-colors hover:border-white hover:text-white"
+                >
+                  <Mail className="h-4 w-4" />
+                </a>
+              ) : null}
+            </div>
+          </div>
+
+          <FooterLinkColumn title="Store Links" links={storeLinks} variant="dark" />
+          <FooterLinkColumn title="Useful Links" links={usefulLinks} variant="dark" />
+
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-white">
+              Stay Updated
+            </h3>
+            <p className="mt-4 text-sm leading-6 text-white/70">
+              Get new arrivals, restocks and store updates from {storeDetails.store_name}.
+            </p>
+            <form onSubmit={handleSubmit} className="mt-5">
+              <div className="flex flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 shadow-sm backdrop-blur sm:flex-row lg:flex-col xl:flex-row">
+                <Input
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  type="email"
+                  required
+                  placeholder="Enter your email"
+                  className="h-11 flex-1 rounded-xl border-0 bg-white px-4 text-sm text-[#111827] shadow-none focus-visible:ring-0"
+                />
+                <Button
+                  type="submit"
+                  disabled={status === "loading"}
+                  className="h-11 shrink-0 rounded-xl bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57]"
+                >
+                  {status === "loading" ? "..." : "Join"}
+                </Button>
+              </div>
+              {message && (
+                <p className={`mt-2 text-xs ${status === "error" ? "text-red-200" : "text-white/80"}`}>
+                  {message}
+                </p>
+              )}
+            </form>
+          </div>
         </div>
-      </div>
-      <div className="border-t border-[#E1E5E1]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-xs font-semibold uppercase text-[#666D69] md:flex-row md:items-center md:justify-between lg:px-8">
-          <p>{storeDetails.store_name} © {new Date().getFullYear()}</p>
-          <p>All rights reserved.</p>
+        <div className="border-t border-white/15">
+          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-xs font-semibold uppercase text-white/65 md:flex-row md:items-center md:justify-between lg:px-8">
+            <p>{storeDetails.store_name} © {new Date().getFullYear()}</p>
+            <p>All rights reserved.</p>
+          </div>
         </div>
       </div>
     </footer>
@@ -709,17 +711,23 @@ function FoodStorefrontFooter({
 function FooterLinkColumn({
   title,
   links,
+  variant = "light",
 }: {
   title: string;
   links: { label: string; href: string }[];
+  variant?: "light" | "dark";
 }) {
+  const isDark = variant === "dark";
+
   return (
     <div>
-      <h3 className="text-sm font-bold uppercase tracking-wide text-[#272B2A]">{title}</h3>
-      <ul className="mt-6 space-y-4 text-sm font-medium text-[#666D69]">
+      <h3 className={`text-sm font-bold uppercase tracking-wide ${isDark ? "text-white" : "text-[#272B2A]"}`}>
+        {title}
+      </h3>
+      <ul className={`mt-6 space-y-4 text-sm font-medium ${isDark ? "text-white/70" : "text-[#666D69]"}`}>
         {links.map((link) => (
           <li key={link.label}>
-            <Link href={link.href} className="transition-colors hover:text-[#005B14]">
+            <Link href={link.href} className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-[#005B14]"}`}>
               {link.label}
             </Link>
           </li>
