@@ -39,7 +39,6 @@ import {
   MapPin,
   Search,
   SlidersHorizontal,
-  Star,
   Store,
   Ticket,
   Truck,
@@ -118,39 +117,6 @@ interface Product {
 
 type ratings = string | number;
 type totalListings = number;
-
-const StarRating = ({ rating }: { rating: number }) => {
-  const fullStars = Math.floor(rating);
-  const hasHalfStar = rating % 1 !== 0;
-  return (
-    <div className="flex gap-0.5 mt-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <svg
-          key={star}
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill={
-            star <= fullStars
-              ? "#FEA436"
-              : star === fullStars + 1 && hasHalfStar
-                ? "url(#half)"
-                : "#FFE0BA"
-          }
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <linearGradient id="half">
-              <stop offset="50%" stopColor="#FEA436" />
-              <stop offset="50%" stopColor="#FFE0BA" />
-            </linearGradient>
-          </defs>
-          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-        </svg>
-      ))}
-    </div>
-  );
-};
 
 const getImageUrl = (imagePath: string | null): string | null => {
   if (!imagePath) return null;
@@ -309,30 +275,31 @@ function StorefrontLeadForm({ storeId, storeName }: { storeId: string; storeName
   }
 
   return (
-    <section className="mt-16 rounded-2xl border border-[#E7EFE5] bg-[#F6FBF6] p-6 md:p-8">
-      <div className="grid gap-5 md:grid-cols-[1fr_auto] md:items-center">
+    <section className="mt-16 overflow-hidden rounded-2xl border border-[#DDF3E2] bg-white shadow-sm">
+      <div className="grid gap-5 bg-[#F6FBF6] p-5 md:grid-cols-[1fr_auto] md:items-center md:p-6">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#005B14]/10 px-3 py-1 text-xs font-medium text-[#005B14]">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-[#005B14] shadow-sm">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Stay in the loop
           </div>
-          <h2 className="text-xl font-bold">Get updates from {storeName}</h2>
+          <h2 className="text-xl font-bold text-[#111827]">Get updates from {storeName}</h2>
           <p className="mt-1 max-w-md text-sm text-[#6B7280]">
-            New drops, restocks, and exclusive offers — straight to your inbox.
+            New drops, restocks, and exclusive offers straight to your inbox.
           </p>
         </div>
-        <form onSubmit={handleSubmit} className="w-full md:w-[380px]">
-          <div className="flex gap-2">
+        <form onSubmit={handleSubmit} className="w-full md:w-[430px]">
+          <div className="flex flex-col gap-2 rounded-2xl border border-[#D1FAE5] bg-white p-2 shadow-sm sm:flex-row">
             <Input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               type="email"
               required
               placeholder="Enter your email"
-              className="h-11 flex-1 rounded-full border-[#D1FAE5] bg-white text-sm"
+              className="h-11 flex-1 rounded-xl border-0 bg-transparent px-3 text-sm shadow-none focus-visible:ring-0"
             />
-            <Button disabled={status === "loading"} className="h-11 rounded-full bg-[#005B14] px-5 text-sm hover:bg-[#004610]">
-              {status === "loading" ? "..." : "Join"}
+            <Button disabled={status === "loading"} className="h-11 shrink-0 rounded-xl bg-[#005B14] px-5 text-sm hover:bg-[#004610]">
+              {status === "loading" ? "Joining..." : "Join list"}
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
           {message && (
@@ -346,12 +313,50 @@ function StorefrontLeadForm({ storeId, storeName }: { storeId: string; storeName
   );
 }
 
+function StorefrontFooter({
+  storeDetails,
+  logoUrl,
+}: Pick<V2TemplateProps, "storeDetails" | "logoUrl">) {
+  return (
+    <footer className="mt-16 bg-[url('/storefront-footer-bg.png')] bg-cover bg-center text-white">
+      <div className="bg-[#061400]/10">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 md:flex-row lg:px-8">
+          <div className="flex items-center gap-3">
+            {logoUrl ? (
+              <Image
+                src={logoUrl}
+                alt={storeDetails.store_name}
+                width={38}
+                height={38}
+                className="h-9 w-9 rounded-full object-cover ring-2 ring-white/20"
+              />
+            ) : (
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white ring-2 ring-white/20">
+                <Store className="h-4 w-4" />
+              </div>
+            )}
+            <div>
+              <p className="text-sm font-semibold">{storeDetails.store_name}</p>
+              <p className="text-xs text-white/60">{storeDetails.business_type}</p>
+            </div>
+          </div>
+          <p className="text-xs text-white/70 md:text-right">
+            Powered by{" "}
+            <a href="https://swiftree.app" className="font-semibold text-white hover:underline">
+              Swiftree
+            </a>
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 // ─── Retail Storefront (KM Taylor inspired) ───────────────────────────────────
 
 function V2RetailStorefront({
   storeId,
   storeDetails,
-  storeReviews,
   listings,
   ratings,
   searchQuery,
@@ -367,10 +372,14 @@ function V2RetailStorefront({
   getWhatsAppUrl,
 }: V2RetailTemplateProps) {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
-  const [activeTab, setActiveTab] = useState<"best" | "featured" | "new">("best");
   const [activeCategory, setActiveCategory] = useState("All");
   const [heroBannerIndex, setHeroBannerIndex] = useState(0);
-  const [showAllProducts, setShowAllProducts] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [priceFilter, setPriceFilter] = useState<"none" | "low-high" | "high-low" | "custom">("none");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const productsPerPage = 12;
 
   const categories = ["All", ...Array.from(
     new Set(allProducts.map((p) => p.product_type).filter(Boolean))
@@ -407,22 +416,39 @@ function V2RetailStorefront({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heroBanners.length]);
 
-  const tabProducts = (() => {
-    const base = activeCategory === "All"
-      ? allProducts
-      : allProducts.filter((p) => p.product_type === activeCategory);
-    if (activeTab === "best") return base.slice(0, 8);
-    if (activeTab === "featured") return base.slice(0, 8).reverse();
-    return [...base].sort((a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    ).slice(0, 8);
-  })();
-
-  const displayProducts = searchQuery.trim()
+  const baseProducts = searchQuery.trim()
     ? filteredProducts
-    : showAllProducts
-      ? allProducts
-      : allProducts.slice(0, 12);
+    : allProducts;
+  const categoryProducts = activeCategory === "All"
+    ? baseProducts
+    : baseProducts.filter((p) => p.product_type === activeCategory);
+  const minPriceValue = Number(minPrice);
+  const maxPriceValue = Number(maxPrice);
+  const displayProducts = [...categoryProducts]
+    .filter((product) => {
+      if (priceFilter !== "custom") return true;
+      const aboveMin = minPrice ? product.product_price >= minPriceValue : true;
+      const belowMax = maxPrice ? product.product_price <= maxPriceValue : true;
+      return aboveMin && belowMax;
+    })
+    .sort((a, b) => {
+      if (priceFilter === "low-high") return a.product_price - b.product_price;
+      if (priceFilter === "high-low") return b.product_price - a.product_price;
+      return 0;
+    });
+  const totalPages = Math.max(1, Math.ceil(displayProducts.length / productsPerPage));
+  const paginatedProducts = displayProducts.slice(
+    (currentPage - 1) * productsPerPage,
+    currentPage * productsPerPage
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeCategory, priceFilter, minPrice, maxPrice]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   return (
     <div className="min-h-screen bg-white text-[#111827]">
@@ -556,77 +582,9 @@ function V2RetailStorefront({
               </div>
             </section>
 
-            {/* ── OUR PRODUCTS Section ── */}
-            <section className="mx-auto max-w-7xl px-4 pt-10 lg:px-8">
-              <div className="mb-6 text-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#005B14]">
-                  Catalog
-                </p>
-                <h2 className="mt-1 text-2xl font-bold md:text-3xl">OUR PRODUCTS</h2>
-                <p className="mt-2 text-sm text-[#6B7280]">
-                  Explore our curated selection of popular, unique, and discounted items.
-                </p>
-              </div>
-
-              <div className="mb-6 flex justify-center gap-0 rounded-full border border-[#E5E7EB] bg-[#F9FAFB] p-1 w-fit mx-auto">
-                {(["best", "featured", "new"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
-                      activeTab === tab
-                        ? "bg-[#005B14] text-white shadow-sm"
-                        : "text-[#6B7280] hover:text-[#111827]"
-                    }`}
-                  >
-                    {tab === "best" ? "Best Sellers" : tab === "featured" ? "Featured" : "New Arrivals"}
-                  </button>
-                ))}
-              </div>
-
-              {isLoadingProducts ? (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="animate-pulse rounded-2xl bg-[#F3F4F6]">
-                      <div className="aspect-[3/4] rounded-t-2xl bg-[#E5E7EB]" />
-                      <div className="p-3 space-y-2">
-                        <div className="h-3 w-3/4 rounded bg-[#E5E7EB]" />
-                        <div className="h-3 w-1/2 rounded bg-[#E5E7EB]" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : tabProducts.length === 0 ? (
-                <div className="py-16 text-center text-sm text-[#9CA3AF]">No products found.</div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                  {tabProducts.map((product) => (
-                    <RetailProductCard
-                      key={product.id}
-                      product={product}
-                      storeId={storeId}
-                      onAddToCart={handleAddToCart}
-                    />
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-8 text-center">
-                <Link href="#all-products">
-                  <Button
-                    variant="outline"
-                    className="rounded-full border-[#005B14] px-8 text-[#005B14] hover:bg-[#005B14] hover:text-white"
-                    onClick={() => setShowAllProducts(true)}
-                  >
-                    VIEW ALL PRODUCTS
-                  </Button>
-                </Link>
-              </div>
-            </section>
-
             {/* ── All Products ── */}
-            <section id="all-products" className="mx-auto max-w-7xl px-4 pt-14 lg:px-8">
-              <div className="mb-6 flex items-center justify-between">
+            <section id="all-products" className="mx-auto max-w-7xl px-4 pt-10 lg:px-8">
+              <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h2 className="text-xl font-bold">
                     {searchQuery ? `Results for "${searchQuery}"` : "All Products"}
@@ -635,10 +593,63 @@ function V2RetailStorefront({
                     {displayProducts.length} item{displayProducts.length !== 1 ? "s" : ""}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="hidden rounded-full md:inline-flex gap-2">
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Filter
-                </Button>
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full border-[#D8EBDD] text-[#005B14] hover:bg-[#F2FBF4] md:inline-flex gap-2"
+                    onClick={() => setFilterOpen((open) => !open)}
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    Filter
+                  </Button>
+                  {filterOpen && (
+                    <div className="absolute right-0 top-11 z-10 w-[280px] rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-xl">
+                      <p className="mb-3 text-sm font-semibold text-[#111827]">Price filter</p>
+                      <div className="grid gap-2">
+                        {[
+                          ["none", "Default"],
+                          ["low-high", "Price: low to high"],
+                          ["high-low", "Price: high to low"],
+                          ["custom", "Custom range"],
+                        ].map(([value, label]) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setPriceFilter(value as typeof priceFilter)}
+                            className={`rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+                              priceFilter === value
+                                ? "bg-[#005B14] text-white"
+                                : "bg-[#F9FAFB] text-[#374151] hover:bg-[#F2FBF4]"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      {priceFilter === "custom" && (
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={minPrice}
+                            onChange={(event) => setMinPrice(event.target.value)}
+                            placeholder="Min"
+                            className="h-10 rounded-xl border-[#E5E7EB]"
+                          />
+                          <Input
+                            type="number"
+                            min="0"
+                            value={maxPrice}
+                            onChange={(event) => setMaxPrice(event.target.value)}
+                            placeholder="Max"
+                            className="h-10 rounded-xl border-[#E5E7EB]"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {isLoadingProducts ? (
@@ -648,7 +659,7 @@ function V2RetailStorefront({
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                    {displayProducts.map((product) => (
+                    {paginatedProducts.map((product) => (
                       <RetailProductCard
                         key={product.id}
                         product={product}
@@ -657,81 +668,59 @@ function V2RetailStorefront({
                       />
                     ))}
                   </div>
-                  {!showAllProducts && !searchQuery && allProducts.length > 12 && (
-                    <div className="mt-8 text-center">
-                      <Button
-                        variant="outline"
-                        className="rounded-full border-[#005B14] px-8 text-[#005B14] hover:bg-[#005B14] hover:text-white"
-                        onClick={() => setShowAllProducts(true)}
-                      >
-                        Load More
-                      </Button>
+                  {totalPages > 1 && (
+                    <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-[#F1F1F1] pt-5 sm:flex-row">
+                      <p className="text-sm text-[#6B7280]">
+                        Page {currentPage} of {totalPages}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full border-[#D8EBDD] text-[#005B14]"
+                          onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          Previous
+                        </Button>
+                        {Array.from({ length: totalPages }).map((_, index) => {
+                          const page = index + 1;
+                          return (
+                            <button
+                              key={page}
+                              type="button"
+                              onClick={() => setCurrentPage(page)}
+                              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium ${
+                                currentPage === page
+                                  ? "bg-[#005B14] text-white"
+                                  : "border border-[#E5E7EB] text-[#374151] hover:border-[#005B14]/40"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        })}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full border-[#D8EBDD] text-[#005B14]"
+                          onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                          disabled={currentPage === totalPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </>
               )}
             </section>
 
-            {/* ── Reviews ── */}
-            {storeReviews.length > 0 && (
-              <section className="mx-auto max-w-7xl px-4 pt-14 lg:px-8">
-                <div className="mb-6 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#005B14]">
-                      Testimonials
-                    </p>
-                    <h2 className="mt-1 text-xl font-bold">What customers say</h2>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm font-semibold text-[#005B14]">
-                    <Star className="h-4 w-4 fill-[#FEA436] text-[#FEA436]" />
-                    {ratings}
-                  </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-3">
-                  {storeReviews.slice(0, 3).map((review) => (
-                    <div key={review.id} className="rounded-2xl border border-[#F1F1F1] bg-[#FAFAFA] p-5">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#005B14]/10 text-sm font-bold text-[#005B14]">
-                          {review.user_name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold">{review.user_name}</p>
-                          <StarRating rating={review.rating} />
-                        </div>
-                      </div>
-                      <p className="mt-3 line-clamp-3 text-sm text-[#6B7280]">{review.comment}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
             <div className="mx-auto max-w-7xl px-4 lg:px-8">
               <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
             </div>
 
-            <footer className="mt-16 border-t border-[#F1F1F1] bg-[#FAFAFA]">
-              <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-                <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-                  <div className="flex items-center gap-3">
-                    {logoUrl ? (
-                      <Image src={logoUrl} alt={storeDetails.store_name} width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
-                    ) : (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#005B14] text-white">
-                        <Store className="h-3.5 w-3.5" />
-                      </div>
-                    )}
-                    <p className="text-sm font-semibold">{storeDetails.store_name}</p>
-                  </div>
-                  <p className="text-xs text-[#9CA3AF]">
-                    Powered by{" "}
-                    <a href="https://swiftree.app" className="font-medium text-[#005B14] hover:underline">
-                      Swiftree
-                    </a>
-                  </p>
-                </div>
-              </div>
-            </footer>
+            <StorefrontFooter storeDetails={storeDetails} logoUrl={logoUrl} />
           </>
         )}
       </main>
@@ -789,7 +778,7 @@ function RetailProductCard({
           </p>
           <Button
             size="sm"
-            className="mt-3 h-8 w-full rounded-full bg-[#005B14] text-xs hover:bg-[#004610]"
+            className="mt-3 h-8 w-full rounded-full bg-[#4FCA6A] text-xs text-white hover:bg-[#3DBA57] disabled:bg-[#D1D5DB]"
             onClick={(e) => onAddToCart(e, product)}
             disabled={product.product_quantity === 0}
           >
@@ -972,6 +961,7 @@ function V2FoodStorefront({
               </div>
             </div>
           </section>
+          <StorefrontFooter storeDetails={storeDetails} logoUrl={logoUrl} />
         </main>
       )}
     </div>
@@ -1410,26 +1400,7 @@ function V2EventStorefront({
         </main>
       )}
 
-      <footer className="mt-8 border-t border-[#EBEBEB] bg-white py-6">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 lg:px-6">
-          <div className="flex items-center gap-2">
-            {logoUrl ? (
-              <Image src={logoUrl} alt={storeDetails.store_name} width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
-            ) : (
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#005B14] text-white">
-                <Ticket className="h-3 w-3" />
-              </div>
-            )}
-            <p className="text-sm font-semibold">{storeDetails.store_name}</p>
-          </div>
-          <p className="text-xs text-[#9CA3AF]">
-            Powered by{" "}
-            <a href="https://swiftree.app" className="font-medium text-[#005B14] hover:underline">
-              Swiftree
-            </a>
-          </p>
-        </div>
-      </footer>
+      <StorefrontFooter storeDetails={storeDetails} logoUrl={logoUrl} />
     </div>
   );
 }
