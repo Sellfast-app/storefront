@@ -122,6 +122,28 @@ interface Product {
 type ratings = string | number;
 type totalListings = number;
 
+// Helper to get the display price for a FoodItem
+function getFoodItemPrice(item: FoodItem): number {
+  if (item.portion && item.portion.length > 0) {
+    return item.portion[0].price;
+  }
+  if (item.addOnGroup && item.addOnGroup.length > 0) {
+    const firstGroup = item.addOnGroup[0];
+    if (firstGroup.addOnOptions && firstGroup.addOnOptions.length > 0) {
+      return firstGroup.addOnOptions[0].price;
+    }
+  }
+  return 0;
+}
+
+// Helper to get the display image for a FoodItem
+function getFoodItemImage(item: FoodItem): string | null {
+  if (item.product_images && item.product_images.length > 0) {
+    return item.product_images[0];
+  }
+  return null;
+}
+
 const StarRating = ({ rating }: { rating: number }) => {
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 !== 0;
@@ -912,12 +934,14 @@ function V2FoodStorefront({
   const handleAddFoodItem = (e: React.MouseEvent, item: FoodItem) => {
     e.preventDefault();
     e.stopPropagation();
+    const price = getFoodItemPrice(item);
+    const image = getFoodItemImage(item);
     addToCart(
       {
-        id: item.id,
+        id: item.uid,
         name: item.name,
-        price: item.price,
-        image: item.image || Banner,
+        price,
+        image: image || Banner,
         description: item.description || "",
       },
       1
@@ -1112,7 +1136,7 @@ function V2FoodStorefront({
                       <ul className="space-y-0 divide-y divide-[#F5F5F5]">
                         {filteredGrouped[cat].map((item) => (
                           <FoodMenuItemRow
-                            key={item.id}
+                            key={item.uid}
                             item={item}
                             onAdd={handleAddFoodItem}
                           />
@@ -1163,13 +1187,15 @@ function FoodMenuItemRow({
   item: FoodItem;
   onAdd: (e: React.MouseEvent, item: FoodItem) => void;
 }) {
-  const hasImage = !!item.image;
+  const image = getFoodItemImage(item);
+  const price = getFoodItemPrice(item);
+
   return (
     <li className="flex items-center gap-4 py-4">
-      {hasImage && (
+      {image && (
         <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#F5F5F5] sm:h-24 sm:w-24">
           <Image
-            src={item.image!}
+            src={image}
             alt={item.name}
             fill
             className="object-cover"
@@ -1186,7 +1212,7 @@ function FoodMenuItemRow({
         )}
         <div className="mt-1.5 flex items-center gap-1 text-xs text-[#9CA3AF]">
           <span>From</span>
-          <span className="font-semibold text-[#111827]">₦{item.price?.toLocaleString()}</span>
+          <span className="font-semibold text-[#111827]">₦{price.toLocaleString()}</span>
         </div>
       </div>
       <button
