@@ -68,6 +68,38 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
   const getAddOnQuantity = (groupUid: string, optionUid: string) =>
     (selectedAddOns[groupUid] || []).find((o) => o.uid === optionUid)?.quantity || 0;
 
+  const toggleAddOn = (
+    group: FoodItem["addOnGroup"][number],
+    option: AddOnOption
+  ) => {
+    setSelectedAddOns((prev) => {
+      const current = prev[group.uid] || [];
+      const isSelected = current.some((o) => o.uid === option.uid);
+
+      if (group.selection === "single") {
+        return {
+          ...prev,
+          [group.uid]: isSelected ? [] : [{ ...option, quantity: 1 }],
+        };
+      }
+
+      if (isSelected) {
+        return {
+          ...prev,
+          [group.uid]: current.filter((o) => o.uid !== option.uid),
+        };
+      }
+
+      const maxSelection = group.maxSelection || group.addOnOptions.length;
+      if (current.length >= maxSelection) return prev;
+
+      return {
+        ...prev,
+        [group.uid]: [...current, { ...option, quantity: 1 }],
+      };
+    });
+  };
+
   const updateAddOnQuantity = (groupUid: string, optionUid: string, change: number) => {
     setSelectedAddOns((prev) => {
       const current = prev[groupUid] || [];
@@ -105,8 +137,42 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
   })();
 
   const totalPrice = basePrice * quantity;
+  const isReadyToAdd = (() => {
+    if (isUnavailable) return false;
+    if (item.type === "Simple") return !!selectedPortion;
+    if (item.type === "Customizable") {
+      if (!selectedServingType) return false;
+      return item.addOnGroup
+        .filter((group) => group.isRequired)
+        .every((group) => (selectedAddOns[group.uid] || []).length > 0);
+    }
+    return true;
+  })();
+
+  const cartId = (() => {
+    if (item.type === "Simple" && selectedPortion) return `${item.uid}-${selectedPortion.uid}`;
+    if (item.type === "Customizable") {
+      const addOnKey = Object.values(selectedAddOns)
+        .flat()
+        .map((option) => `${option.uid}:${option.quantity}`)
+        .sort()
+        .join("-");
+      return `${item.uid}-${selectedServingType}-${addOnKey}`;
+    }
+    if (item.type === "Bundle") {
+      const addOnKey = Object.values(selectedAddOns)
+        .flat()
+        .map((option) => `${option.uid}:${option.quantity}`)
+        .sort()
+        .join("-");
+      return `${item.uid}-${addOnKey}`;
+    }
+    return item.uid;
+  })();
 
   const handleAddToCart = () => {
+    if (!isReadyToAdd) return;
+
     const foodSelection: import("@/context/CartContext").FoodSelection = {
       type: item.type,
       productUid: item.uid,
@@ -134,18 +200,34 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
         }));
     }
 
+    const addOnNames = Object.values(selectedAddOns)
+      .flat()
+      .map((option) => option.quantity > 1 ? `${option.name} x${option.quantity}` : option.name)
+      .join(", ");
+
+    const cartName = item.type === "Simple" && selectedPortion
+      ? `${item.name} (${selectedPortion.name})`
+      : item.type === "Customizable" && selectedServingType && addOnNames
+        ? `${item.name} (${selectedServingType}) + ${addOnNames}`
+        : item.type === "Customizable" && selectedServingType
+          ? `${item.name} (${selectedServingType})`
+          : addOnNames
+            ? `${item.name} + ${addOnNames}`
+            : item.name;
+
     const cartProduct = {
-      id: item.type === "Simple" && selectedPortion ? `${item.uid}-${selectedPortion.uid}` : item.uid,
+      id: cartId,
       originalProductId: item.uid,
       product_id: item.uid,
-      name: item.type === "Simple" && selectedPortion ? `${item.name} (${selectedPortion.name})` : item.name,
-      price: totalPrice,
+      name: cartName,
+      price: basePrice,
       image: item.product_images[0] || Banner,
       description: item.description,
       foodSelection,
     };
 
     addToCart(cartProduct, quantity);
+    onOpenChange(false);
   };
 
   return (
@@ -251,7 +333,9 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <h3 className="text-sm font-semibold">{group.name}</h3>
-                      <p className="text-xs text-gray-400">Optional</p>
+                      <p className="text-xs text-gray-400">
+                        {group.isRequired ? "Required" : "Optional"}
+                      </p>
                     </div>
                     {selected.length > 0 && (
                       <span className="text-xs text-[#4FCA6A] font-medium">
@@ -265,7 +349,16 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                       const addOnQuantity = getAddOnQuantity(group.uid, option.uid);
                       return (
                         <div
+                          role="button"
+                          tabIndex={0}
                           key={option.uid}
+                          onClick={() => toggleAddOn(group, option)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              toggleAddOn(group, option);
+                            }
+                          }}
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition-all ${isSelected ? "border-[#4FCA6A] bg-[#4FCA6A]/5" : "border-gray-100 hover:border-gray-200"}`}
                         >
                           <div className="flex items-center gap-3">
@@ -280,7 +373,10 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                             <div className="flex items-center gap-1 rounded-lg border border-[#4FCA6A]/30 bg-white p-0.5">
                               <button
                                 type="button"
-                                onClick={() => updateAddOnQuantity(group.uid, option.uid, -1)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  updateAddOnQuantity(group.uid, option.uid, -1);
+                                }}
                                 className="rounded p-1 text-gray-500 hover:bg-gray-100"
                               >
                                 <Minus className="h-3.5 w-3.5" />
@@ -288,7 +384,10 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                               <span className="min-w-5 text-center text-xs font-semibold">{addOnQuantity}</span>
                               <button
                                 type="button"
-                                onClick={() => updateAddOnQuantity(group.uid, option.uid, 1)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  updateAddOnQuantity(group.uid, option.uid, 1);
+                                }}
                                 className="rounded p-1 text-[#4FCA6A] hover:bg-[#4FCA6A]/10"
                               >
                                 <Plus className="h-3.5 w-3.5" />
@@ -332,10 +431,10 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                 )}
                 <Button
                   onClick={handleAddToCart}
-                  disabled={isUnavailable}
+                  disabled={!isReadyToAdd}
                   className="min-w-[140px] bg-black hover:bg-gray-800 text-white"
                 >
-                  {isUnavailable ? "Sold Out" : `Add 1 to cart (₦${totalPrice.toLocaleString()})`}
+                  {isUnavailable ? "Sold Out" : `Add ${quantity} to cart (₦${totalPrice.toLocaleString()})`}
                 </Button>
               </div>
             </div>

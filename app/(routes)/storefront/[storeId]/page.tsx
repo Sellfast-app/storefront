@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Banner from "@/public/Banner.png";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
+import FoodItemModal from "@/components/FoodItemModal";
 import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
 import { AvailabilityModal } from "@/components/AvailabilityModal";
 import type { StoreAvailabilityEntry } from "@/hooks/useStoreAvailability";
@@ -43,7 +44,6 @@ import {
   Ticket,
   UserRound,
   X,
-  Plus,
   ChevronDown,
   Users,
   ArrowRight,
@@ -840,10 +840,10 @@ function V2FoodStorefront({
   const [orderMode, setOrderMode] = useState<"pickup" | "delivery">("pickup");
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [showMobileCategoryMenu, setShowMobileCategoryMenu] = useState(false);
+  const [selectedFoodItem, setSelectedFoodItem] = useState<FoodItem | null>(null);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
-  const { addToCart } = useCart();
 
-  const categories: string[] = Array.from(
+  const categories: string[] = useMemo(() => Array.from(
     new Set(
       foodItems
         .flatMap((item) =>
@@ -855,21 +855,24 @@ function V2FoodStorefront({
         )
         .filter(Boolean)
     )
-  );
+  ), [foodItems]);
 
-  const groupedItems: Record<string, FoodItem[]> = {};
-  if (categories.length > 0) {
-    categories.forEach((cat) => {
-      groupedItems[cat] = foodItems.filter((item) => {
+  const groupedItems: Record<string, FoodItem[]> = useMemo(() => {
+    if (categories.length === 0) return { Menu: foodItems };
+
+    return categories.reduce<Record<string, FoodItem[]>>((groups, cat) => {
+      groups[cat] = foodItems.filter((item) => {
         const cats = Array.isArray(item.category) ? item.category : [item.category];
         return cats.includes(cat);
       });
-    });
-  } else {
-    groupedItems["Menu"] = foodItems;
-  }
+      return groups;
+    }, {});
+  }, [categories, foodItems]);
 
-  const displayCategories = categories.length > 0 ? categories : ["Menu"];
+  const displayCategories = useMemo(
+    () => (categories.length > 0 ? categories : ["Menu"]),
+    [categories]
+  );
 
   useEffect(() => {
     if (displayCategories.length > 0 && !activeCategory) {
@@ -877,24 +880,28 @@ function V2FoodStorefront({
     }
   }, [displayCategories, activeCategory]);
 
-  const filteredGrouped: Record<string, FoodItem[]> = {};
-  if (searchQuery.trim()) {
-    displayCategories.forEach((cat) => {
-      const filtered = (groupedItems[cat] || []).filter(
-        (item) =>
-          item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      if (filtered.length > 0) filteredGrouped[cat] = filtered;
-    });
-  } else {
-    displayCategories.forEach((cat) => {
-      filteredGrouped[cat] = groupedItems[cat] || [];
-    });
-  }
+  const filteredGrouped: Record<string, FoodItem[]> = useMemo(() => {
+    const nextGrouped: Record<string, FoodItem[]> = {};
+    const query = searchQuery.trim().toLowerCase();
 
-  const visibleCategories = Object.keys(filteredGrouped).filter(
-    (cat) => filteredGrouped[cat].length > 0
+    displayCategories.forEach((cat) => {
+      const items = groupedItems[cat] || [];
+      const filtered = query
+        ? items.filter(
+            (item) =>
+              item.name?.toLowerCase().includes(query) ||
+              item.description?.toLowerCase().includes(query)
+          )
+        : items;
+      if (filtered.length > 0) nextGrouped[cat] = filtered;
+    });
+
+    return nextGrouped;
+  }, [displayCategories, groupedItems, searchQuery]);
+
+  const visibleCategories = useMemo(
+    () => Object.keys(filteredGrouped).filter((cat) => filteredGrouped[cat].length > 0),
+    [filteredGrouped]
   );
 
   const scrollToCategory = (cat: string) => {
@@ -930,23 +937,6 @@ function V2FoodStorefront({
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  const handleAddFoodItem = (e: React.MouseEvent, item: FoodItem) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const price = getFoodItemPrice(item);
-    const image = getFoodItemImage(item);
-    addToCart(
-      {
-        id: item.uid,
-        name: item.name,
-        price,
-        image: image || Banner,
-        description: item.description || "",
-      },
-      1
-    );
-  };
 
   return (
     <div className="min-h-screen bg-white text-[#111827]">
@@ -1138,7 +1128,7 @@ function V2FoodStorefront({
                           <FoodMenuItemRow
                             key={item.uid}
                             item={item}
-                            onAdd={handleAddFoodItem}
+                            onSelect={setSelectedFoodItem}
                           />
                         ))}
                       </ul>
@@ -1151,6 +1141,14 @@ function V2FoodStorefront({
           </div>
         </div>
       )}
+
+      <FoodItemModal
+        item={selectedFoodItem}
+        open={!!selectedFoodItem}
+        onOpenChange={(open) => {
+          if (!open) setSelectedFoodItem(null);
+        }}
+      />
 
       {!showCart && (
         <footer className="border-t border-[#F0F0F0] bg-[#FAFAFA] py-6">
@@ -1182,44 +1180,44 @@ function V2FoodStorefront({
 
 function FoodMenuItemRow({
   item,
-  onAdd,
+  onSelect,
 }: {
   item: FoodItem;
-  onAdd: (e: React.MouseEvent, item: FoodItem) => void;
+  onSelect: (item: FoodItem) => void;
 }) {
   const image = getFoodItemImage(item);
   const price = getFoodItemPrice(item);
 
   return (
-    <li className="flex items-center gap-4 py-4">
-      {image && (
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#F5F5F5] sm:h-24 sm:w-24">
-          <Image
-            src={image}
-            alt={item.name}
-            fill
-            className="object-cover"
-            sizes="96px"
-          />
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        <h3 className="text-sm font-semibold text-[#111827] leading-snug">{item.name}</h3>
-        {item.description && (
-          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-[#6B7280]">
-            {item.description}
-          </p>
-        )}
-        <div className="mt-1.5 flex items-center gap-1 text-xs text-[#9CA3AF]">
-          <span>From</span>
-          <span className="font-semibold text-[#111827]">₦{price.toLocaleString()}</span>
-        </div>
-      </div>
+    <li>
       <button
-        onClick={(e) => onAdd(e, item)}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#005B14] text-[#005B14] transition-colors hover:bg-[#005B14] hover:text-white"
+        type="button"
+        onClick={() => onSelect(item)}
+        className="flex w-full items-center gap-4 py-4 text-left transition-colors hover:bg-[#FAFAFA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005B14]/30"
       >
-        <Plus className="h-4 w-4" />
+        {image && (
+          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#F5F5F5] sm:h-24 sm:w-24">
+            <Image
+              src={image}
+              alt={item.name}
+              fill
+              className="object-cover"
+              sizes="96px"
+            />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-semibold text-[#111827] leading-snug">{item.name}</h3>
+          {item.description && (
+            <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-[#6B7280]">
+              {item.description}
+            </p>
+          )}
+          <div className="mt-1.5 flex items-center gap-1 text-xs text-[#9CA3AF]">
+            <span>From</span>
+            <span className="font-semibold text-[#111827]">₦{price.toLocaleString()}</span>
+          </div>
+        </div>
       </button>
     </li>
   );
