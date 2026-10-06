@@ -13,10 +13,8 @@ import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
 import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
 import { AvailabilityModal } from "@/components/AvailabilityModal";
-import {
-  StoreAvailabilityEntry,
-  useStoreAvailability,
-} from "@/hooks/useStoreAvailability";
+import type { StoreAvailabilityEntry } from "@/hooks/useStoreAvailability";
+import { useStoreAvailability } from "@/hooks/useStoreAvailability";
 import { FoodItem } from "@/lib/mockdata";
 import {
   isMockEventStorefront,
@@ -30,7 +28,6 @@ import {
   mockStoreReviews,
 } from "@/lib/storefront-mock";
 import { Event, getPublishedEvents } from "@/lib/events-data";
-import BannerCarousel from "@/components/BannerCarousel";
 import {
   CalendarDays,
   CheckCircle2,
@@ -831,8 +828,6 @@ function RetailProductCard({
 function V2FoodStorefront({
   storeId,
   storeDetails,
-  listings,
-  ratings,
   searchQuery,
   setSearchQuery,
   toggleCart,
@@ -840,7 +835,7 @@ function V2FoodStorefront({
   logoUrl,
   foodItems,
   isLoadingProducts,
-}: V2FoodTemplateProps) {
+}: Omit<V2FoodTemplateProps, "listings" | "ratings" | "storeReviews" | "bannerUrl" | "getWhatsAppUrl">) {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [orderMode, setOrderMode] = useState<"pickup" | "delivery">("pickup");
   const [activeCategory, setActiveCategory] = useState<string>("");
@@ -913,10 +908,15 @@ function V2FoodStorefront({
     }
   };
 
+  const visibleCategoriesRef = useRef(visibleCategories);
+  useEffect(() => {
+    visibleCategoriesRef.current = visibleCategories;
+  });
+
   useEffect(() => {
     const handleScroll = () => {
       const offset = 140;
-      for (const cat of [...visibleCategories].reverse()) {
+      for (const cat of [...visibleCategoriesRef.current].reverse()) {
         const el = sectionRefs.current[cat];
         if (el) {
           const top = el.getBoundingClientRect().top;
@@ -929,7 +929,7 @@ function V2FoodStorefront({
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [visibleCategories]);
+  }, []);
 
   const handleAddFoodItem = (e: React.MouseEvent, item: FoodItem) => {
     e.preventDefault();
@@ -1835,8 +1835,6 @@ function Page() {
     p.product_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const isFoodStore = isFoodBusinessType(storeDetails?.business_type);
-
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1928,7 +1926,7 @@ function Page() {
     );
   }
 
-  if (isFoodStore) {
+  if (isFoodBusinessType(storeDetails.business_type)) {
     return (
       <>
         <V2FoodStorefront {...sharedProps} foodItems={foodItems} isLoadingProducts={isLoadingProducts} />

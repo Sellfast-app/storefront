@@ -47,8 +47,9 @@ export default function ProductDetailPage() {
         if (!res.ok) throw new Error("Failed to fetch product");
         const data = await res.json();
         setProduct(data.data ?? data);
-      } catch (err) {
-        setError("Could not load product. Please try again.");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Could not load product. Please try again.";
+        setError(message);
       } finally {
         setLoading(false);
       }
