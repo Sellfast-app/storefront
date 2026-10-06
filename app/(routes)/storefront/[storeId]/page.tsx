@@ -36,12 +36,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Facebook,
+  Instagram,
+  Mail,
   MapPin,
+  Phone,
   Search,
   SlidersHorizontal,
   Store,
   Ticket,
   Truck,
+  Twitter,
   UserRound,
   X,
   Users,
@@ -83,6 +88,11 @@ interface StoreDetails {
       secondary: string;
     };
     address_line_2: string;
+    instagram?: string;
+    facebook?: string;
+    twitter?: string;
+    x?: string;
+    email?: string;
   };
   updated_at: string;
   subaccount_code: string | null;
@@ -352,6 +362,441 @@ function StorefrontFooter({
   );
 }
 
+function RetailStorefrontFooter({
+  storeId,
+  storeDetails,
+  logoUrl,
+}: Pick<V2TemplateProps, "storeId" | "storeDetails" | "logoUrl">) {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  const normalizeExternalUrl = (value?: string | null) => {
+    if (!value) return null;
+    if (value.startsWith("http://") || value.startsWith("https://")) return value;
+    return `https://${value}`;
+  };
+
+  const socialLinks = [
+    {
+      label: "Instagram",
+      href: normalizeExternalUrl(storeDetails.metadata?.instagram),
+      icon: Instagram,
+    },
+    {
+      label: "Facebook",
+      href: normalizeExternalUrl(storeDetails.metadata?.facebook),
+      icon: Facebook,
+    },
+    {
+      label: "X",
+      href: normalizeExternalUrl(storeDetails.metadata?.x || storeDetails.metadata?.twitter),
+      icon: Twitter,
+    },
+  ].filter((item) => item.href);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("loading");
+    setMessage("");
+    try {
+      const response = await fetch("/api/leads", {
+        body: JSON.stringify({ email, storeId }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message || "Unable to join list right now");
+      setStatus("success");
+      setMessage("You're on the list.");
+      setEmail("");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Unable to join list right now");
+    }
+  }
+
+  const storeLinks = [
+    { label: "Home", href: `/storefront/${storeId}#top` },
+    { label: "Shop", href: `/storefront/${storeId}#all-products` },
+  ];
+  const usefulLinks = [
+    { label: "About Us", href: `/storefront/${storeId}/about` },
+    { label: "Contact Us", href: `/storefront/${storeId}/contact` },
+    { label: "Terms of Use", href: `/storefront/${storeId}/terms` },
+    { label: "Return Policy", href: `/storefront/${storeId}/return-policy` },
+  ];
+
+  return (
+    <footer className="mt-16 border-t border-[#E5E7EB] bg-[#F7F8F7] text-[#272B2A]">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-[1.2fr_0.8fr_0.9fr_1.25fr] lg:px-8">
+        <div>
+          <div className="mb-8 flex items-center gap-3">
+            {logoUrl ? (
+              <Image
+                src={logoUrl}
+                alt={storeDetails.store_name}
+                width={56}
+                height={56}
+                className="h-12 w-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#005B14] shadow-sm">
+                <Store className="h-5 w-5" />
+              </div>
+            )}
+            <p className="text-base font-semibold">{storeDetails.store_name}</p>
+          </div>
+          {storeDetails.store_description && (
+            <p className="mb-7 max-w-xs text-sm leading-6 text-[#666D69]">
+              {storeDetails.store_description}
+            </p>
+          )}
+          <div className="space-y-4 text-sm text-[#666D69]">
+            <div className="flex items-start gap-3">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                {[storeDetails.metadata?.address, storeDetails.metadata?.city, storeDetails.metadata?.state, storeDetails.metadata?.country]
+                  .filter(Boolean)
+                  .join(", ") || "Store address unavailable"}
+              </span>
+            </div>
+            {storeDetails.metadata?.phone && (
+              <a href={`tel:${storeDetails.metadata.phone}`} className="flex items-center gap-3 hover:text-[#005B14]">
+                <Phone className="h-4 w-4" />
+                {storeDetails.metadata.phone}
+              </a>
+            )}
+          </div>
+          <div className="mt-7 flex items-center gap-3">
+            {socialLinks.length > 0 ? (
+              socialLinks.map(({ label, href, icon: Icon }) => (
+                <a
+                  key={label}
+                  href={href || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-[#DADFDA] text-[#666D69] transition-colors hover:border-[#005B14] hover:text-[#005B14]"
+                >
+                  <Icon className="h-4 w-4" />
+                </a>
+              ))
+            ) : storeDetails.metadata?.phone ? (
+              <a
+                href={`https://wa.me/${storeDetails.metadata.phone.replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Contact store"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#DADFDA] text-[#666D69] transition-colors hover:border-[#005B14] hover:text-[#005B14]"
+              >
+                <Mail className="h-4 w-4" />
+              </a>
+            ) : null}
+          </div>
+        </div>
+
+        <FooterLinkColumn title="Store Links" links={storeLinks} />
+        <FooterLinkColumn title="Useful Links" links={usefulLinks} />
+
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-[#272B2A]">
+            Stay Updated
+          </h3>
+          <p className="mt-4 text-sm leading-6 text-[#666D69]">
+            Get new arrivals, restocks and store updates from {storeDetails.store_name}.
+          </p>
+          <form onSubmit={handleSubmit} className="mt-5">
+            <div className="flex overflow-hidden rounded-full border border-[#DADFDA] bg-white p-1 shadow-sm">
+              <Input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                type="email"
+                required
+                placeholder="Enter your email"
+                className="h-11 flex-1 border-0 bg-transparent px-4 text-sm shadow-none focus-visible:ring-0"
+              />
+              <Button
+                type="submit"
+                disabled={status === "loading"}
+                className="h-11 rounded-full bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57]"
+              >
+                {status === "loading" ? "..." : "Join"}
+              </Button>
+            </div>
+            {message && (
+              <p className={`mt-2 text-xs ${status === "error" ? "text-red-500" : "text-[#005B14]"}`}>
+                {message}
+              </p>
+            )}
+          </form>
+        </div>
+      </div>
+      <div className="border-t border-[#E1E5E1]">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-xs font-semibold uppercase text-[#666D69] md:flex-row md:items-center md:justify-between lg:px-8">
+          <p>{storeDetails.store_name} © {new Date().getFullYear()}</p>
+          <p>All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function FoodStorefrontFooter({
+  storeId,
+  storeDetails,
+  logoUrl,
+}: Pick<V2TemplateProps, "storeId" | "storeDetails" | "logoUrl">) {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [message, setMessage] = useState("");
+
+  const normalizeExternalUrl = (value?: string | null) => {
+    if (!value) return null;
+    if (value.startsWith("http://") || value.startsWith("https://")) return value;
+    return `https://${value}`;
+  };
+
+  const formatFooterTime = (value: string) => {
+    const [hourValue, minuteValue] = value.split(":").map(Number);
+    if (Number.isNaN(hourValue) || Number.isNaN(minuteValue)) return value;
+    const period = hourValue >= 12 ? "PM" : "AM";
+    const hour = hourValue % 12 || 12;
+    return `${String(hour).padStart(2, "0")}:${String(minuteValue).padStart(2, "0")} ${period}`;
+  };
+
+  const workingHours = storeDetails.availability?.length
+    ? storeDetails.availability.slice(0, 4).map((entry) => ({
+        day: entry.day,
+        hours: `${formatFooterTime(entry.openTime)} - ${formatFooterTime(entry.closeTime)}`,
+      }))
+    : [
+        { day: "Monday - Friday", hours: "09:00 AM - 09:30 PM" },
+        { day: "Saturday", hours: "09:00 AM - 08:30 PM" },
+        { day: "Sunday", hours: "10:00 AM - 08:30 PM" },
+      ];
+
+  const socialLinks = [
+    {
+      label: "Instagram",
+      href: normalizeExternalUrl(storeDetails.metadata?.instagram),
+      icon: Instagram,
+    },
+    {
+      label: "Facebook",
+      href: normalizeExternalUrl(storeDetails.metadata?.facebook),
+      icon: Facebook,
+    },
+    {
+      label: "X",
+      href: normalizeExternalUrl(storeDetails.metadata?.x || storeDetails.metadata?.twitter),
+      icon: Twitter,
+    },
+  ].filter((item) => item.href);
+
+  const addressParts = [
+    storeDetails.metadata?.address,
+    storeDetails.metadata?.city,
+    storeDetails.metadata?.state,
+    storeDetails.metadata?.country,
+  ].filter(Boolean);
+  const locationItems = [
+    storeDetails.metadata?.city ? `${storeDetails.metadata.city} Branch` : null,
+    storeDetails.metadata?.address,
+    [storeDetails.metadata?.state, storeDetails.metadata?.country].filter(Boolean).join(", "),
+  ].filter(Boolean);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("loading");
+    setMessage("");
+    try {
+      const response = await fetch("/api/leads", {
+        body: JSON.stringify({ email, storeId }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message || "Unable to join list right now");
+      setStatus("success");
+      setMessage("You're on the list.");
+      setEmail("");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Unable to join list right now");
+    }
+  }
+
+  return (
+    <footer className="mt-16 bg-[url('/storefront-footer-bg.png')] bg-cover bg-center text-white">
+      <div className="bg-[#061400]/20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-2 lg:grid-cols-[1.25fr_1fr_0.85fr_1fr_1.25fr] lg:px-8">
+          <div>
+            <div className="mb-5 flex items-center gap-3">
+              {logoUrl ? (
+                <Image
+                  src={logoUrl}
+                  alt={storeDetails.store_name}
+                  width={48}
+                  height={48}
+                  className="h-12 w-12 rounded-full object-cover ring-2 ring-white/20"
+                />
+              ) : (
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white ring-2 ring-white/20">
+                  <Store className="h-5 w-5" />
+                </div>
+              )}
+              <div>
+                <p className="text-base font-semibold">{storeDetails.store_name}</p>
+                <p className="text-xs text-white/65">{storeDetails.business_type}</p>
+              </div>
+            </div>
+            <p className="max-w-xs text-sm leading-6 text-white/70">
+              {storeDetails.store_description || "Fresh meals available for pickup and vendor delivery."}
+            </p>
+            {storeDetails.metadata?.phone && (
+              <a href={`tel:${storeDetails.metadata.phone}`} className="mt-5 flex items-center gap-3 text-sm text-white/75 hover:text-white">
+                <Phone className="h-4 w-4" />
+                {storeDetails.metadata.phone}
+              </a>
+            )}
+            <div className="mt-5 flex items-center gap-3">
+              {socialLinks.length > 0 ? (
+                socialLinks.map(({ label, href, icon: Icon }) => (
+                  <a
+                    key={label}
+                    href={href || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 text-white/75 transition-colors hover:border-white hover:text-white"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                ))
+              ) : storeDetails.metadata?.phone ? (
+                <a
+                  href={`https://wa.me/${storeDetails.metadata.phone.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Contact store"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-white/25 text-white/75 transition-colors hover:border-white hover:text-white"
+                >
+                  <Mail className="h-4 w-4" />
+                </a>
+              ) : null}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wide">Working Hours</h3>
+            <div className="mt-5 space-y-4">
+              {workingHours.map((entry) => (
+                <div key={`${entry.day}-${entry.hours}`} className="text-sm">
+                  <p className="font-semibold text-white">{entry.day}</p>
+                  <p className="mt-1 text-white/65">{entry.hours}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wide">Delivery Type</h3>
+            <div className="mt-5 space-y-3 text-sm text-white/70">
+              <p className="flex items-center gap-2">
+                <Store className="h-4 w-4" />
+                Pickup
+              </p>
+              <p className="flex items-center gap-2">
+                <Truck className="h-4 w-4" />
+                Vendor Delivery
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wide">Locations</h3>
+            <div className="mt-5 space-y-3 text-sm text-white/70">
+              {(locationItems.length > 0 ? locationItems : addressParts).map((item) => (
+                <p key={item} className="flex gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{item}</span>
+                </p>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wide">Stay Updated</h3>
+            <p className="mt-4 text-sm leading-6 text-white/70">
+              Get menu updates and fresh offers from {storeDetails.store_name}.
+            </p>
+            <form onSubmit={handleSubmit} className="mt-5">
+              <div className="flex flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 backdrop-blur sm:flex-row lg:flex-col xl:flex-row">
+                <Input
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  type="email"
+                  required
+                  placeholder="Enter your email"
+                  className="h-11 flex-1 rounded-xl border-0 bg-white text-sm text-[#111827] shadow-none focus-visible:ring-0"
+                />
+                <Button
+                  type="submit"
+                  disabled={status === "loading"}
+                  className="h-11 shrink-0 rounded-xl bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57]"
+                >
+                  {status === "loading" ? "..." : "Join"}
+                </Button>
+              </div>
+              {message && (
+                <p className={`mt-2 text-xs ${status === "error" ? "text-red-200" : "text-white/80"}`}>
+                  {message}
+                </p>
+              )}
+            </form>
+          </div>
+        </div>
+
+        <div className="border-t border-white/15">
+          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-xs text-white/65 md:flex-row md:items-center md:justify-between lg:px-8">
+            <p>{storeDetails.store_name} © {new Date().getFullYear()}</p>
+            <p>
+              Powered by{" "}
+              <a href="https://swiftree.app" className="font-semibold text-white hover:underline">
+                Swiftree
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function FooterLinkColumn({
+  title,
+  links,
+}: {
+  title: string;
+  links: { label: string; href: string }[];
+}) {
+  return (
+    <div>
+      <h3 className="text-sm font-bold uppercase tracking-wide text-[#272B2A]">{title}</h3>
+      <ul className="mt-6 space-y-4 text-sm font-medium text-[#666D69]">
+        {links.map((link) => (
+          <li key={link.label}>
+            <Link href={link.href} className="transition-colors hover:text-[#005B14]">
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // ─── Retail Storefront (KM Taylor inspired) ───────────────────────────────────
 
 function V2RetailStorefront({
@@ -451,7 +896,7 @@ function V2RetailStorefront({
   }, [currentPage, totalPages]);
 
   return (
-    <div className="min-h-screen bg-white text-[#111827]">
+    <div id="top" className="min-h-screen bg-white text-[#111827]">
       <V2StoreHeader
         storeDetails={storeDetails}
         logoUrl={logoUrl}
@@ -716,11 +1161,11 @@ function V2RetailStorefront({
               )}
             </section>
 
-            <div className="mx-auto max-w-7xl px-4 lg:px-8">
-              <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
-            </div>
-
-            <StorefrontFooter storeDetails={storeDetails} logoUrl={logoUrl} />
+            <RetailStorefrontFooter
+              storeId={storeId}
+              storeDetails={storeDetails}
+              logoUrl={logoUrl}
+            />
           </>
         )}
       </main>
@@ -961,7 +1406,11 @@ function V2FoodStorefront({
               </div>
             </div>
           </section>
-          <StorefrontFooter storeDetails={storeDetails} logoUrl={logoUrl} />
+          <FoodStorefrontFooter
+            storeId={storeId}
+            storeDetails={storeDetails}
+            logoUrl={logoUrl}
+          />
         </main>
       )}
     </div>
