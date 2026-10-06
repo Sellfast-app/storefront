@@ -32,7 +32,6 @@ import {
 import { Event, getPublishedEvents } from "@/lib/events-data";
 import {
   CalendarDays,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -253,73 +252,6 @@ function V2StoreHeader({
         </div>
       )}
     </header>
-  );
-}
-
-// ─── Lead Form ────────────────────────────────────────────────────────────────
-
-function StorefrontLeadForm({ storeId, storeName }: { storeId: string; storeName: string }) {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [message, setMessage] = useState("");
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setStatus("loading");
-    setMessage("");
-    try {
-      const res = await fetch("/api/leads", {
-        body: JSON.stringify({ email, storeId }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-      });
-      const result = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(result?.message || "Unable to join list right now");
-      setStatus("success");
-      setMessage("You're on the list. We'll keep you updated.");
-      setEmail("");
-    } catch (error) {
-      setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Unable to join list right now");
-    }
-  }
-
-  return (
-    <section className="mt-16 overflow-hidden rounded-2xl border border-[#DDF3E2] bg-white shadow-sm">
-      <div className="grid gap-5 bg-[#F6FBF6] p-5 md:grid-cols-[1fr_auto] md:items-center md:p-6">
-        <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-[#005B14] shadow-sm">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            Stay in the loop
-          </div>
-          <h2 className="text-xl font-bold text-[#111827]">Get updates from {storeName}</h2>
-          <p className="mt-1 max-w-md text-sm text-[#6B7280]">
-            New drops, restocks, and exclusive offers straight to your inbox.
-          </p>
-        </div>
-        <form onSubmit={handleSubmit} className="w-full md:w-[430px]">
-          <div className="flex flex-col gap-2 rounded-2xl border border-[#D1FAE5] bg-white p-2 shadow-sm sm:flex-row">
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              required
-              placeholder="Enter your email"
-              className="h-11 flex-1 rounded-xl border-0 bg-transparent px-3 text-sm shadow-none focus-visible:ring-0"
-            />
-            <Button disabled={status === "loading"} className="h-11 shrink-0 rounded-xl bg-[#005B14] px-5 text-sm hover:bg-[#004610]">
-              {status === "loading" ? "Joining..." : "Join list"}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-          {message && (
-            <p className={`mt-2 text-xs ${status === "error" ? "text-red-500" : "text-[#005B14]"}`}>
-              {message}
-            </p>
-          )}
-        </form>
-      </div>
-    </section>
   );
 }
 
@@ -1402,7 +1334,6 @@ function V2FoodStorefront({
                   isLoading={isLoadingProducts}
                   searchQuery={searchQuery}
                 />
-                <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
               </div>
             </div>
           </section>
@@ -1420,7 +1351,6 @@ function V2FoodStorefront({
 // ─── Event Storefront (Tix Africa inspired) ───────────────────────────────────
 
 function V2EventStorefront({
-  storeId,
   storeDetails,
   searchQuery,
   setSearchQuery,
@@ -1843,7 +1773,6 @@ function V2EventStorefront({
                 </section>
               )}
 
-              <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
             </>
           )}
         </main>
