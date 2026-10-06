@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Banner from "@/public/Banner.png";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
-import FoodItemModal from "@/components/FoodItemModal";
+import FoodProductGrid from "@/components/FoodproductGrid";
+import BannerCarousel from "@/components/BannerCarousel";
 import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
 import { AvailabilityModal } from "@/components/AvailabilityModal";
 import type { StoreAvailabilityEntry } from "@/hooks/useStoreAvailability";
@@ -37,14 +38,13 @@ import {
   Clock,
   MapPin,
   Search,
-  ShoppingBag,
   SlidersHorizontal,
   Star,
   Store,
   Ticket,
+  Truck,
   UserRound,
   X,
-  ChevronDown,
   Users,
   ArrowRight,
 } from "lucide-react";
@@ -118,28 +118,6 @@ interface Product {
 
 type ratings = string | number;
 type totalListings = number;
-
-// Helper to get the display price for a FoodItem
-function getFoodItemPrice(item: FoodItem): number {
-  if (item.portion && item.portion.length > 0) {
-    return item.portion[0].price;
-  }
-  if (item.addOnGroup && item.addOnGroup.length > 0) {
-    const firstGroup = item.addOnGroup[0];
-    if (firstGroup.addOnOptions && firstGroup.addOnOptions.length > 0) {
-      return firstGroup.addOnOptions[0].price;
-    }
-  }
-  return 0;
-}
-
-// Helper to get the display image for a FoodItem
-function getFoodItemImage(item: FoodItem): string | null {
-  if (item.product_images && item.product_images.length > 0) {
-    return item.product_images[0];
-  }
-  return null;
-}
 
 const StarRating = ({ rating }: { rating: number }) => {
   const fullStars = Math.floor(rating);
@@ -828,22 +806,19 @@ function RetailProductCard({
 function V2FoodStorefront({
   storeId,
   storeDetails,
+  listings,
+  ratings,
   searchQuery,
   setSearchQuery,
   toggleCart,
   showCart,
   logoUrl,
+  bannerUrl,
   foodItems,
   isLoadingProducts,
-}: Omit<V2FoodTemplateProps, "listings" | "ratings" | "storeReviews" | "bannerUrl" | "getWhatsAppUrl">) {
+}: V2FoodTemplateProps) {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
-  const [orderMode, setOrderMode] = useState<"pickup" | "delivery">("pickup");
-  const [activeCategory, setActiveCategory] = useState<string>("");
-  const [showMobileCategoryMenu, setShowMobileCategoryMenu] = useState(false);
-  const [selectedFoodItem, setSelectedFoodItem] = useState<FoodItem | null>(null);
-  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
-
-  const categories: string[] = useMemo(() => Array.from(
+  const categories = Array.from(
     new Set(
       foodItems
         .flatMap((item) =>
@@ -855,371 +830,151 @@ function V2FoodStorefront({
         )
         .filter(Boolean)
     )
-  ), [foodItems]);
-
-  const groupedItems: Record<string, FoodItem[]> = useMemo(() => {
-    if (categories.length === 0) return { Menu: foodItems };
-
-    return categories.reduce<Record<string, FoodItem[]>>((groups, cat) => {
-      groups[cat] = foodItems.filter((item) => {
-        const cats = Array.isArray(item.category) ? item.category : [item.category];
-        return cats.includes(cat);
-      });
-      return groups;
-    }, {});
-  }, [categories, foodItems]);
-
-  const displayCategories = useMemo(
-    () => (categories.length > 0 ? categories : ["Menu"]),
-    [categories]
   );
-
-  useEffect(() => {
-    if (displayCategories.length > 0 && !activeCategory) {
-      setActiveCategory(displayCategories[0]);
-    }
-  }, [displayCategories, activeCategory]);
-
-  const filteredGrouped: Record<string, FoodItem[]> = useMemo(() => {
-    const nextGrouped: Record<string, FoodItem[]> = {};
-    const query = searchQuery.trim().toLowerCase();
-
-    displayCategories.forEach((cat) => {
-      const items = groupedItems[cat] || [];
-      const filtered = query
-        ? items.filter(
-            (item) =>
-              item.name?.toLowerCase().includes(query) ||
-              item.description?.toLowerCase().includes(query)
-          )
-        : items;
-      if (filtered.length > 0) nextGrouped[cat] = filtered;
-    });
-
-    return nextGrouped;
-  }, [displayCategories, groupedItems, searchQuery]);
-
-  const visibleCategories = useMemo(
-    () => Object.keys(filteredGrouped).filter((cat) => filteredGrouped[cat].length > 0),
-    [filteredGrouped]
-  );
-
-  const scrollToCategory = (cat: string) => {
-    setActiveCategory(cat);
-    setShowMobileCategoryMenu(false);
-    const el = sectionRefs.current[cat];
-    if (el) {
-      const offset = 120;
-      const top = el.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top, behavior: "smooth" });
-    }
-  };
-
-  const visibleCategoriesRef = useRef(visibleCategories);
-  useEffect(() => {
-    visibleCategoriesRef.current = visibleCategories;
-  });
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const offset = 140;
-      for (const cat of [...visibleCategoriesRef.current].reverse()) {
-        const el = sectionRefs.current[cat];
-        if (el) {
-          const top = el.getBoundingClientRect().top;
-          if (top <= offset) {
-            setActiveCategory(cat);
-            break;
-          }
-        }
-      }
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   return (
     <div className="min-h-screen bg-white text-[#111827]">
-      <header className="sticky top-0 z-20 border-b border-[#F0F0F0] bg-white">
-        <div className="border-b border-[#F0F0F0] px-4 py-3 lg:px-8">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              {logoUrl ? (
-                <Image
-                  src={logoUrl}
-                  alt={storeDetails.store_name}
-                  width={36}
-                  height={36}
-                  className="h-9 w-9 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#005B14] text-white">
-                  <Store className="h-4 w-4" />
-                </div>
-              )}
-              <div>
-                <h1 className="text-base font-bold leading-tight">{storeDetails.store_name}</h1>
-                {storeDetails.metadata?.city && (
-                  <p className="text-xs text-[#71717A]">{storeDetails.metadata.city} branch</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white md:hidden"
-                onClick={() => setShowMobileSearch(!showMobileSearch)}
-              >
-                {showMobileSearch ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-              </button>
-              <CartButton onClick={toggleCart} />
-            </div>
-          </div>
-        </div>
-
-        <div className="px-4 py-2 lg:px-8">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-            <div className="flex items-center gap-0 rounded-full border border-[#E5E7EB] bg-[#F9FAFB] p-0.5">
-              <button
-                onClick={() => setOrderMode("pickup")}
-                className={`rounded-full px-5 py-1.5 text-sm font-medium transition-colors ${
-                  orderMode === "pickup"
-                    ? "bg-[#005B14] text-white shadow-sm"
-                    : "text-[#6B7280] hover:text-[#111827]"
-                }`}
-              >
-                Pickup
-              </button>
-              <button
-                onClick={() => setOrderMode("delivery")}
-                className={`rounded-full px-5 py-1.5 text-sm font-medium transition-colors ${
-                  orderMode === "delivery"
-                    ? "bg-[#005B14] text-white shadow-sm"
-                    : "text-[#6B7280] hover:text-[#111827]"
-                }`}
-              >
-                Delivery
-              </button>
-            </div>
-            <div className="hidden flex-1 justify-end md:flex">
-              <div className="relative w-full max-w-sm">
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search menu..."
-                  className="h-9 rounded-full border-[#E5E7EB] bg-[#F6F7F6] pl-9 pr-4 text-sm"
-                />
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9CA3AF]" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {showMobileSearch && (
-          <div className="border-t border-[#F0F0F0] px-4 py-2 md:hidden">
-            <div className="relative">
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search menu..."
-                autoFocus
-                className="h-9 rounded-full border-[#E5E7EB] bg-[#F6F7F6] pl-9 pr-4 text-sm"
-              />
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9CA3AF]" />
-            </div>
-          </div>
-        )}
-      </header>
-
-      {showCart ? (
-        <div className="mx-auto max-w-2xl px-4 py-6">
-          <CartView />
-        </div>
-      ) : (
-        <div className="mx-auto max-w-7xl px-0 lg:px-8">
-          <div className="flex gap-0 lg:gap-8">
-            <aside className="hidden w-56 shrink-0 lg:block">
-              <div className="sticky top-[105px] pt-6">
-                <nav className="space-y-0.5">
-                  {displayCategories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => scrollToCategory(cat)}
-                      className={`w-full px-4 py-2.5 text-left text-sm font-medium transition-colors ${
-                        activeCategory === cat
-                          ? "border-l-2 border-[#005B14] bg-[#F0F7F1] text-[#005B14]"
-                          : "border-l-2 border-transparent text-[#374151] hover:bg-[#F9FAFB] hover:text-[#005B14]"
-                      }`}
-                    >
-                      {cat.toUpperCase()}
-                    </button>
-                  ))}
-                </nav>
-              </div>
-            </aside>
-
-            <div className="sticky top-[105px] z-10 w-full border-b border-[#F0F0F0] bg-white px-4 py-2 lg:hidden">
-              <button
-                onClick={() => setShowMobileCategoryMenu(!showMobileCategoryMenu)}
-                className="flex w-full items-center justify-between rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-2.5 text-sm font-medium"
-              >
-                <span>{activeCategory.toUpperCase()}</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${showMobileCategoryMenu ? "rotate-180" : ""}`} />
-              </button>
-              {showMobileCategoryMenu && (
-                <div className="absolute left-4 right-4 top-full z-20 mt-1 rounded-xl border border-[#E5E7EB] bg-white shadow-lg">
-                  {displayCategories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => scrollToCategory(cat)}
-                      className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                        activeCategory === cat
-                          ? "bg-[#F0F7F1] text-[#005B14]"
-                          : "text-[#374151] hover:bg-[#F9FAFB]"
-                      }`}
-                    >
-                      {cat.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <main className="min-w-0 flex-1 px-4 pb-16 pt-6 lg:px-0">
-              {isLoadingProducts ? (
-                <div className="space-y-8">
-                  {Array.from({ length: 3 }).map((_, si) => (
-                    <div key={si}>
-                      <div className="mb-4 h-5 w-32 animate-pulse rounded bg-[#E5E7EB]" />
-                      <div className="space-y-3">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                          <div key={i} className="flex gap-4 animate-pulse">
-                            <div className="h-24 w-24 shrink-0 rounded-xl bg-[#E5E7EB]" />
-                            <div className="flex-1 space-y-2 py-1">
-                              <div className="h-4 w-2/3 rounded bg-[#E5E7EB]" />
-                              <div className="h-3 w-full rounded bg-[#E5E7EB]" />
-                              <div className="h-3 w-1/3 rounded bg-[#E5E7EB]" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : visibleCategories.length === 0 ? (
-                <div className="py-20 text-center">
-                  <ShoppingBag className="mx-auto mb-3 h-10 w-10 text-[#D1D5DB]" />
-                  <p className="text-sm text-[#9CA3AF]">No items match your search.</p>
-                </div>
-              ) : (
-                <div className="space-y-10">
-                  {visibleCategories.map((cat) => (
-                    <section
-                      key={cat}
-                      ref={(el) => { sectionRefs.current[cat] = el; }}
-                    >
-                      <div className="mb-4 flex items-center gap-3">
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-[#111827]">
-                          {cat}
-                        </h2>
-                        <div className="h-px flex-1 bg-[#F0F0F0]" />
-                      </div>
-                      <ul className="space-y-0 divide-y divide-[#F5F5F5]">
-                        {filteredGrouped[cat].map((item) => (
-                          <FoodMenuItemRow
-                            key={item.uid}
-                            item={item}
-                            onSelect={setSelectedFoodItem}
-                          />
-                        ))}
-                      </ul>
-                    </section>
-                  ))}
-                  <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
-                </div>
-              )}
-            </main>
-          </div>
-        </div>
-      )}
-
-      <FoodItemModal
-        item={selectedFoodItem}
-        open={!!selectedFoodItem}
-        onOpenChange={(open) => {
-          if (!open) setSelectedFoodItem(null);
-        }}
+      <V2StoreHeader
+        storeDetails={storeDetails}
+        logoUrl={logoUrl}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        toggleCart={toggleCart}
+        showMobileSearch={showMobileSearch}
+        setShowMobileSearch={setShowMobileSearch}
       />
 
-      {!showCart && (
-        <footer className="border-t border-[#F0F0F0] bg-[#FAFAFA] py-6">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-4 lg:px-8">
-            <div className="flex items-center gap-2">
-              {logoUrl ? (
-                <Image src={logoUrl} alt={storeDetails.store_name} width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
-              ) : (
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#005B14] text-white">
-                  <Store className="h-3 w-3" />
+      {showCart ? (
+        <main className="mx-auto max-w-2xl px-4 py-6 lg:px-6">
+          <CartView />
+        </main>
+      ) : (
+        <main>
+          <section className="relative h-[360px] overflow-hidden md:h-[430px]">
+            {storeDetails.banner_style === "carousel" ? (
+              <BannerCarousel
+                images={storeDetails.banner_images || []}
+                autoplayInterval={5000}
+              />
+            ) : (
+              <Image
+                src={bannerUrl || Banner}
+                alt={`${storeDetails.store_name} banner`}
+                fill
+                priority
+                className="object-cover"
+                sizes="100vw"
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
+            <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center px-4 lg:px-6">
+              <div className="max-w-2xl">
+                <div className="mb-4 inline-flex rounded-full bg-[#005B14] px-3 py-1 text-xs font-medium text-white">
+                  Food & Restaurant
                 </div>
-              )}
-              <p className="text-sm font-semibold">{storeDetails.store_name}</p>
+                <h1 className="text-4xl font-semibold md:text-6xl">
+                  {storeDetails.store_name}
+                </h1>
+                <p className="mt-3 max-w-xl text-base text-[#71717A]">
+                  {storeDetails.store_description || "Order fresh meals for pickup or vendor delivery."}
+                </p>
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Button className="rounded-full bg-[#005B14] hover:bg-[#004610]">
+                    Start order
+                  </Button>
+                  <div className="inline-flex rounded-full bg-[#F1F3F1] p-1 text-sm">
+                    <button className="rounded-full bg-white px-5 py-2 font-medium shadow-sm">
+                      Pickup
+                    </button>
+                    <button className="px-5 py-2 text-[#71717A]">Delivery</button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-[#9CA3AF]">
-              Powered by{" "}
-              <a href="https://swiftree.app" className="font-medium text-[#005B14] hover:underline">
-                Swiftree
-              </a>
-            </p>
-          </div>
-        </footer>
+          </section>
+
+          <section className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
+            <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+              <div>
+                <h2 className="text-2xl font-semibold">
+                  {storeDetails.store_name}
+                  {storeDetails.metadata?.city ? (
+                    <span className="text-[#71717A]"> - {storeDetails.metadata.city}</span>
+                  ) : null}
+                </h2>
+                <div className="mt-3 flex flex-wrap gap-2 text-sm text-[#71717A]">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F6F7F6] px-3 py-2">
+                    <MapPin className="h-4 w-4" />
+                    {storeDetails.metadata?.address || "Select location"}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F6F7F6] px-3 py-2">
+                    <Truck className="h-4 w-4" />
+                    Vendor delivery available
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                {[
+                  ["Items", listings || foodItems.length],
+                  ["Rating", ratings],
+                  ["Open", "Today"],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border bg-white px-4 py-3">
+                    <p className="text-xs text-[#71717A]">{label}</p>
+                    <p className="mt-1 text-sm font-semibold">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
+              <aside className="hidden lg:block">
+                <div className="sticky top-24 space-y-2">
+                  {["All meals", ...categories].map((category, index) => (
+                    <button
+                      key={category}
+                      className={`w-full rounded-full px-5 py-3 text-left text-sm font-medium ${
+                        index === 0
+                          ? "bg-[#005B14] text-white"
+                          : "text-[#111827] hover:bg-[#F6F7F6]"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              </aside>
+
+              <div>
+                <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h3 className="text-xl font-semibold">Menu</h3>
+                    <p className="text-sm text-[#71717A]">
+                      Choose a meal, customize options and checkout securely.
+                    </p>
+                  </div>
+                  <div className="relative md:w-80">
+                    <Input
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Search menu"
+                      className="h-11 rounded-full border-[#ECECEC] bg-[#F6F7F6] pl-11"
+                    />
+                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71717A]" />
+                  </div>
+                </div>
+                <FoodProductGrid
+                  items={foodItems}
+                  isLoading={isLoadingProducts}
+                  searchQuery={searchQuery}
+                />
+                <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
+              </div>
+            </div>
+          </section>
+        </main>
       )}
     </div>
-  );
-}
-
-// ─── Food Menu Item Row (Daash style) ─────────────────────────────────────────
-
-function FoodMenuItemRow({
-  item,
-  onSelect,
-}: {
-  item: FoodItem;
-  onSelect: (item: FoodItem) => void;
-}) {
-  const image = getFoodItemImage(item);
-  const price = getFoodItemPrice(item);
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onSelect(item)}
-        className="flex w-full items-center gap-4 py-4 text-left transition-colors hover:bg-[#FAFAFA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005B14]/30"
-      >
-        {image && (
-          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#F5F5F5] sm:h-24 sm:w-24">
-            <Image
-              src={image}
-              alt={item.name}
-              fill
-              className="object-cover"
-              sizes="96px"
-            />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-[#111827] leading-snug">{item.name}</h3>
-          {item.description && (
-            <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-[#6B7280]">
-              {item.description}
-            </p>
-          )}
-          <div className="mt-1.5 flex items-center gap-1 text-xs text-[#9CA3AF]">
-            <span>From</span>
-            <span className="font-semibold text-[#111827]">₦{price.toLocaleString()}</span>
-          </div>
-        </div>
-      </button>
-    </li>
   );
 }
 

@@ -2,16 +2,13 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Clock, Flame, Leaf, ShoppingBag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Flame, Leaf } from "lucide-react";
 import { FoodItem } from "@/lib/mockdata";
 import { getFoodCardPrice } from "@/lib/foodPricing";
-import { useCart } from "@/context/CartContext";
-import { toast } from "sonner";
 import FoodItemModal from "./FoodItemModal";
 
 interface FoodProductGridProps {
   items: FoodItem[];
-  storeId: string;
   isLoading?: boolean;
   searchQuery?: string;
 }
@@ -150,14 +147,7 @@ function ImageCarousel({
   );
 }
 
-function FoodCard({
-  item,
-  storeId,
-}: {
-  item: FoodItem;
-  storeId: string;
-}) {
-  const { addToCart } = useCart();
+function FoodCard({ item }: { item: FoodItem }) {
   const [modalOpen, setModalOpen] = useState(false);
 
   const status = STATUS_CONFIG[item.status] || STATUS_CONFIG["Available Today"];
@@ -166,46 +156,6 @@ function FoodCard({
   const basePrice = getFoodCardPrice(item);
   const servingLabel = getServingLabel(item);
   const isUnavailable = item.status === "Out of Stock";
-  const canAddDirectly = item.type === "Simple" && item.portion.length === 1;
-
-  const actionLabel =
-    canAddDirectly
-      ? "+ Add"
-      : item.type === "Simple"
-      ? "Select Options"
-      : item.type === "Customizable"
-      ? "Select Options"
-      : item.type === "Bundle"
-      ? "Build Pack"
-      : "Select Options";
-
-  const actionStyle =
-    item.type === "Customizable"
-      ? "bg-[#4FCA6A] text-white hover:bg-[#3db55a]"
-      : item.type === "Bundle"
-      ? "bg-purple-600 text-white hover:bg-purple-700"
-      : "bg-[#4FCA6A] text-white hover:bg-[#3db55a]";
-
-  const handleDirectAdd = () => {
-    if (!canAddDirectly) return;
-
-    const portion = item.portion[0];
-    addToCart({
-      id: `${item.uid}-${portion.uid}`,
-      originalProductId: item.uid,
-      product_id: item.uid,
-      name: `${item.name} (${portion.name})`,
-      price: portion.price,
-      image: item.product_images[0] || "/placeholder-food.jpg",
-      description: item.description,
-      foodSelection: {
-        type: item.type,
-        productUid: item.uid,
-        portion: [{ uid: portion.uid, quantity: 1 }],
-      },
-    });
-    toast.success("Added to cart");
-  };
 
   return (
     <>
@@ -222,19 +172,7 @@ function FoodCard({
         }}
         aria-label={`Open details for ${item.name}`}
       >
-        <div
-          className="relative block"
-          onClick={() => setModalOpen(true)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setModalOpen(true);
-            }
-          }}
-          aria-label={`View details for ${item.name}`}
-        >
+        <div className="relative block">
           <ImageCarousel images={item.product_images} name={item.name} />
 
           <div
@@ -246,18 +184,7 @@ function FoodCard({
         </div>
 
         <div className="flex flex-col gap-1.5 p-2.5 flex-1">
-          <span
-            className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight hover:text-[#4FCA6A] transition-colors cursor-pointer"
-            onClick={() => setModalOpen(true)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setModalOpen(true);
-              }
-            }}
-          >
+          <span className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight transition-colors">
             {item.name}
           </span>
 
@@ -317,18 +244,9 @@ function FoodCard({
                 Sold Out
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setModalOpen(true);
-                }}
-                className={`inline-flex min-h-8 w-[82px] shrink-0 items-center justify-center rounded-xl px-2 py-1.5 text-center text-[11px] font-semibold leading-tight transition-colors sm:w-auto sm:px-3 ${actionStyle}`}
-              >
-                <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
-                {actionLabel}
-              </button>
+              <span className="text-[10px] font-medium text-[#4FCA6A]">
+                Tap to view
+              </span>
             )}
           </div>
         </div>
@@ -362,7 +280,6 @@ function FoodCardSkeleton() {
 
 export default function FoodProductGrid({
   items,
-  storeId,
   isLoading = false,
   searchQuery = "",
 }: FoodProductGridProps) {
@@ -395,7 +312,7 @@ export default function FoodProductGrid({
   return (
     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
       {filtered.map((item) => (
-        <FoodCard key={item.uid} item={item} storeId={storeId} />
+        <FoodCard key={item.uid} item={item} />
       ))}
     </div>
   );
