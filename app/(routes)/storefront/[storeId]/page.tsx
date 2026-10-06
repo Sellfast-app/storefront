@@ -12,7 +12,6 @@ import { useCart } from "@/context/CartContext";
 import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
 import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
-// import { SubscriptionModal } from "@/components/SubscriptionModal";
 import { AvailabilityModal } from "@/components/AvailabilityModal";
 import {
   StoreAvailabilityEntry,
@@ -36,6 +35,8 @@ import BannerCarousel from "@/components/BannerCarousel";
 import {
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   MapPin,
   Menu,
@@ -47,6 +48,7 @@ import {
   Ticket,
   Truck,
   UserRound,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -122,9 +124,8 @@ type totalListings = number;
 const StarRating = ({ rating }: { rating: number }) => {
   const fullStars = Math.floor(rating);
   const hasHalfStar = rating % 1 !== 0;
-
   return (
-    <div className="flex gap-1 mt-1">
+    <div className="flex gap-0.5 mt-1">
       {[1, 2, 3, 4, 5].map((star) => (
         <svg
           key={star}
@@ -166,6 +167,8 @@ const isFoodBusinessType = (businessType?: string) => {
   return normalized.includes("restaurant") || normalized.includes("food");
 };
 
+// ─── Shared Header ────────────────────────────────────────────────────────────
+
 interface V2TemplateProps {
   storeId: string;
   storeDetails: StoreDetails;
@@ -183,6 +186,7 @@ interface V2TemplateProps {
 
 interface V2RetailTemplateProps extends V2TemplateProps {
   filteredProducts: Product[];
+  allProducts: Product[];
   isLoadingProducts: boolean;
   handleAddToCart: (event: React.MouseEvent, product: Product) => void;
 }
@@ -202,85 +206,105 @@ function V2StoreHeader({
   searchQuery,
   setSearchQuery,
   toggleCart,
+  showMobileSearch,
+  setShowMobileSearch,
 }: Pick<
   V2TemplateProps,
   "storeDetails" | "logoUrl" | "searchQuery" | "setSearchQuery" | "toggleCart"
->) {
+> & {
+  showMobileSearch: boolean;
+  setShowMobileSearch: (v: boolean) => void;
+}) {
   return (
     <header className="sticky top-0 z-20 border-b border-[#F1F1F1] bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 lg:px-6">
-        <Link href="#" className="flex items-center gap-3">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:px-8">
+        {/* Logo */}
+        <Link href="#" className="flex items-center gap-3 shrink-0">
           {logoUrl ? (
             <Image
               src={logoUrl}
               alt={`${storeDetails.store_name} logo`}
-              width={42}
-              height={42}
-              className="h-10 w-10 rounded-full object-cover"
+              width={40}
+              height={40}
+              className="h-10 w-10 rounded-full object-cover ring-2 ring-[#E8F5E9]"
             />
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#061400] text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#005B14] text-white">
               <Store className="h-4 w-4" />
             </div>
           )}
           <div className="hidden sm:block">
-            <p className="text-sm font-semibold">{storeDetails.store_name}</p>
-            <p className="text-xs text-[#71717A]">{storeDetails.business_type}</p>
+            <p className="text-sm font-bold tracking-tight">{storeDetails.store_name}</p>
+            <p className="text-[11px] text-[#71717A] uppercase tracking-wide">{storeDetails.business_type}</p>
           </div>
         </Link>
 
-        <div className="hidden flex-1 justify-center px-4 md:flex">
-          <div className="relative w-full max-w-xl">
+        {/* Desktop Search */}
+        <div className="hidden flex-1 justify-center px-6 md:flex">
+          <div className="relative w-full max-w-lg">
             <Input
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search products"
-              className="h-11 rounded-full border-[#ECECEC] bg-[#F6F7F6] pl-11 pr-12"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products..."
+              className="h-10 rounded-full border-[#E5E7EB] bg-[#F6F7F6] pl-10 pr-4 text-sm focus-visible:ring-[#005B14]/30"
             />
-            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71717A]" />
-            <SlidersHorizontal className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71717A]" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
           </div>
         </div>
 
+        {/* Actions */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" className="rounded-full">
+          <button
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white md:hidden"
+            onClick={() => setShowMobileSearch(!showMobileSearch)}
+          >
+            {showMobileSearch ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+          </button>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-[#E5E7EB]">
             <UserRound className="h-4 w-4" />
           </Button>
           <CartButton onClick={toggleCart} />
         </div>
       </div>
+
+      {/* Mobile Search Drawer */}
+      {showMobileSearch && (
+        <div className="border-t border-[#F1F1F1] px-4 py-3 md:hidden">
+          <div className="relative">
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products..."
+              autoFocus
+              className="h-10 rounded-full border-[#E5E7EB] bg-[#F6F7F6] pl-10 pr-4 text-sm"
+            />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+          </div>
+        </div>
+      )}
     </header>
   );
 }
 
-function StorefrontLeadForm({
-  storeId,
-  storeName,
-}: {
-  storeId: string;
-  storeName: string;
-}) {
+// ─── Lead Form ────────────────────────────────────────────────────────────────
+
+function StorefrontLeadForm({ storeId, storeName }: { storeId: string; storeName: string }) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setStatus("loading");
     setMessage("");
-
     try {
-      const response = await fetch("/api/leads", {
+      const res = await fetch("/api/leads", {
         body: JSON.stringify({ email, storeId }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
-
-      const result = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(result?.message || "Unable to join list right now");
-      }
-
+      const result = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(result?.message || "Unable to join list right now");
       setStatus("success");
       setMessage("You're on the list. We'll keep you updated.");
       setEmail("");
@@ -291,34 +315,34 @@ function StorefrontLeadForm({
   }
 
   return (
-    <section className="mt-10 rounded-2xl border border-[#E7EFE5] bg-white p-5 md:p-6">
-      <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+    <section className="mt-16 rounded-2xl border border-[#E7EFE5] bg-[#F6FBF6] p-6 md:p-8">
+      <div className="grid gap-5 md:grid-cols-[1fr_auto] md:items-center">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#005B1414] px-3 py-1 text-xs text-primary">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#005B14]/10 px-3 py-1 text-xs font-medium text-[#005B14]">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            Stay connected
+            Stay in the loop
           </div>
-          <h2 className="text-lg font-semibold">Get updates from {storeName}</h2>
-          <p className="mt-1 max-w-xl text-sm text-[#71717A]">
-            Join the list for new drops, ticket releases and important updates.
+          <h2 className="text-xl font-bold">Get updates from {storeName}</h2>
+          <p className="mt-1 max-w-md text-sm text-[#6B7280]">
+            New drops, restocks, and exclusive offers — straight to your inbox.
           </p>
         </div>
-        <form onSubmit={handleSubmit} className="w-full md:w-[390px]">
-          <div className="flex flex-col gap-2 rounded-full border border-[#E5E7EB] bg-[#FAFAFA] p-1.5 sm:flex-row">
+        <form onSubmit={handleSubmit} className="w-full md:w-[380px]">
+          <div className="flex gap-2">
             <Input
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               type="email"
               required
               placeholder="Enter your email"
-              className="h-11 flex-1 border-0 bg-transparent text-[#111827] shadow-none focus-visible:ring-0"
+              className="h-11 flex-1 rounded-full border-[#D1FAE5] bg-white text-sm"
             />
-            <Button disabled={status === "loading"} className="h-11 rounded-full px-5">
-              {status === "loading" ? "Joining..." : "Join"}
+            <Button disabled={status === "loading"} className="h-11 rounded-full bg-[#005B14] px-5 text-sm hover:bg-[#004610]">
+              {status === "loading" ? "..." : "Join"}
             </Button>
           </div>
           {message && (
-            <p className={`mt-2 text-xs ${status === "error" ? "text-red-500" : "text-[#71717A]"}`}>
+            <p className={`mt-2 text-xs ${status === "error" ? "text-red-500" : "text-[#005B14]"}`}>
               {message}
             </p>
           )}
@@ -327,6 +351,8 @@ function StorefrontLeadForm({
     </section>
   );
 }
+
+// ─── Retail Storefront (KM Taylor inspired) ───────────────────────────────────
 
 function V2RetailStorefront({
   storeId,
@@ -341,207 +367,461 @@ function V2RetailStorefront({
   logoUrl,
   bannerUrl,
   filteredProducts,
+  allProducts,
   isLoadingProducts,
   handleAddToCart,
   getWhatsAppUrl,
 }: V2RetailTemplateProps) {
-  const featuredProducts = filteredProducts.slice(0, 4);
-  const categories = Array.from(
-    new Set(filteredProducts.map((product) => product.product_type).filter(Boolean))
-  ).slice(0, 6);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [activeTab, setActiveTab] = useState<"best" | "featured" | "new">("best");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [heroBannerIndex, setHeroBannerIndex] = useState(0);
+  const [showAllProducts, setShowAllProducts] = useState(false);
+
+  const categories = ["All", ...Array.from(
+    new Set(allProducts.map((p) => p.product_type).filter(Boolean))
+  ).slice(0, 8)];
+
+  // Hero banners — use banner_images if available, else single banner
+  const heroBanners: { image: string | null; headline: string; sub: string }[] =
+    storeDetails.banner_images && storeDetails.banner_images.length > 0
+      ? storeDetails.banner_images.map((img, i) => ({
+          image: getImageUrl(img),
+          headline: i === 0 ? storeDetails.store_name : `${storeDetails.store_name} Collection`,
+          sub: storeDetails.store_description || "Shop curated products and checkout securely.",
+        }))
+      : [
+          {
+            image: bannerUrl,
+            headline: storeDetails.store_name,
+            sub: storeDetails.store_description || "Shop curated products and checkout securely.",
+          },
+          {
+            image: bannerUrl,
+            headline: `${storeDetails.store_name} Collection`,
+            sub: "Explore our latest arrivals and bestsellers.",
+          },
+        ];
+
+  const prevBanner = () =>
+    setHeroBannerIndex((i) => (i === 0 ? heroBanners.length - 1 : i - 1));
+  const nextBanner = () =>
+    setHeroBannerIndex((i) => (i === heroBanners.length - 1 ? 0 : i + 1));
+
+  // Auto-advance hero
+  useEffect(() => {
+    const t = setInterval(nextBanner, 5000);
+    return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heroBanners.length]);
+
+  // Tab products
+  const tabProducts = (() => {
+    const base = activeCategory === "All"
+      ? allProducts
+      : allProducts.filter((p) => p.product_type === activeCategory);
+    if (activeTab === "best") return base.slice(0, 8);
+    if (activeTab === "featured") return base.slice(0, 8).reverse();
+    return [...base].sort((a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    ).slice(0, 8);
+  })();
+
+  // All products section (below tabs)
+  const displayProducts = searchQuery.trim()
+    ? filteredProducts
+    : showAllProducts
+      ? allProducts
+      : allProducts.slice(0, 12);
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#111827]">
+    <div className="min-h-screen bg-white text-[#111827]">
       <V2StoreHeader
         storeDetails={storeDetails}
         logoUrl={logoUrl}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         toggleCart={toggleCart}
+        showMobileSearch={showMobileSearch}
+        setShowMobileSearch={setShowMobileSearch}
       />
 
-      <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
+      <main>
         {showCart ? (
-          <div className="mx-auto max-w-2xl">
+          <div className="mx-auto max-w-2xl px-4 py-8">
             <CartView />
           </div>
         ) : (
           <>
-            <section className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="relative min-h-[360px] overflow-hidden rounded-2xl bg-[#061400]">
-                <Image
-                  src={bannerUrl || Banner}
-                  alt={`${storeDetails.store_name} banner`}
-                  fill
-                  priority
-                  className="object-cover opacity-70"
-                  sizes="(max-width: 1024px) 100vw, 60vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#061400]/90 via-[#061400]/50 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-8">
-                  <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs backdrop-blur">
-                    <ShoppingBag className="h-3.5 w-3.5" />
-                    Retail & wholesale storefront
-                  </div>
-                  <h1 className="max-w-xl text-3xl font-semibold md:text-5xl">
-                    {storeDetails.store_name}
-                  </h1>
-                  <p className="mt-3 max-w-lg text-sm text-white/80 md:text-base">
-                    {storeDetails.store_description || "Shop curated products and checkout securely with Swiftree."}
-                  </p>
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    <Button className="rounded-full">Shop collection</Button>
-                    {storeDetails.metadata?.phone && (
-                      <a
-                        href={getWhatsAppUrl(storeDetails.metadata.phone)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Button variant="outline" className="rounded-full bg-white text-[#061400] hover:bg-white/90">
-                          Chat on WhatsApp
-                        </Button>
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
-                {[
-                  ["Listings", listings],
-                  ["Rating", ratings],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-2xl border bg-white p-5">
-                    <p className="text-xs text-[#71717A]">{label}</p>
-                    <p className="mt-2 text-2xl font-semibold">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="mt-6 flex gap-3 overflow-x-auto pb-2">
-              {["All products", ...categories].map((category, index) => (
-                <button
-                  key={category}
-                  className={`h-11 shrink-0 rounded-full px-5 text-sm font-medium ${
-                    index === 0 ? "bg-[#061400] text-white" : "border bg-white text-[#111827]"
+            {/* ── Hero Banner Carousel ── */}
+            <section className="relative h-[420px] overflow-hidden bg-[#061400] md:h-[520px]">
+              {heroBanners.map((banner, index) => (
+                <div
+                  key={index}
+                  className={`absolute inset-0 transition-opacity duration-700 ${
+                    index === heroBannerIndex ? "opacity-100" : "opacity-0 pointer-events-none"
                   }`}
                 >
-                  {category}
-                </button>
+                  <Image
+                    src={banner.image || Banner}
+                    alt={banner.headline}
+                    fill
+                    priority={index === 0}
+                    className="object-cover opacity-60"
+                    sizes="100vw"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#061400]/85 via-[#061400]/50 to-transparent" />
+                  <div className="relative z-10 flex h-full items-end pb-12 px-6 md:px-12 lg:px-16">
+                    <div className="max-w-xl text-white">
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#4FCA6A]">
+                        {storeDetails.business_type}
+                      </p>
+                      <h1 className="text-3xl font-bold leading-tight md:text-5xl">
+                        {banner.headline}
+                      </h1>
+                      <p className="mt-3 text-sm text-white/75 md:text-base">{banner.sub}</p>
+                      <div className="mt-6 flex flex-wrap gap-3">
+                        <Button className="rounded-full bg-[#005B14] px-6 hover:bg-[#004610]">
+                          Shop Now
+                        </Button>
+                        {storeDetails.metadata?.phone && (
+                          <a
+                            href={getWhatsAppUrl(storeDetails.metadata.phone)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button
+                              variant="outline"
+                              className="rounded-full border-white/40 bg-white/10 text-white backdrop-blur hover:bg-white/20"
+                            >
+                              Chat on WhatsApp
+                            </Button>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ))}
+
+              {/* Carousel Controls */}
+              <button
+                onClick={prevBanner}
+                className="absolute left-4 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur hover:bg-white/30"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                onClick={nextBanner}
+                className="absolute right-4 top-1/2 z-10 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur hover:bg-white/30"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+
+              {/* Dots */}
+              <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 gap-2">
+                {heroBanners.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setHeroBannerIndex(i)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === heroBannerIndex ? "w-6 bg-white" : "w-1.5 bg-white/40"
+                    }`}
+                  />
+                ))}
+              </div>
             </section>
 
-            {featuredProducts.length > 0 && (
-              <section className="mt-4 grid gap-4 md:grid-cols-4">
-                {featuredProducts.map((product) => (
-                  <Link
-                    href={`/storefront/${storeId}/product/${product.id}`}
-                    key={product.id}
-                    className="group overflow-hidden rounded-2xl border bg-white"
-                  >
-                    <div className="relative aspect-[4/3] overflow-hidden">
-                      <Image
-                        src={product.product_images[0] || Banner}
-                        alt={product.product_name}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        sizes="(max-width: 768px) 50vw, 25vw"
-                      />
-                    </div>
-                    <div className="p-4">
-                      <p className="line-clamp-2 text-sm font-medium">{product.product_name}</p>
-                      <p className="mt-2 text-lg font-semibold">
-                        ₦{product.product_price.toLocaleString()}
-                      </p>
-                    </div>
-                  </Link>
+            {/* ── Store Stats Bar ── */}
+            <section className="border-b border-[#F1F1F1] bg-[#FAFAFA]">
+              <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 overflow-x-auto px-6 py-4 lg:px-8">
+                {[
+                  { label: "Total Listings", value: listings },
+                  { label: "Avg. Rating", value: `${ratings} ★` },
+                  { label: "Est. Delivery", value: "2–5 days" },
+                  { label: "Secure Checkout", value: "Paystack & more" },
+                ].map((stat) => (
+                  <div key={stat.label} className="shrink-0 text-center">
+                    <p className="text-xs text-[#9CA3AF]">{stat.label}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-[#111827]">{stat.value}</p>
+                  </div>
                 ))}
-              </section>
-            )}
+              </div>
+            </section>
 
-            <section className="mt-8">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold">Shop all products</h2>
-                  <p className="text-sm text-[#71717A]">Browse the full catalog.</p>
+            {/* ── Category Pills ── */}
+            <section className="mx-auto max-w-7xl px-4 pt-8 lg:px-8">
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`h-9 shrink-0 rounded-full px-5 text-sm font-medium transition-colors ${
+                      activeCategory === cat
+                        ? "bg-[#005B14] text-white"
+                        : "border border-[#E5E7EB] bg-white text-[#374151] hover:border-[#005B14]/40 hover:text-[#005B14]"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* ── OUR PRODUCTS Section (KM Taylor style) ── */}
+            <section className="mx-auto max-w-7xl px-4 pt-10 lg:px-8">
+              <div className="mb-6 text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#005B14]">
+                  Catalog
+                </p>
+                <h2 className="mt-1 text-2xl font-bold md:text-3xl">OUR PRODUCTS</h2>
+                <p className="mt-2 text-sm text-[#6B7280]">
+                  Explore our curated selection of popular, unique, and discounted items.
+                </p>
+              </div>
+
+              {/* Tabs */}
+              <div className="mb-6 flex justify-center gap-0 rounded-full border border-[#E5E7EB] bg-[#F9FAFB] p-1 w-fit mx-auto">
+                {(["best", "featured", "new"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${
+                      activeTab === tab
+                        ? "bg-[#005B14] text-white shadow-sm"
+                        : "text-[#6B7280] hover:text-[#111827]"
+                    }`}
+                  >
+                    {tab === "best" ? "Best Sellers" : tab === "featured" ? "Featured" : "New Arrivals"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Product Grid */}
+              {isLoadingProducts ? (
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="animate-pulse rounded-2xl bg-[#F3F4F6]">
+                      <div className="aspect-[3/4] rounded-t-2xl bg-[#E5E7EB]" />
+                      <div className="p-3 space-y-2">
+                        <div className="h-3 w-3/4 rounded bg-[#E5E7EB]" />
+                        <div className="h-3 w-1/2 rounded bg-[#E5E7EB]" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <Button variant="outline" className="hidden rounded-full md:inline-flex">
-                  <Menu className="h-4 w-4" />
-                  <span className="ml-2">Collections</span>
+              ) : tabProducts.length === 0 ? (
+                <div className="py-16 text-center text-sm text-[#9CA3AF]">No products found.</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                  {tabProducts.map((product) => (
+                    <RetailProductCard
+                      key={product.id}
+                      product={product}
+                      storeId={storeId}
+                      onAddToCart={handleAddToCart}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* View All CTA */}
+              <div className="mt-8 text-center">
+                <Link href="#all-products">
+                  <Button
+                    variant="outline"
+                    className="rounded-full border-[#005B14] px-8 text-[#005B14] hover:bg-[#005B14] hover:text-white"
+                    onClick={() => setShowAllProducts(true)}
+                  >
+                    VIEW ALL PRODUCTS
+                  </Button>
+                </Link>
+              </div>
+            </section>
+
+            {/* ── All Products ── */}
+            <section id="all-products" className="mx-auto max-w-7xl px-4 pt-14 lg:px-8">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold">
+                    {searchQuery ? `Results for "${searchQuery}"` : "All Products"}
+                  </h2>
+                  <p className="text-sm text-[#6B7280]">
+                    {displayProducts.length} item{displayProducts.length !== 1 ? "s" : ""}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="hidden rounded-full md:inline-flex gap-2">
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  Filter
                 </Button>
               </div>
 
               {isLoadingProducts ? (
-                <div className="py-20 text-center text-sm text-[#71717A]">Loading products...</div>
+                <div className="py-20 text-center text-sm text-[#9CA3AF]">Loading products...</div>
+              ) : displayProducts.length === 0 ? (
+                <div className="py-16 text-center text-sm text-[#9CA3AF]">No products found.</div>
               ) : (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-                  {filteredProducts.map((product) => (
-                    <Link
-                      href={`/storefront/${storeId}/product/${product.id}`}
-                      key={product.id}
-                      className="group overflow-hidden rounded-2xl border bg-white"
-                    >
-                      <div className="relative aspect-square overflow-hidden bg-[#F5F5F5]">
-                        <Image
-                          src={product.product_images[0] || Banner}
-                          alt={product.product_name}
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
-                          sizes="(max-width: 768px) 50vw, 25vw"
-                        />
-                      </div>
-                      <div className="space-y-3 p-3">
-                        <p className="line-clamp-2 min-h-10 text-sm font-medium">
-                          {product.product_name}
-                        </p>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold">
-                            ₦{product.product_price.toLocaleString()}
-                          </span>
-                          <Button
-                            size="sm"
-                            className="h-9 rounded-full px-3 text-xs"
-                            onClick={(event) => handleAddToCart(event, product)}
-                          >
-                            Add
-                          </Button>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+                    {displayProducts.map((product) => (
+                      <RetailProductCard
+                        key={product.id}
+                        product={product}
+                        storeId={storeId}
+                        onAddToCart={handleAddToCart}
+                      />
+                    ))}
+                  </div>
+                  {!showAllProducts && !searchQuery && allProducts.length > 12 && (
+                    <div className="mt-8 text-center">
+                      <Button
+                        variant="outline"
+                        className="rounded-full border-[#005B14] px-8 text-[#005B14] hover:bg-[#005B14] hover:text-white"
+                        onClick={() => setShowAllProducts(true)}
+                      >
+                        Load More
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </section>
 
-            <section className="mt-10 rounded-2xl border bg-white p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Customer reviews</h2>
-                <div className="flex items-center gap-1 text-sm text-primary">
-                  <Star className="h-4 w-4 fill-primary" />
-                  {ratings}
+            {/* ── Reviews ── */}
+            {storeReviews.length > 0 && (
+              <section className="mx-auto max-w-7xl px-4 pt-14 lg:px-8">
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#005B14]">
+                      Testimonials
+                    </p>
+                    <h2 className="mt-1 text-xl font-bold">What customers say</h2>
+                  </div>
+                  <div className="flex items-center gap-1 text-sm font-semibold text-[#005B14]">
+                    <Star className="h-4 w-4 fill-[#FEA436] text-[#FEA436]" />
+                    {ratings}
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {storeReviews.slice(0, 3).map((review) => (
+                    <div key={review.id} className="rounded-2xl border border-[#F1F1F1] bg-[#FAFAFA] p-5">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#005B14]/10 text-sm font-bold text-[#005B14]">
+                          {review.user_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">{review.user_name}</p>
+                          <StarRating rating={review.rating} />
+                        </div>
+                      </div>
+                      <p className="mt-3 line-clamp-3 text-sm text-[#6B7280]">{review.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ── Lead Form ── */}
+            <div className="mx-auto max-w-7xl px-4 lg:px-8">
+              <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
+            </div>
+
+            {/* ── Footer ── */}
+            <footer className="mt-16 border-t border-[#F1F1F1] bg-[#FAFAFA]">
+              <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
+                <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+                  <div className="flex items-center gap-3">
+                    {logoUrl ? (
+                      <Image src={logoUrl} alt={storeDetails.store_name} width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#005B14] text-white">
+                        <Store className="h-3.5 w-3.5" />
+                      </div>
+                    )}
+                    <p className="text-sm font-semibold">{storeDetails.store_name}</p>
+                  </div>
+                  <p className="text-xs text-[#9CA3AF]">
+                    Powered by{" "}
+                    <a href="https://swiftree.app" className="font-medium text-[#005B14] hover:underline">
+                      Swiftree
+                    </a>
+                  </p>
                 </div>
               </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                {storeReviews.slice(0, 3).map((review) => (
-                  <div key={review.id} className="rounded-xl border p-4">
-                    <p className="text-sm font-medium">{review.user_name}</p>
-                    <StarRating rating={review.rating} />
-                    <p className="mt-3 line-clamp-3 text-sm text-[#71717A]">
-                      {review.comment}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
+            </footer>
           </>
         )}
       </main>
     </div>
   );
 }
+
+// ─── Retail Product Card ──────────────────────────────────────────────────────
+
+function RetailProductCard({
+  product,
+  storeId,
+  onAddToCart,
+}: {
+  product: Product;
+  storeId: string;
+  onAddToCart: (e: React.MouseEvent, product: Product) => void;
+}) {
+  const hasVariants = (() => {
+    try {
+      const v = typeof product.variants === "string"
+        ? JSON.parse(product.variants)
+        : product.variants;
+      return Array.isArray(v) && v.length > 0;
+    } catch {
+      return false;
+    }
+  })();
+
+  return (
+    <Link href={`/storefront/${storeId}/product/${product.id}`} className="group block">
+      <div className="overflow-hidden rounded-2xl border border-[#F1F1F1] bg-white transition-shadow hover:shadow-md">
+        {/* Image */}
+        <div className="relative aspect-[3/4] overflow-hidden bg-[#F9FAFB]">
+          <Image
+            src={product.product_images[0] || Banner}
+            alt={product.product_name}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 768px) 50vw, 25vw"
+          />
+          {product.product_quantity === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#374151]">
+                Sold Out
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="p-3">
+          <p className="line-clamp-2 text-sm font-medium leading-snug text-[#111827]">
+            {product.product_name}
+          </p>
+          <p className="mt-1.5 text-base font-bold text-[#111827]">
+            ₦{product.product_price.toLocaleString()}
+          </p>
+          <Button
+            size="sm"
+            className="mt-3 h-8 w-full rounded-full bg-[#005B14] text-xs hover:bg-[#004610]"
+            onClick={(e) => onAddToCart(e, product)}
+            disabled={product.product_quantity === 0}
+          >
+            {hasVariants ? "Select Options" : product.product_quantity === 0 ? "Sold Out" : "Add to Cart"}
+          </Button>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ─── Food Storefront ──────────────────────────────────────────────────────────
 
 function V2FoodStorefront({
   storeId,
@@ -557,6 +837,8 @@ function V2FoodStorefront({
   foodItems,
   isLoadingProducts,
 }: V2FoodTemplateProps) {
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+
   const categories = Array.from(
     new Set(foodItems.flatMap((item) => item.category || []).filter(Boolean))
   ).slice(0, 10);
@@ -569,6 +851,8 @@ function V2FoodStorefront({
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         toggleCart={toggleCart}
+        showMobileSearch={showMobileSearch}
+        setShowMobileSearch={setShowMobileSearch}
       />
 
       {showCart ? (
@@ -596,7 +880,7 @@ function V2FoodStorefront({
             <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
             <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center px-4 lg:px-6">
               <div className="max-w-2xl">
-                <div className="mb-4 inline-flex rounded-full bg-[#061400] px-3 py-1 text-xs font-medium text-white">
+                <div className="mb-4 inline-flex rounded-full bg-[#005B14] px-3 py-1 text-xs font-medium text-white">
                   Food & Restaurant
                 </div>
                 <h1 className="text-4xl font-semibold md:text-6xl">
@@ -606,7 +890,7 @@ function V2FoodStorefront({
                   {storeDetails.store_description || "Order fresh meals for pickup or vendor delivery."}
                 </p>
                 <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <Button className="rounded-full">Start order</Button>
+                  <Button className="rounded-full bg-[#005B14] hover:bg-[#004610]">Start order</Button>
                   <div className="inline-flex rounded-full bg-[#F1F3F1] p-1 text-sm">
                     <button className="rounded-full bg-white px-5 py-2 font-medium shadow-sm">
                       Pickup
@@ -624,7 +908,7 @@ function V2FoodStorefront({
                 <h2 className="text-2xl font-semibold">
                   {storeDetails.store_name}
                   {storeDetails.metadata?.city ? (
-                    <span className="text-[#71717A]"> - {storeDetails.metadata.city}</span>
+                    <span className="text-[#71717A]"> — {storeDetails.metadata.city}</span>
                   ) : null}
                 </h2>
                 <div className="mt-3 flex flex-wrap gap-2 text-sm text-[#71717A]">
@@ -654,17 +938,17 @@ function V2FoodStorefront({
 
             <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
               <aside className="hidden lg:block">
-                <div className="sticky top-24 space-y-2">
-                  {["All meals", ...categories].map((category, index) => (
+                <div className="sticky top-24 space-y-1">
+                  {["All meals", ...categories].map((cat, i) => (
                     <button
-                      key={category}
-                      className={`w-full rounded-full px-5 py-3 text-left text-sm font-medium ${
-                        index === 0
-                          ? "bg-[#061400] text-white"
+                      key={cat}
+                      className={`w-full rounded-full px-5 py-3 text-left text-sm font-medium transition-colors ${
+                        i === 0
+                          ? "bg-[#005B14] text-white"
                           : "text-[#111827] hover:bg-[#F6F7F6]"
                       }`}
                     >
-                      {category}
+                      {cat}
                     </button>
                   ))}
                 </div>
@@ -681,7 +965,7 @@ function V2FoodStorefront({
                   <div className="relative md:w-80">
                     <Input
                       value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
+                      onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search menu"
                       className="h-11 rounded-full border-[#ECECEC] bg-[#F6F7F6] pl-11"
                     />
@@ -704,6 +988,8 @@ function V2FoodStorefront({
   );
 }
 
+// ─── Event Storefront ─────────────────────────────────────────────────────────
+
 function V2EventStorefront({
   storeId,
   storeDetails,
@@ -714,35 +1000,29 @@ function V2EventStorefront({
   logoUrl,
   events,
 }: V2EventTemplateProps) {
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(events[0]?.id || "");
   const [ticketQuantities, setTicketQuantities] = useState<Record<string, number>>({});
-  const filteredEvents = events.filter((event) =>
-    `${event.name} ${event.location} ${event.organizerName}`
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
+
+  const filteredEvents = events.filter((e) =>
+    `${e.name} ${e.location} ${e.organizerName}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const visibleEvents = filteredEvents.length > 0 ? filteredEvents : events;
-  const selectedEvent =
-    events.find((event) => event.id === selectedEventId) || filteredEvents[0] || events[0];
-  const activeTickets = selectedEvent?.tickets.filter((ticket) => ticket.type !== "invite") || [];
+  const selectedEvent = events.find((e) => e.id === selectedEventId) || filteredEvents[0] || events[0];
+  const activeTickets = selectedEvent?.tickets.filter((t) => t.type !== "invite") || [];
   const selectedTickets = activeTickets
-    .map((ticket) => ({ ticket, quantity: ticketQuantities[ticket.id] || 0 }))
+    .map((t) => ({ ticket: t, quantity: ticketQuantities[t.id] || 0 }))
     .filter((item) => item.quantity > 0);
-  const ticketSubtotal = selectedTickets.reduce(
-    (sum, item) => sum + (item.ticket.price || 0) * item.quantity,
-    0
-  );
+  const ticketSubtotal = selectedTickets.reduce((sum, item) => sum + (item.ticket.price || 0) * item.quantity, 0);
   const serviceFee = selectedTickets.reduce(
     (sum, item) => sum + (item.ticket.type === "paid" ? 740 * item.quantity : 0),
     0
   );
   const ticketTotal = ticketSubtotal + serviceFee;
   const totalTickets = selectedTickets.reduce((sum, item) => sum + item.quantity, 0);
-  const updateTicketQuantity = (ticketId: string, nextQuantity: number, limit: number) => {
-    setTicketQuantities((current) => ({
-      ...current,
-      [ticketId]: Math.max(0, Math.min(nextQuantity, limit)),
-    }));
+
+  const updateTicketQuantity = (ticketId: string, next: number, limit: number) => {
+    setTicketQuantities((cur) => ({ ...cur, [ticketId]: Math.max(0, Math.min(next, limit)) }));
   };
   const resetForEvent = (eventId: string) => {
     setSelectedEventId(eventId);
@@ -757,6 +1037,8 @@ function V2EventStorefront({
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         toggleCart={toggleCart}
+        showMobileSearch={showMobileSearch}
+        setShowMobileSearch={setShowMobileSearch}
       />
 
       <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
@@ -786,7 +1068,7 @@ function V2EventStorefront({
                         </div>
                         <div className="flex items-center gap-4">
                           <Clock className="h-5 w-5 shrink-0 text-[#4FCA6A]" />
-                          <span>{selectedEvent.startTime} - {selectedEvent.endTime}</span>
+                          <span>{selectedEvent.startTime} — {selectedEvent.endTime}</span>
                         </div>
                         <div className="flex items-center gap-4">
                           <MapPin className="h-5 w-5 shrink-0 text-[#4FCA6A]" />
@@ -825,7 +1107,7 @@ function V2EventStorefront({
                   onClick={() => resetForEvent(event.id)}
                   className={`shrink-0 rounded-full px-5 py-2 text-sm font-medium ${
                     selectedEvent?.id === event.id
-                      ? "bg-[#061400] text-white"
+                      ? "bg-[#005B14] text-white"
                       : "border border-[#E5E7EB] bg-white text-[#111827]"
                   }`}
                 >
@@ -837,42 +1119,30 @@ function V2EventStorefront({
             <section id="tickets" className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
               <div className="rounded-2xl border border-[#E8ECE8] bg-white p-5 md:p-8">
                 <div className="mb-8">
-                  <div>
-                    <p className="text-sm font-medium text-primary">Tickets</p>
-                    <h2 className="mt-2 text-3xl font-semibold">Choose tickets</h2>
-                  </div>
+                  <p className="text-sm font-medium text-[#005B14]">Tickets</p>
+                  <h2 className="mt-2 text-3xl font-semibold">Choose tickets</h2>
                 </div>
-
                 <div className="space-y-6">
                   {activeTickets.map((ticket) => {
                     const quantity = ticketQuantities[ticket.id] || 0;
                     const available = Math.max(ticket.quantity - ticket.sold, 0);
                     const limit = Math.min(ticket.orderLimitPerPerson, available);
-
                     return (
                       <div key={ticket.id} className="border-b border-[#ECECEC] pb-6 last:border-0">
                         <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
                           <div>
                             <h3 className="text-xl font-semibold">{ticket.name}</h3>
                             <div className="mt-3 flex flex-wrap items-baseline gap-2">
-                              <span className="text-2xl font-semibold text-primary">
-                                {ticket.type === "free"
-                                  ? "Free"
-                                  : `₦${(ticket.price || 0).toLocaleString()}`}
+                              <span className="text-2xl font-semibold text-[#005B14]">
+                                {ticket.type === "free" ? "Free" : `₦${(ticket.price || 0).toLocaleString()}`}
                               </span>
                               {ticket.type !== "free" && (
-                                <span className="text-sm text-[#8A8F98]">
-                                  includes service fee at checkout
-                                </span>
+                                <span className="text-sm text-[#8A8F98]">includes service fee at checkout</span>
                               )}
                             </div>
                             <p className="mt-4 max-w-2xl text-sm leading-6 text-[#6B7280]">
                               This ticket grants access to {selectedEvent?.name}. Limited availability,
                               secure checkout and ticket confirmation by email.
-                            </p>
-                            <p className="mt-3 text-sm text-[#6B7280]">
-                              <span className="font-semibold text-[#111827]">Perks:</span>{" "}
-                              Digital ticket | Email confirmation | Event updates
                             </p>
                           </div>
                           <div className="flex h-12 items-center rounded-xl border border-[#E5E7EB] bg-white">
@@ -881,7 +1151,6 @@ function V2EventStorefront({
                               disabled={quantity === 0}
                               onClick={() => updateTicketQuantity(ticket.id, quantity - 1, limit)}
                               className="h-full px-4 text-lg disabled:text-[#C7CBD1]"
-                              aria-label={`Reduce ${ticket.name} quantity`}
                             >
                               -
                             </button>
@@ -891,7 +1160,6 @@ function V2EventStorefront({
                               disabled={quantity >= limit}
                               onClick={() => updateTicketQuantity(ticket.id, quantity + 1, limit)}
                               className="h-full px-4 text-lg disabled:text-[#C7CBD1]"
-                              aria-label={`Increase ${ticket.name} quantity`}
                             >
                               +
                             </button>
@@ -918,9 +1186,7 @@ function V2EventStorefront({
                       <div className="mt-8 space-y-5 text-sm text-[#6B7280]">
                         {selectedTickets.map(({ ticket, quantity }) => (
                           <div key={ticket.id} className="flex justify-between gap-4">
-                            <span>
-                              {quantity} x {ticket.name}
-                            </span>
+                            <span>{quantity} x {ticket.name}</span>
                             <span>
                               {ticket.type === "free"
                                 ? "Free"
@@ -938,9 +1204,6 @@ function V2EventStorefront({
                             <span>₦{ticketTotal.toLocaleString()}</span>
                           </div>
                         </div>
-                        <div className="rounded-xl bg-[#FAFAFA] p-4 text-center text-xs">
-                          Discount codes are added at the payment step.
-                        </div>
                         <div className="flex justify-between border-t pt-5 text-base font-semibold text-[#111827]">
                           <span>Total</span>
                           <span>₦{ticketTotal.toLocaleString()}</span>
@@ -949,7 +1212,7 @@ function V2EventStorefront({
                     )}
                   </div>
                   <Button
-                    className="mt-5 h-12 w-full rounded-xl"
+                    className="mt-5 h-12 w-full rounded-xl bg-[#005B14] hover:bg-[#004610]"
                     disabled={totalTickets === 0}
                   >
                     Continue
@@ -965,6 +1228,8 @@ function V2EventStorefront({
     </div>
   );
 }
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 function Page() {
   const params = useParams();
@@ -982,18 +1247,11 @@ function Page() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [vendorId, setVendorId] = useState<string | undefined>(undefined);
-  const {
-    hasActiveSubscription,
-    isLoading: isCheckingSubscription,
-  } = useSubscriptionCheck(vendorId);
-  const { hasAvailability, isOpen, nextOpening } = useStoreAvailability(
-    storeDetails?.availability
-  );
+
+  const { hasActiveSubscription, isLoading: isCheckingSubscription } = useSubscriptionCheck(vendorId);
+  const { hasAvailability, isOpen, nextOpening } = useStoreAvailability(storeDetails?.availability);
   const showAvailabilityModal =
-    !isCheckingSubscription &&
-    hasActiveSubscription &&
-    hasAvailability &&
-    !isOpen;
+    !isCheckingSubscription && hasActiveSubscription && hasAvailability && !isOpen;
 
   const { addToCart } = useCart();
   const isMockRetailStore = isMockRetailStorefront(storeId);
@@ -1002,14 +1260,12 @@ function Page() {
   const isMockStore = isMockRetailStore || isMockFoodStore || isMockEventStore;
   const mockEvents = getPublishedEvents();
 
-  // Fetch store details
+  // ── Fetch store details ──
   useEffect(() => {
     const fetchStoreData = async () => {
       if (!storeId) return;
-
       setIsLoading(true);
       setError(null);
-
       try {
         if (isMockStore) {
           const details = isMockEventStore
@@ -1035,29 +1291,24 @@ function Page() {
         }
 
         const response = await fetch(`/api/stores/${storeId}`);
-
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || "Failed to fetch store details");
         }
-
         const result = await response.json();
-
         if (result.status === "success" && result.data) {
           setStoreDetails(result.data.storeDetails as StoreDetails);
           setStoreReviews(result.data.reviews.items || []);
           setListings(result.data.total_listings || 0);
           setRatings(result.data.ratings || 0);
-
-          const vendorId = result.data.storeDetails.vendor_id;
-          const vendorEmail = result.data.storeDetails.vendor_email;
-
-          if (vendorId) {
-            document.cookie = `vendor_id=${vendorId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
-            setVendorId(vendorId);
+          const vid = result.data.storeDetails.vendor_id;
+          const vemail = result.data.storeDetails.vendor_email;
+          if (vid) {
+            document.cookie = `vendor_id=${vid}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+            setVendorId(vid);
           }
-          if (vendorEmail) {
-            document.cookie = `vendor_email=${encodeURIComponent(vendorEmail)}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
+          if (vemail) {
+            document.cookie = `vendor_email=${encodeURIComponent(vemail)}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
           }
           if (storeId) {
             document.cookie = `storefront_store_id=${storeId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
@@ -1067,46 +1318,32 @@ function Page() {
         }
       } catch (err) {
         console.error("Error fetching store:", err);
-        setError(
-          err instanceof Error ? err.message : "Store not found or unavailable"
-        );
+        setError(err instanceof Error ? err.message : "Store not found or unavailable");
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchStoreData();
   }, [isMockEventStore, isMockFoodStore, isMockStore, mockEvents.length, storeId]);
 
-  // Fetch products — regular stores
+  // ── Fetch products ──
   useEffect(() => {
     if (!storeId || isMockEventStore || isFoodBusinessType(storeDetails?.business_type)) {
       if (isMockEventStore) setIsLoadingProducts(false);
       return;
     }
-
     const fetchProducts = async () => {
       setIsLoadingProducts(true);
       try {
         if (isMockRetailStore) {
-          setProducts(mockRetailProducts.map((product) => ({ ...product, store_id: storeId })));
+          setProducts(mockRetailProducts.map((p) => ({ ...p, store_id: storeId })));
           return;
         }
-
         const queryParams = new URLSearchParams({
-          page: "1",
-          pageSize: "50",
-          status: "",
-          sort: "created_at",
-          dir: "desc",
+          page: "1", pageSize: "50", status: "", sort: "created_at", dir: "desc",
         });
-
-        const response = await fetch(
-          `/api/stores/${storeId}/products?${queryParams.toString()}`
-        );
-
+        const response = await fetch(`/api/stores/${storeId}/products?${queryParams.toString()}`);
         if (!response.ok) throw new Error("Failed to fetch products");
-
         const result = await response.json();
         if (result.status === "success" && result.data) {
           setProducts(result.data.items || []);
@@ -1117,14 +1354,12 @@ function Page() {
         setIsLoadingProducts(false);
       }
     };
-
     fetchProducts();
   }, [isMockEventStore, isMockRetailStore, storeId, storeDetails?.business_type]);
 
-  // Fetch food items — Restaurant/Food Service stores
+  // ── Fetch food items ──
   useEffect(() => {
     if (!storeId || !isFoodBusinessType(storeDetails?.business_type)) return;
-
     const fetchFoodItems = async () => {
       setIsLoadingProducts(true);
       try {
@@ -1132,13 +1367,8 @@ function Page() {
           setFoodItems(mockStorefrontFoodItems.map((item) => ({ ...item, storeId })));
           return;
         }
-
-        const response = await fetch(`/api/stores/${storeId}/food`, {
-          cache: "no-store",
-        });
-
+        const response = await fetch(`/api/stores/${storeId}/food`, { cache: "no-store" });
         if (!response.ok) throw new Error("Failed to fetch food items");
-
         const result = await response.json();
         if (result.status === "success" && result.data) {
           setFoodItems(result.data);
@@ -1149,12 +1379,11 @@ function Page() {
         setIsLoadingProducts(false);
       }
     };
-
     fetchFoodItems();
   }, [isMockFoodStore, storeId, storeDetails?.business_type]);
 
-  const filteredProducts = products.filter((product) =>
-    product.product_name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredProducts = products.filter((p) =>
+    p.product_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const isFoodStore = isFoodBusinessType(storeDetails?.business_type);
@@ -1162,36 +1391,30 @@ function Page() {
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.preventDefault();
     e.stopPropagation();
-
     let hasVariants = false;
     try {
-      const variants = typeof product.variants === 'string'
-        ? JSON.parse(product.variants)
-        : product.variants;
-      hasVariants = Array.isArray(variants) && variants.length > 0;
+      const v = typeof product.variants === "string" ? JSON.parse(product.variants) : product.variants;
+      hasVariants = Array.isArray(v) && v.length > 0;
     } catch {
       hasVariants = false;
     }
-
     if (hasVariants) {
       window.location.href = `/storefront/${storeId}/product/${product.id}`;
       return;
     }
-
-    const cartProduct = {
+    addToCart({
       id: product.id,
       name: product.product_name,
       price: product.product_price,
       image: product.product_images[0] || Banner,
       description: product.product_description,
-    };
-    addToCart(cartProduct, 1);
+    }, 1);
   };
 
   const toggleCart = () => {
     setShowCart(!showCart);
     if (!showCart && window.innerWidth < 768) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -1201,75 +1424,57 @@ function Page() {
       ? getImageUrl(storeDetails.banner)
       : null;
 
+  const getWhatsAppUrl = (phoneNumber: string): string => {
+    const clean = phoneNumber.replace(/\D/g, "");
+    let formatted = clean;
+    if (formatted.startsWith("0")) formatted = "234" + formatted.substring(1);
+    if (!formatted.startsWith("234") && !formatted.startsWith("+")) formatted = "234" + formatted;
+    return `https://wa.me/${formatted}`;
+  };
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FCFCFC]">
+      <div className="flex items-center justify-center h-screen bg-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4FCA6A] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading store...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#005B14] mx-auto mb-4" />
+          <p className="text-sm text-[#6B7280]">Loading store...</p>
         </div>
       </div>
     );
   }
-
-  const getWhatsAppUrl = (phoneNumber: string): string => {
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
-    let formattedPhone = cleanPhone;
-    if (formattedPhone.startsWith('0')) {
-      formattedPhone = '234' + formattedPhone.substring(1);
-    }
-    if (!formattedPhone.startsWith('234') && !formattedPhone.startsWith('+')) {
-      formattedPhone = '234' + formattedPhone;
-    }
-    return `https://wa.me/${formattedPhone}`;
-  };
 
   if (error || !storeDetails) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#FCFCFC]">
+      <div className="flex items-center justify-center h-screen bg-white">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4 text-red-600">
-            Store Not Found
-          </h2>
-          <p className="text-gray-600 mb-6">
-            {error || "The store you are looking for does not exist."}
-          </p>
-          <Link href="/">
-            <Button>Go Home</Button>
-          </Link>
+          <h2 className="text-2xl font-bold mb-4 text-red-600">Store Not Found</h2>
+          <p className="text-[#6B7280] mb-6">{error || "The store you are looking for does not exist."}</p>
+          <Link href="/"><Button className="bg-[#005B14] hover:bg-[#004610]">Go Home</Button></Link>
         </div>
       </div>
     );
   }
+
+  const sharedProps: V2TemplateProps = {
+    storeId,
+    storeDetails,
+    storeReviews,
+    listings,
+    ratings,
+    searchQuery,
+    setSearchQuery,
+    toggleCart,
+    showCart,
+    logoUrl,
+    bannerUrl,
+    getWhatsAppUrl,
+  };
 
   if (isMockEventStore) {
     return (
       <>
-        <V2EventStorefront
-          storeId={storeId}
-          storeDetails={storeDetails}
-          storeReviews={storeReviews}
-          listings={listings}
-          ratings={ratings}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          toggleCart={toggleCart}
-          showCart={showCart}
-          logoUrl={logoUrl}
-          bannerUrl={bannerUrl}
-          getWhatsAppUrl={getWhatsAppUrl}
-          events={mockEvents}
-        />
-        {/* Temporarily disabled for V2 storefront previews.
-        <SubscriptionModal
-          isOpen={showModal}
-          storeName={storeDetails.store_name}
-        /> */}
-        <AvailabilityModal
-          isOpen={showAvailabilityModal}
-          storeName={storeDetails.store_name}
-          nextOpening={nextOpening}
-        />
+        <V2EventStorefront {...sharedProps} events={mockEvents} />
+        <AvailabilityModal isOpen={showAvailabilityModal} storeName={storeDetails.store_name} nextOpening={nextOpening} />
       </>
     );
   }
@@ -1277,32 +1482,8 @@ function Page() {
   if (isFoodStore) {
     return (
       <>
-        <V2FoodStorefront
-          storeId={storeId}
-          storeDetails={storeDetails}
-          storeReviews={storeReviews}
-          listings={listings}
-          ratings={ratings}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          toggleCart={toggleCart}
-          showCart={showCart}
-          logoUrl={logoUrl}
-          bannerUrl={bannerUrl}
-          getWhatsAppUrl={getWhatsAppUrl}
-          foodItems={foodItems}
-          isLoadingProducts={isLoadingProducts}
-        />
-        {/* Temporarily disabled for V2 storefront previews.
-        <SubscriptionModal
-          isOpen={showModal}
-          storeName={storeDetails.store_name}
-        /> */}
-        <AvailabilityModal
-          isOpen={showAvailabilityModal}
-          storeName={storeDetails.store_name}
-          nextOpening={nextOpening}
-        />
+        <V2FoodStorefront {...sharedProps} foodItems={foodItems} isLoadingProducts={isLoadingProducts} />
+        <AvailabilityModal isOpen={showAvailabilityModal} storeName={storeDetails.store_name} nextOpening={nextOpening} />
       </>
     );
   }
@@ -1310,32 +1491,13 @@ function Page() {
   return (
     <>
       <V2RetailStorefront
-        storeId={storeId}
-        storeDetails={storeDetails}
-        storeReviews={storeReviews}
-        listings={listings}
-        ratings={ratings}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        toggleCart={toggleCart}
-        showCart={showCart}
-        logoUrl={logoUrl}
-        bannerUrl={bannerUrl}
-        getWhatsAppUrl={getWhatsAppUrl}
+        {...sharedProps}
         filteredProducts={filteredProducts}
+        allProducts={products}
         isLoadingProducts={isLoadingProducts}
         handleAddToCart={handleAddToCart}
       />
-      {/* Temporarily disabled for V2 storefront previews.
-      <SubscriptionModal
-        isOpen={showModal}
-        storeName={storeDetails.store_name}
-      /> */}
-      <AvailabilityModal
-        isOpen={showAvailabilityModal}
-        storeName={storeDetails.store_name}
-        nextOpening={nextOpening}
-      />
+      <AvailabilityModal isOpen={showAvailabilityModal} storeName={storeDetails.store_name} nextOpening={nextOpening} />
     </>
   );
 }
