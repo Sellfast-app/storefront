@@ -44,11 +44,12 @@ import {
   Star,
   Store,
   Ticket,
-  Truck,
   UserRound,
   X,
   Plus,
   ChevronDown,
+  Users,
+  ArrowRight,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -218,7 +219,6 @@ function V2StoreHeader({
   return (
     <header className="sticky top-0 z-20 border-b border-[#F1F1F1] bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:px-8">
-        {/* Logo */}
         <Link href="#" className="flex items-center gap-3 shrink-0">
           {logoUrl ? (
             <Image
@@ -239,7 +239,6 @@ function V2StoreHeader({
           </div>
         </Link>
 
-        {/* Desktop Search */}
         <div className="hidden flex-1 justify-center px-6 md:flex">
           <div className="relative w-full max-w-lg">
             <Input
@@ -252,7 +251,6 @@ function V2StoreHeader({
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-2">
           <button
             className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white md:hidden"
@@ -267,7 +265,6 @@ function V2StoreHeader({
         </div>
       </div>
 
-      {/* Mobile Search Drawer */}
       {showMobileSearch && (
         <div className="border-t border-[#F1F1F1] px-4 py-3 md:hidden">
           <div className="relative">
@@ -712,12 +709,10 @@ function V2RetailStorefront({
               </section>
             )}
 
-            {/* ── Lead Form ── */}
             <div className="mx-auto max-w-7xl px-4 lg:px-8">
               <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
             </div>
 
-            {/* ── Footer ── */}
             <footer className="mt-16 border-t border-[#F1F1F1] bg-[#FAFAFA]">
               <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
                 <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
@@ -831,7 +826,6 @@ function V2FoodStorefront({
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const { addToCart } = useCart();
 
-  // Derive categories from food items
   const categories: string[] = Array.from(
     new Set(
       foodItems
@@ -846,7 +840,6 @@ function V2FoodStorefront({
     )
   );
 
-  // Group items by category
   const groupedItems: Record<string, FoodItem[]> = {};
   if (categories.length > 0) {
     categories.forEach((cat) => {
@@ -861,14 +854,12 @@ function V2FoodStorefront({
 
   const displayCategories = categories.length > 0 ? categories : ["Menu"];
 
-  // Set first category as active on load
   useEffect(() => {
     if (displayCategories.length > 0 && !activeCategory) {
       setActiveCategory(displayCategories[0]);
     }
   }, [displayCategories, activeCategory]);
 
-  // Filter items by search
   const filteredGrouped: Record<string, FoodItem[]> = {};
   if (searchQuery.trim()) {
     displayCategories.forEach((cat) => {
@@ -889,7 +880,6 @@ function V2FoodStorefront({
     (cat) => filteredGrouped[cat].length > 0
   );
 
-  // Scroll to category section
   const scrollToCategory = (cat: string) => {
     setActiveCategory(cat);
     setShowMobileCategoryMenu(false);
@@ -901,7 +891,6 @@ function V2FoodStorefront({
     }
   };
 
-  // Track active category on scroll
   useEffect(() => {
     const handleScroll = () => {
       const offset = 140;
@@ -937,9 +926,7 @@ function V2FoodStorefront({
 
   return (
     <div className="min-h-screen bg-white text-[#111827]">
-      {/* ── Daash-style Top Bar ── */}
       <header className="sticky top-0 z-20 border-b border-[#F0F0F0] bg-white">
-        {/* Brand row */}
         <div className="border-b border-[#F0F0F0] px-4 py-3 lg:px-8">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -975,10 +962,8 @@ function V2FoodStorefront({
           </div>
         </div>
 
-        {/* Order mode + search row */}
         <div className="px-4 py-2 lg:px-8">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-            {/* Pickup / Delivery toggle — exactly like Daash */}
             <div className="flex items-center gap-0 rounded-full border border-[#E5E7EB] bg-[#F9FAFB] p-0.5">
               <button
                 onClick={() => setOrderMode("pickup")}
@@ -1001,8 +986,6 @@ function V2FoodStorefront({
                 Delivery
               </button>
             </div>
-
-            {/* Desktop search */}
             <div className="hidden flex-1 justify-end md:flex">
               <div className="relative w-full max-w-sm">
                 <Input
@@ -1017,7 +1000,6 @@ function V2FoodStorefront({
           </div>
         </div>
 
-        {/* Mobile search */}
         {showMobileSearch && (
           <div className="border-t border-[#F0F0F0] px-4 py-2 md:hidden">
             <div className="relative">
@@ -1041,8 +1023,6 @@ function V2FoodStorefront({
       ) : (
         <div className="mx-auto max-w-7xl px-0 lg:px-8">
           <div className="flex gap-0 lg:gap-8">
-
-            {/* ── Left Sidebar: Category Nav (Daash style) ── */}
             <aside className="hidden w-56 shrink-0 lg:block">
               <div className="sticky top-[105px] pt-6">
                 <nav className="space-y-0.5">
@@ -1063,7 +1043,6 @@ function V2FoodStorefront({
               </div>
             </aside>
 
-            {/* ── Mobile Category Dropdown ── */}
             <div className="sticky top-[105px] z-10 w-full border-b border-[#F0F0F0] bg-white px-4 py-2 lg:hidden">
               <button
                 onClick={() => setShowMobileCategoryMenu(!showMobileCategoryMenu)}
@@ -1091,7 +1070,6 @@ function V2FoodStorefront({
               )}
             </div>
 
-            {/* ── Main Menu Content ── */}
             <main className="min-w-0 flex-1 px-4 pb-16 pt-6 lg:px-0">
               {isLoadingProducts ? (
                 <div className="space-y-8">
@@ -1125,15 +1103,12 @@ function V2FoodStorefront({
                       key={cat}
                       ref={(el) => { sectionRefs.current[cat] = el; }}
                     >
-                      {/* Category header — Daash style: ALL CAPS, bold, with divider */}
                       <div className="mb-4 flex items-center gap-3">
                         <h2 className="text-sm font-bold uppercase tracking-wider text-[#111827]">
                           {cat}
                         </h2>
                         <div className="h-px flex-1 bg-[#F0F0F0]" />
                       </div>
-
-                      {/* Item list — Daash horizontal card layout */}
                       <ul className="space-y-0 divide-y divide-[#F5F5F5]">
                         {filteredGrouped[cat].map((item) => (
                           <FoodMenuItemRow
@@ -1145,8 +1120,6 @@ function V2FoodStorefront({
                       </ul>
                     </section>
                   ))}
-
-                  {/* Lead form at bottom of menu */}
                   <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
                 </div>
               )}
@@ -1155,7 +1128,6 @@ function V2FoodStorefront({
         </div>
       )}
 
-      {/* ── Footer ── */}
       {!showCart && (
         <footer className="border-t border-[#F0F0F0] bg-[#FAFAFA] py-6">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-4 lg:px-8">
@@ -1192,10 +1164,8 @@ function FoodMenuItemRow({
   onAdd: (e: React.MouseEvent, item: FoodItem) => void;
 }) {
   const hasImage = !!item.image;
-
   return (
     <li className="flex items-center gap-4 py-4">
-      {/* Image — left side, square, only if available */}
       {hasImage && (
         <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[#F5F5F5] sm:h-24 sm:w-24">
           <Image
@@ -1207,12 +1177,8 @@ function FoodMenuItemRow({
           />
         </div>
       )}
-
-      {/* Text content */}
       <div className="min-w-0 flex-1">
-        <h3 className="text-sm font-semibold text-[#111827] leading-snug">
-          {item.name}
-        </h3>
+        <h3 className="text-sm font-semibold text-[#111827] leading-snug">{item.name}</h3>
         {item.description && (
           <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-[#6B7280]">
             {item.description}
@@ -1220,13 +1186,9 @@ function FoodMenuItemRow({
         )}
         <div className="mt-1.5 flex items-center gap-1 text-xs text-[#9CA3AF]">
           <span>From</span>
-          <span className="font-semibold text-[#111827]">
-            ₦{item.price?.toLocaleString()}
-          </span>
+          <span className="font-semibold text-[#111827]">₦{item.price?.toLocaleString()}</span>
         </div>
       </div>
-
-      {/* Add button — right side */}
       <button
         onClick={(e) => onAdd(e, item)}
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#005B14] text-[#005B14] transition-colors hover:bg-[#005B14] hover:text-white"
@@ -1237,7 +1199,7 @@ function FoodMenuItemRow({
   );
 }
 
-// ─── Event Storefront ─────────────────────────────────────────────────────────
+// ─── Event Storefront (Tix Africa inspired) ───────────────────────────────────
 
 function V2EventStorefront({
   storeId,
@@ -1252,17 +1214,21 @@ function V2EventStorefront({
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(events[0]?.id || "");
   const [ticketQuantities, setTicketQuantities] = useState<Record<string, number>>({});
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
-  const filteredEvents = events.filter((e) =>
-    `${e.name} ${e.location} ${e.organizerName}`.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  const visibleEvents = filteredEvents.length > 0 ? filteredEvents : events;
-  const selectedEvent = events.find((e) => e.id === selectedEventId) || filteredEvents[0] || events[0];
+  const selectedEvent = events.find((e) => e.id === selectedEventId) || events[0];
+  const otherEvents = events.filter((e) => e.id !== selectedEvent?.id);
+
   const activeTickets = selectedEvent?.tickets.filter((t) => t.type !== "invite") || [];
+
   const selectedTickets = activeTickets
     .map((t) => ({ ticket: t, quantity: ticketQuantities[t.id] || 0 }))
     .filter((item) => item.quantity > 0);
-  const ticketSubtotal = selectedTickets.reduce((sum, item) => sum + (item.ticket.price || 0) * item.quantity, 0);
+
+  const ticketSubtotal = selectedTickets.reduce(
+    (sum, item) => sum + (item.ticket.price || 0) * item.quantity,
+    0
+  );
   const serviceFee = selectedTickets.reduce(
     (sum, item) => sum + (item.ticket.type === "paid" ? 740 * item.quantity : 0),
     0
@@ -1271,171 +1237,295 @@ function V2EventStorefront({
   const totalTickets = selectedTickets.reduce((sum, item) => sum + item.quantity, 0);
 
   const updateTicketQuantity = (ticketId: string, next: number, limit: number) => {
-    setTicketQuantities((cur) => ({ ...cur, [ticketId]: Math.max(0, Math.min(next, limit)) }));
+    setTicketQuantities((cur) => ({
+      ...cur,
+      [ticketId]: Math.max(0, Math.min(next, limit)),
+    }));
   };
+
   const resetForEvent = (eventId: string) => {
     setSelectedEventId(eventId);
     setTicketQuantities({});
+    setShowFullDescription(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#111827]">
-      <V2StoreHeader
-        storeDetails={storeDetails}
-        logoUrl={logoUrl}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        toggleCart={toggleCart}
-        showMobileSearch={showMobileSearch}
-        setShowMobileSearch={setShowMobileSearch}
-      />
+  const lowestPrice = activeTickets.reduce((min, t) => {
+    if (t.type === "free") return min;
+    return Math.min(min, t.price || Infinity);
+  }, Infinity);
 
-      <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
-        {showCart ? (
-          <div className="mx-auto max-w-2xl">
-            <CartView />
+  const hasFreeTicket = activeTickets.some((t) => t.type === "free");
+
+  return (
+    <div className="min-h-screen bg-[#F7F7F7] text-[#111827]">
+      {/* ── Header ── */}
+      <header className="sticky top-0 z-20 border-b border-[#EBEBEB] bg-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 lg:px-6">
+          <Link href="#" className="flex items-center gap-2.5 shrink-0">
+            {logoUrl ? (
+              <Image
+                src={logoUrl}
+                alt={storeDetails.store_name}
+                width={32}
+                height={32}
+                className="h-8 w-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#005B14] text-white">
+                <Ticket className="h-3.5 w-3.5" />
+              </div>
+            )}
+            <span className="hidden text-sm font-bold sm:block">{storeDetails.store_name}</span>
+          </Link>
+
+          <div className="hidden flex-1 justify-center px-6 md:flex">
+            <div className="relative w-full max-w-md">
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search events..."
+                className="h-9 rounded-full border-[#E5E7EB] bg-[#F6F7F6] pl-9 pr-4 text-sm"
+              />
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9CA3AF]" />
+            </div>
           </div>
-        ) : (
-          <>
-            {selectedEvent && (
-              <section className="overflow-hidden rounded-2xl border border-[#E8ECE8] bg-white">
-                <div className="grid min-h-[520px] lg:grid-cols-[1.05fr_0.95fr]">
-                  <div className="relative flex items-center bg-[#061400] p-6 text-white md:p-10">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(79,202,106,0.25),transparent_30%),linear-gradient(135deg,#061400_0%,#183327_55%,#52635E_100%)]" />
-                    <div className="relative z-10 max-w-2xl">
-                      <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/12 px-3 py-1 text-xs text-white/80">
-                        <Ticket className="h-3.5 w-3.5" />
-                        {storeDetails.store_name}
-                      </div>
-                      <h1 className="text-3xl font-semibold leading-tight md:text-5xl">
-                        {selectedEvent.name}
-                      </h1>
-                      <div className="mt-8 grid gap-5 text-sm md:text-base">
-                        <div className="flex items-center gap-4">
-                          <CalendarDays className="h-5 w-5 shrink-0 text-[#4FCA6A]" />
-                          <span>{format(new Date(selectedEvent.startDate), "EEEE, MMMM dd, yyyy")}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <Clock className="h-5 w-5 shrink-0 text-[#4FCA6A]" />
-                          <span>{selectedEvent.startTime} — {selectedEvent.endTime}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <MapPin className="h-5 w-5 shrink-0 text-[#4FCA6A]" />
-                          <span>{selectedEvent.location}</span>
-                        </div>
-                      </div>
-                      <div className="mt-8 rounded-xl bg-[#4FCA6A] px-4 py-3 text-sm font-medium text-[#061400]">
-                        Tickets are available online. Select a ticket below to continue.
-                      </div>
-                      <a href="#tickets">
-                        <Button className="mt-6 h-12 w-full rounded-xl bg-white text-[#061400] hover:bg-white/90 md:w-[360px]">
-                          Get a Ticket
-                        </Button>
-                      </a>
-                    </div>
-                  </div>
-                  <div className="relative min-h-[420px]">
+
+          <div className="flex items-center gap-2">
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#E5E7EB] bg-white md:hidden"
+              onClick={() => setShowMobileSearch(!showMobileSearch)}
+            >
+              {showMobileSearch ? <X className="h-3.5 w-3.5" /> : <Search className="h-3.5 w-3.5" />}
+            </button>
+            <CartButton onClick={toggleCart} />
+          </div>
+        </div>
+
+        {showMobileSearch && (
+          <div className="border-t border-[#EBEBEB] px-4 py-2 md:hidden">
+            <div className="relative">
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search events..."
+                autoFocus
+                className="h-9 rounded-full border-[#E5E7EB] bg-[#F6F7F6] pl-9 pr-4 text-sm"
+              />
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9CA3AF]" />
+            </div>
+          </div>
+        )}
+      </header>
+
+      {showCart ? (
+        <div className="mx-auto max-w-2xl px-4 py-8">
+          <CartView />
+        </div>
+      ) : (
+        <main className="mx-auto max-w-6xl px-4 py-6 lg:px-6">
+
+          {selectedEvent && (
+            <>
+              {/* ── Breadcrumb ── */}
+              <nav className="mb-4 flex items-center gap-1.5 text-xs text-[#9CA3AF]">
+                <span>Events</span>
+                <ChevronRight className="h-3 w-3" />
+                <span className="line-clamp-1 text-[#374151] font-medium">{selectedEvent.name}</span>
+              </nav>
+
+              {/* ── Main Event Layout ── */}
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+
+                {/* ── Left Column ── */}
+                <div className="space-y-5">
+
+                  {/* Cover Image */}
+                  <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-[#1A1A1A] md:aspect-[2/1]">
                     <Image
                       src={selectedEvent.coverImage}
                       alt={selectedEvent.name}
                       fill
                       priority
                       className="object-cover"
-                      sizes="(max-width: 1024px) 100vw, 50vw"
+                      sizes="(max-width: 1024px) 100vw, 60vw"
                     />
+                    {/* Price badge */}
+                    <div className="absolute bottom-4 left-4">
+                      <span className="rounded-full bg-white/95 px-3 py-1.5 text-xs font-bold text-[#111827] shadow-sm">
+                        {hasFreeTicket && lowestPrice === Infinity
+                          ? "Free"
+                          : hasFreeTicket
+                            ? `From Free`
+                            : lowestPrice !== Infinity
+                              ? `From ₦${lowestPrice.toLocaleString()}`
+                              : "Tickets available"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Event Title + Quick Info */}
+                  <div className="rounded-2xl border border-[#E8E8E8] bg-white p-5 md:p-6">
+                    <h1 className="text-xl font-bold leading-snug md:text-2xl">
+                      {selectedEvent.name}
+                    </h1>
+
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-start gap-3 text-sm text-[#374151]">
+                        <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[#005B14]" />
+                        <span>{format(new Date(selectedEvent.startDate), "EEEE, MMMM d, yyyy")}</span>
+                      </div>
+                      <div className="flex items-start gap-3 text-sm text-[#374151]">
+                        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#005B14]" />
+                        <span>{selectedEvent.startTime} – {selectedEvent.endTime}</span>
+                      </div>
+                      <div className="flex items-start gap-3 text-sm text-[#374151]">
+                        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#005B14]" />
+                        <span>{selectedEvent.location}</span>
+                      </div>
+                    </div>
+
+                    {/* Mobile CTA */}
+                    <a href="#tickets" className="mt-5 block lg:hidden">
+                      <Button className="h-11 w-full rounded-full bg-[#005B14] text-sm font-semibold hover:bg-[#004610]">
+                        Get a Ticket
+                      </Button>
+                    </a>
+                  </div>
+
+                  {/* About this event */}
+                  {selectedEvent.description && (
+                    <div className="rounded-2xl border border-[#E8E8E8] bg-white p-5 md:p-6">
+                      <h2 className="mb-3 text-base font-bold">About this event</h2>
+                      <div className={`text-sm leading-relaxed text-[#4B5563] ${!showFullDescription ? "line-clamp-5" : ""}`}>
+                        {selectedEvent.description}
+                      </div>
+                      {selectedEvent.description.length > 300 && (
+                        <button
+                          onClick={() => setShowFullDescription(!showFullDescription)}
+                          className="mt-2 text-xs font-semibold text-[#005B14] hover:underline"
+                        >
+                          {showFullDescription ? "Show less" : "Read more"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Hosted by */}
+                  <div className="rounded-2xl border border-[#E8E8E8] bg-white p-5 md:p-6">
+                    <h2 className="mb-3 text-base font-bold">Hosted by</h2>
+                    <div className="flex items-center gap-3">
+                      {logoUrl ? (
+                        <Image
+                          src={logoUrl}
+                          alt={storeDetails.store_name}
+                          width={40}
+                          height={40}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#005B14]/10">
+                          <Users className="h-5 w-5 text-[#005B14]" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-semibold">{selectedEvent.organizerName || storeDetails.store_name}</p>
+                        <p className="text-xs text-[#9CA3AF]">Event organizer</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div className="rounded-2xl border border-[#E8E8E8] bg-white p-5 md:p-6">
+                    <h2 className="mb-3 text-base font-bold">Location</h2>
+                    <div className="flex items-start gap-3 text-sm text-[#374151]">
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#005B14]" />
+                      <div>
+                        <p className="font-medium">{selectedEvent.location}</p>
+                        {selectedEvent.locationDetails && (
+                          <p className="mt-0.5 text-xs text-[#9CA3AF]">{selectedEvent.locationDetails}</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </section>
-            )}
 
-            <section className="mt-6 flex gap-3 overflow-x-auto pb-2">
-              {visibleEvents.map((event) => (
-                <button
-                  key={event.id}
-                  type="button"
-                  onClick={() => resetForEvent(event.id)}
-                  className={`shrink-0 rounded-full px-5 py-2 text-sm font-medium ${
-                    selectedEvent?.id === event.id
-                      ? "bg-[#005B14] text-white"
-                      : "border border-[#E5E7EB] bg-white text-[#111827]"
-                  }`}
-                >
-                  {event.name}
-                </button>
-              ))}
-            </section>
+                {/* ── Right Column: Ticket Selector + Summary ── */}
+                <div id="tickets" className="lg:sticky lg:top-[72px] lg:self-start">
+                  <div className="rounded-2xl border border-[#E8E8E8] bg-white p-5">
+                    <h2 className="mb-1 text-lg font-bold">Get Tickets</h2>
+                    <p className="mb-5 text-xs text-[#9CA3AF]">
+                      {format(new Date(selectedEvent.startDate), "EEE, MMM d · ")}
+                      {selectedEvent.startTime}
+                    </p>
 
-            <section id="tickets" className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
-              <div className="rounded-2xl border border-[#E8ECE8] bg-white p-5 md:p-8">
-                <div className="mb-8">
-                  <p className="text-sm font-medium text-[#005B14]">Tickets</p>
-                  <h2 className="mt-2 text-3xl font-semibold">Choose tickets</h2>
-                </div>
-                <div className="space-y-6">
-                  {activeTickets.map((ticket) => {
-                    const quantity = ticketQuantities[ticket.id] || 0;
-                    const available = Math.max(ticket.quantity - ticket.sold, 0);
-                    const limit = Math.min(ticket.orderLimitPerPerson, available);
-                    return (
-                      <div key={ticket.id} className="border-b border-[#ECECEC] pb-6 last:border-0">
-                        <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
-                          <div>
-                            <h3 className="text-xl font-semibold">{ticket.name}</h3>
-                            <div className="mt-3 flex flex-wrap items-baseline gap-2">
-                              <span className="text-2xl font-semibold text-[#005B14]">
-                                {ticket.type === "free" ? "Free" : `₦${(ticket.price || 0).toLocaleString()}`}
-                              </span>
-                              {ticket.type !== "free" && (
-                                <span className="text-sm text-[#8A8F98]">includes service fee at checkout</span>
+                    {/* Ticket rows */}
+                    <div className="space-y-4">
+                      {activeTickets.map((ticket) => {
+                        const quantity = ticketQuantities[ticket.id] || 0;
+                        const available = Math.max(ticket.quantity - ticket.sold, 0);
+                        const limit = Math.min(ticket.orderLimitPerPerson, available);
+                        const isSoldOut = available === 0;
+
+                        return (
+                          <div
+                            key={ticket.id}
+                            className={`rounded-xl border p-4 transition-colors ${
+                              quantity > 0
+                                ? "border-[#005B14] bg-[#F0F7F1]"
+                                : isSoldOut
+                                  ? "border-[#F3F4F6] bg-[#FAFAFA] opacity-60"
+                                  : "border-[#E8E8E8] bg-white"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-[#111827]">{ticket.name}</p>
+                                <p className="mt-0.5 text-base font-bold text-[#005B14]">
+                                  {ticket.type === "free" ? "Free" : `₦${(ticket.price || 0).toLocaleString()}`}
+                                </p>
+                                {isSoldOut && (
+                                  <p className="mt-1 text-xs font-medium text-red-500">Sold out</p>
+                                )}
+                                {!isSoldOut && available <= 10 && (
+                                  <p className="mt-1 text-xs text-orange-500">{available} left</p>
+                                )}
+                              </div>
+
+                              {/* Quantity stepper */}
+                              {!isSoldOut && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={quantity === 0}
+                                    onClick={() => updateTicketQuantity(ticket.id, quantity - 1, limit)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-sm font-bold text-[#374151] transition-colors hover:border-[#005B14] hover:text-[#005B14] disabled:opacity-30"
+                                  >
+                                    −
+                                  </button>
+                                  <span className="w-5 text-center text-sm font-semibold">{quantity}</span>
+                                  <button
+                                    type="button"
+                                    disabled={quantity >= limit}
+                                    onClick={() => updateTicketQuantity(ticket.id, quantity + 1, limit)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-sm font-bold text-[#374151] transition-colors hover:border-[#005B14] hover:text-[#005B14] disabled:opacity-30"
+                                  >
+                                    +
+                                  </button>
+                                </div>
                               )}
                             </div>
-                            <p className="mt-4 max-w-2xl text-sm leading-6 text-[#6B7280]">
-                              This ticket grants access to {selectedEvent?.name}. Limited availability,
-                              secure checkout and ticket confirmation by email.
-                            </p>
                           </div>
-                          <div className="flex h-12 items-center rounded-xl border border-[#E5E7EB] bg-white">
-                            <button
-                              type="button"
-                              disabled={quantity === 0}
-                              onClick={() => updateTicketQuantity(ticket.id, quantity - 1, limit)}
-                              className="h-full px-4 text-lg disabled:text-[#C7CBD1]"
-                            >
-                              -
-                            </button>
-                            <span className="w-10 text-center text-sm font-semibold">{quantity}</span>
-                            <button
-                              type="button"
-                              disabled={quantity >= limit}
-                              onClick={() => updateTicketQuantity(ticket.id, quantity + 1, limit)}
-                              className="h-full px-4 text-lg disabled:text-[#C7CBD1]"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                        );
+                      })}
+                    </div>
 
-              <aside className="lg:sticky lg:top-24 lg:self-start">
-                <div className="rounded-2xl border border-[#E8ECE8] bg-white p-6">
-                  <h2 className="text-2xl font-semibold">Summary</h2>
-                  <div className="mt-6 rounded-2xl border border-[#ECECEC] p-5">
-                    <h3 className="text-center text-lg font-semibold">
-                      {selectedEvent?.name || storeDetails.store_name}
-                    </h3>
-                    {selectedTickets.length === 0 ? (
-                      <p className="py-12 text-center text-sm text-[#8A8F98]">
-                        Please choose a ticket type to continue.
-                      </p>
-                    ) : (
-                      <div className="mt-8 space-y-5 text-sm text-[#6B7280]">
+                    {/* Order summary */}
+                    {selectedTickets.length > 0 && (
+                      <div className="mt-5 space-y-2 border-t border-[#F0F0F0] pt-4 text-sm">
                         {selectedTickets.map(({ ticket, quantity }) => (
-                          <div key={ticket.id} className="flex justify-between gap-4">
-                            <span>{quantity} x {ticket.name}</span>
+                          <div key={ticket.id} className="flex justify-between text-[#6B7280]">
+                            <span>{quantity}× {ticket.name}</span>
                             <span>
                               {ticket.type === "free"
                                 ? "Free"
@@ -1443,37 +1533,124 @@ function V2EventStorefront({
                             </span>
                           </div>
                         ))}
-                        <div className="border-t pt-5">
-                          <div className="flex justify-between">
-                            <span>Service fees</span>
+                        {serviceFee > 0 && (
+                          <div className="flex justify-between text-[#9CA3AF]">
+                            <span>Service fee</span>
                             <span>₦{serviceFee.toLocaleString()}</span>
                           </div>
-                          <div className="mt-4 flex justify-between">
-                            <span>Subtotal</span>
-                            <span>₦{ticketTotal.toLocaleString()}</span>
-                          </div>
-                        </div>
-                        <div className="flex justify-between border-t pt-5 text-base font-semibold text-[#111827]">
+                        )}
+                        <div className="flex justify-between border-t border-[#F0F0F0] pt-2 font-bold text-[#111827]">
                           <span>Total</span>
-                          <span>₦{ticketTotal.toLocaleString()}</span>
+                          <span>
+                            {ticketTotal === 0 ? "Free" : `₦${ticketTotal.toLocaleString()}`}
+                          </span>
                         </div>
                       </div>
                     )}
-                  </div>
-                  <Button
-                    className="mt-5 h-12 w-full rounded-xl bg-[#005B14] hover:bg-[#004610]"
-                    disabled={totalTickets === 0}
-                  >
-                    Continue
-                  </Button>
-                </div>
-              </aside>
-            </section>
 
-            <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
-          </>
-        )}
-      </main>
+                    <Button
+                      className="mt-5 h-11 w-full rounded-full bg-[#005B14] text-sm font-semibold hover:bg-[#004610] disabled:opacity-40"
+                      disabled={totalTickets === 0}
+                    >
+                      {totalTickets === 0 ? "Select tickets to continue" : `Continue · ${totalTickets} ticket${totalTickets > 1 ? "s" : ""}`}
+                    </Button>
+
+                    <p className="mt-3 text-center text-[10px] text-[#9CA3AF]">
+                      Secure checkout · Instant confirmation by email
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Other Events ── */}
+              {otherEvents.length > 0 && (
+                <section className="mt-10">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-base font-bold">Other Events</h2>
+                    <button className="flex items-center gap-1 text-xs font-semibold text-[#005B14] hover:underline">
+                      See all <ArrowRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {otherEvents.slice(0, 3).map((event) => {
+                      const eventLowest = event.tickets
+                        .filter((t) => t.type !== "invite")
+                        .reduce((min, t) => {
+                          if (t.type === "free") return 0;
+                          return Math.min(min, t.price || Infinity);
+                        }, Infinity);
+                      const eventFree = event.tickets.some((t) => t.type === "free");
+
+                      return (
+                        <button
+                          key={event.id}
+                          onClick={() => resetForEvent(event.id)}
+                          className="group overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white text-left transition-shadow hover:shadow-md"
+                        >
+                          <div className="relative aspect-[16/9] overflow-hidden bg-[#F3F4F6]">
+                            <Image
+                              src={event.coverImage}
+                              alt={event.name}
+                              fill
+                              className="object-cover transition-transform duration-500 group-hover:scale-105"
+                              sizes="(max-width: 640px) 100vw, 33vw"
+                            />
+                          </div>
+                          <div className="p-4">
+                            <p className="line-clamp-2 text-sm font-semibold leading-snug text-[#111827]">
+                              {event.name}
+                            </p>
+                            <div className="mt-2 flex items-center gap-1.5 text-xs text-[#9CA3AF]">
+                              <CalendarDays className="h-3 w-3 shrink-0" />
+                              <span>{format(new Date(event.startDate), "EEE, MMM d")}</span>
+                              <span>·</span>
+                              <span>{event.startTime}</span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-1.5 text-xs text-[#9CA3AF]">
+                              <MapPin className="h-3 w-3 shrink-0" />
+                              <span className="line-clamp-1">{event.location}</span>
+                            </div>
+                            <p className="mt-3 text-sm font-bold text-[#005B14]">
+                              {eventFree && eventLowest === 0
+                                ? "Free"
+                                : eventLowest !== Infinity
+                                  ? `From ₦${eventLowest.toLocaleString()}`
+                                  : "Tickets available"}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              <StorefrontLeadForm storeId={storeId} storeName={storeDetails.store_name} />
+            </>
+          )}
+        </main>
+      )}
+
+      <footer className="mt-8 border-t border-[#EBEBEB] bg-white py-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 lg:px-6">
+          <div className="flex items-center gap-2">
+            {logoUrl ? (
+              <Image src={logoUrl} alt={storeDetails.store_name} width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
+            ) : (
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#005B14] text-white">
+                <Ticket className="h-3 w-3" />
+              </div>
+            )}
+            <p className="text-sm font-semibold">{storeDetails.store_name}</p>
+          </div>
+          <p className="text-xs text-[#9CA3AF]">
+            Powered by{" "}
+            <a href="https://swiftree.app" className="font-medium text-[#005B14] hover:underline">
+              Swiftree
+            </a>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -1509,7 +1686,6 @@ function Page() {
   const isMockStore = isMockRetailStore || isMockFoodStore || isMockEventStore;
   const mockEvents = getPublishedEvents();
 
-  // ── Fetch store details ──
   useEffect(() => {
     const fetchStoreData = async () => {
       if (!storeId) return;
@@ -1575,7 +1751,6 @@ function Page() {
     fetchStoreData();
   }, [isMockEventStore, isMockFoodStore, isMockStore, mockEvents.length, storeId]);
 
-  // ── Fetch products ──
   useEffect(() => {
     if (!storeId || isMockEventStore || isFoodBusinessType(storeDetails?.business_type)) {
       if (isMockEventStore) setIsLoadingProducts(false);
@@ -1606,7 +1781,6 @@ function Page() {
     fetchProducts();
   }, [isMockEventStore, isMockRetailStore, storeId, storeDetails?.business_type]);
 
-  // ── Fetch food items ──
   useEffect(() => {
     if (!storeId || !isFoodBusinessType(storeDetails?.business_type)) return;
     const fetchFoodItems = async () => {
