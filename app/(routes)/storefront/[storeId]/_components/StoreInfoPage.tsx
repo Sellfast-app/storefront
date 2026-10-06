@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import Banner from "@/public/Banner.png";
 import { ArrowLeft, Mail, MapPin, Phone, Store } from "lucide-react";
 
 interface StoreInfo {
@@ -11,6 +12,7 @@ interface StoreInfo {
   store_description?: string;
   business_type?: string;
   logo?: string | null;
+  banner?: string | null;
   metadata?: {
     address?: string;
     city?: string;
@@ -60,6 +62,7 @@ export default function StoreInfoPage({ kind }: { kind: PageKind }) {
   }, [storeId]);
 
   const logoUrl = getImageUrl(store?.logo);
+  const bannerUrl = getImageUrl(store?.banner);
   const storeName = store?.store_name || "This Store";
   const address = [
     store?.metadata?.address,
@@ -74,6 +77,212 @@ export default function StoreInfoPage({ kind }: { kind: PageKind }) {
       : kind === "contact"
         ? `Contact ${storeName}`
         : "Return Policy";
+
+  if (kind === "contact") {
+    return (
+      <main className="min-h-screen bg-white text-[#2D333A]">
+        <section className="relative h-48 overflow-hidden bg-[#2D2D2D] md:h-56">
+          <Image
+            src={bannerUrl || Banner}
+            alt={`${storeName} banner`}
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-black/55" />
+          <div className="absolute inset-0 flex items-center justify-center px-4 text-center">
+            <h1 className="text-5xl font-bold text-white md:text-6xl">Contact Us</h1>
+          </div>
+          <Link
+            href={`/storefront/${storeId}`}
+            className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-[#2D333A] shadow-sm transition hover:bg-white md:left-8 md:top-6"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Store
+          </Link>
+        </section>
+
+        <section className="mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-[0.95fr_1.25fr] md:px-8 lg:gap-16 lg:py-20">
+          <div className="md:border-r md:border-[#E7E9EC] md:pr-12">
+            <div className="mb-10 flex items-center gap-5">
+              <h2 className="shrink-0 text-xl font-bold uppercase tracking-wide text-[#2D333A]">
+                Customer Service
+              </h2>
+              <div className="h-px flex-1 bg-[#E2E5E9]" />
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-6">
+                <div className="h-12 w-3/4 animate-pulse rounded bg-[#EEF0F2]" />
+                <div className="h-12 w-1/2 animate-pulse rounded bg-[#EEF0F2]" />
+                <div className="h-12 w-2/3 animate-pulse rounded bg-[#EEF0F2]" />
+              </div>
+            ) : (
+              <div className="space-y-5 text-lg text-[#353A40]">
+                <div>
+                  <MapPin className="mb-2 h-6 w-6 text-[#2D333A]" />
+                  <p className="font-medium">Visit Us</p>
+                  <p className="mt-1 text-base text-[#3F454B]">
+                    {address || "Store address unavailable"}
+                  </p>
+                </div>
+
+                <div>
+                  <Phone className="mb-2 h-6 w-6 text-[#2D333A]" />
+                  <p className="font-medium">Call Us</p>
+                  {store?.metadata?.phone ? (
+                    <a
+                      href={`tel:${store.metadata.phone}`}
+                      className="mt-1 block text-base text-[#3F454B] hover:text-[#005B14]"
+                    >
+                      {store.metadata.phone}
+                    </a>
+                  ) : null}
+                </div>
+
+                <div>
+                  <Mail className="mb-2 h-6 w-6 text-[#2D333A]" />
+                  <p className="font-medium">Mail Us</p>
+                  {store?.metadata?.email ? (
+                    <a
+                      href={`mailto:${store.metadata.email}`}
+                      className="mt-1 block text-base text-[#3F454B] hover:text-[#005B14]"
+                    >
+                      {store.metadata.email}
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="mb-8 flex items-center gap-5">
+              <h2 className="shrink-0 text-xl font-bold uppercase tracking-wide text-[#2D333A]">
+                Contact Us Form
+              </h2>
+              <div className="h-px flex-1 bg-[#E2E5E9]" />
+            </div>
+
+            <form
+              onSubmit={(event) => event.preventDefault()}
+              className="space-y-6"
+            >
+              <label className="block">
+                <span className="mb-3 block text-base font-medium text-[#343A40]">
+                  Name *
+                </span>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter full name"
+                  className="h-16 w-full rounded-2xl border border-[#DADDE2] bg-white px-5 text-base outline-none transition placeholder:text-[#C9CED5] focus:border-[#005B14] focus:ring-2 focus:ring-[#005B14]/10"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-3 block text-base font-medium text-[#343A40]">
+                  Phone number *
+                </span>
+                <input
+                  type="tel"
+                  required
+                  placeholder="Enter phone number"
+                  className="h-16 w-full rounded-2xl border border-[#DADDE2] bg-white px-5 text-base outline-none transition placeholder:text-[#C9CED5] focus:border-[#005B14] focus:ring-2 focus:ring-[#005B14]/10"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-3 block text-base font-medium text-[#343A40]">
+                  Email address *
+                </span>
+                <input
+                  type="email"
+                  required
+                  placeholder="Enter email address"
+                  className="h-16 w-full rounded-2xl border border-[#DADDE2] bg-white px-5 text-base outline-none transition placeholder:text-[#C9CED5] focus:border-[#005B14] focus:ring-2 focus:ring-[#005B14]/10"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-3 block text-base font-medium text-[#343A40]">
+                  Message *
+                </span>
+                <textarea
+                  required
+                  placeholder="Tell us what you need"
+                  rows={4}
+                  className="min-h-28 w-full resize-y rounded-2xl border border-[#DADDE2] bg-white px-5 py-4 text-base outline-none transition placeholder:text-[#C9CED5] focus:border-[#005B14] focus:ring-2 focus:ring-[#005B14]/10"
+                />
+              </label>
+
+              <button
+                type="submit"
+                className="inline-flex h-14 min-w-56 items-center justify-center rounded-2xl bg-[#555555] px-8 text-base font-semibold text-white transition hover:bg-[#3F3F3F]"
+              >
+                Send message
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <section className="bg-[#F5F6F7] px-4 py-12 md:px-8">
+          <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-3">
+            <div>
+              <div className="mb-4 flex items-center gap-3">
+                {logoUrl ? (
+                  <Image
+                    src={logoUrl}
+                    alt={storeName}
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#005B14]">
+                    <Store className="h-5 w-5" />
+                  </div>
+                )}
+                <p className="text-lg font-bold text-[#2D333A]">{storeName}</p>
+              </div>
+              <p className="max-w-sm text-sm leading-6 text-[#667085]">
+                {store?.store_description ||
+                  "Shop directly from this Swiftree-powered storefront."}
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold uppercase text-[#2D333A]">Store Links</h3>
+              <div className="mt-5 space-y-3 text-sm text-[#667085]">
+                <Link href={`/storefront/${storeId}#top`} className="block hover:text-[#005B14]">
+                  Home
+                </Link>
+                <Link href={`/storefront/${storeId}#all-products`} className="block hover:text-[#005B14]">
+                  Shop
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold uppercase text-[#2D333A]">Useful Links</h3>
+              <div className="mt-5 space-y-3 text-sm text-[#667085]">
+                <Link href={`/storefront/${storeId}/about`} className="block hover:text-[#005B14]">
+                  About Us
+                </Link>
+                <Link href={`/storefront/${storeId}/contact`} className="block hover:text-[#005B14]">
+                  Contact Us
+                </Link>
+                <Link href={`/storefront/${storeId}/return-policy`} className="block hover:text-[#005B14]">
+                  Return Policy
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#F8F9F8] text-[#111827]">
@@ -128,27 +337,6 @@ export default function StoreInfoPage({ kind }: { kind: PageKind }) {
               <p>
                 Browse available products, add items to your cart, and complete checkout directly from this storefront.
               </p>
-            </div>
-          ) : kind === "contact" ? (
-            <div className="space-y-4 text-sm text-[#5F665D] md:text-base">
-              {address && (
-                <div className="flex items-start gap-3">
-                  <MapPin className="mt-1 h-4 w-4 shrink-0 text-[#005B14]" />
-                  <span>{address}</span>
-                </div>
-              )}
-              {store?.metadata?.phone && (
-                <a href={`tel:${store.metadata.phone}`} className="flex items-center gap-3 hover:text-[#005B14]">
-                  <Phone className="h-4 w-4 text-[#005B14]" />
-                  {store.metadata.phone}
-                </a>
-              )}
-              {store?.metadata?.email && (
-                <a href={`mailto:${store.metadata.email}`} className="flex items-center gap-3 hover:text-[#005B14]">
-                  <Mail className="h-4 w-4 text-[#005B14]" />
-                  {store.metadata.email}
-                </a>
-              )}
             </div>
           ) : (
             <div className="space-y-5 text-sm leading-7 text-[#5F665D] md:text-base">
