@@ -20,6 +20,7 @@ export interface Event {
   startTime: string;
   endTime: string;
   location: string;
+  locationDetails?: string;
   organizerName: string;
   organizerEmail: string;
   organizerPhone: string;
