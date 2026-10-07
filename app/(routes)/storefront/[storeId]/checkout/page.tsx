@@ -1365,11 +1365,11 @@ export default function CheckoutPage() {
 
       <div className='p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden'>
         {/* Left: Order Summary */}
-        <div className={`w-full md:w-[45%] md:overflow-y-auto md:h-full order-2 md:order-1 ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
+        <div className={`w-full md:w-1/2 md:overflow-y-auto md:h-full order-2 md:order-2 ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
           
-          <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
+          <Card className='border-0 bg-[#F7F7F7] shadow-none dark:bg-[#171717]'>
             <CardContent className='pb-2 border-b border-[#F5F5F5] dark:border-[#1F1F1F] space-y-4 pt-6'>
-              <h3 className='font-semibold'>Order Summary</h3>
+              <h3 className='text-xl font-semibold uppercase tracking-tight'>Your order</h3>
               <div className='flex items-center justify-between'>
                 <span className='text-sm'>Item&apos;s total ({cart.length})</span>
                 <span className='text-sm'>₦{itemsTotal.toLocaleString()}</span>
@@ -1585,7 +1585,7 @@ export default function CheckoutPage() {
         </div>
 
         {/* Right: Forms */}
-        <div className='w-full md:w-[55%] md:overflow-y-auto md:h-full order-1 md:order-2'>
+        <div className='w-full md:w-1/2 md:overflow-y-auto md:h-full order-1 md:order-1'>
           <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-[#FCFCFC] z-10 pb-4'>
             <Link href={`/storefront/${storeId}`}><Logo /></Link>
             <div className='flex gap-2'><CartButton /></div>
@@ -1715,9 +1715,9 @@ export default function CheckoutPage() {
       {/* Customer details modal */}
       <Dialog open={isEditingAddress} onOpenChange={setIsEditingAddress}>
         <DialogOverlay className="backdrop-blur-xs" />
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Change details</DialogTitle>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-none border-0 p-6 sm:max-w-2xl sm:rounded-none sm:p-8">
+          <DialogHeader className="border-b border-[#ECECEC] pb-4">
+            <DialogTitle className="text-2xl font-semibold">Change details</DialogTitle>
             <p className="text-sm text-muted-foreground">Add the details needed to deliver your order.</p>
           </DialogHeader>
 
@@ -1799,7 +1799,7 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <Button type="button" className="w-full" onClick={handleSaveAddress}>
+            <Button type="button" className="h-12 w-full rounded-none bg-black text-white hover:bg-[#222]" onClick={handleSaveAddress}>
               <SaveIcon className="mr-2" />
               Save address
             </Button>
@@ -1854,22 +1854,20 @@ export default function CheckoutPage() {
 
       <Dialog open={showVendorDeliveryModal} onOpenChange={setShowVendorDeliveryModal}>
         <DialogOverlay className="backdrop-blur-xs" />
-        <DialogContent className="max-h-[80vh] overflow-hidden sm:max-w-lg">
+        <DialogContent className="max-h-[80vh] overflow-hidden rounded-3xl border-0 p-6 sm:max-w-xl sm:p-8">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">Select shipping</DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              Choose the vendor delivery location that applies to your address.
-            </p>
+            <DialogTitle className="text-2xl font-semibold">Select shipping</DialogTitle>
+            <p className="text-sm text-muted-foreground">Choose the delivery location that applies to your address.</p>
           </DialogHeader>
 
           <Input
             value={vendorDeliverySearch}
             onChange={(event) => setVendorDeliverySearch(event.target.value)}
             placeholder="Search delivery locations..."
-            className="mt-3"
+            className="mt-3 h-12 rounded-full bg-[#F1F2F3] px-5"
           />
 
-          <div className="max-h-[48vh] overflow-y-auto divide-y rounded-lg border">
+          <div className="max-h-[48vh] divide-y overflow-y-auto">
             {vendorDeliveryRates
               .filter((rate) => rate.location.toLowerCase().includes(vendorDeliverySearch.trim().toLowerCase()))
               .map((rate) => (
@@ -1886,7 +1884,7 @@ export default function CheckoutPage() {
                     setShowVendorDeliveryModal(false);
                     setIsEditingDelivery(false);
                   }}
-                  className="flex w-full items-start justify-between gap-4 px-4 py-4 text-left transition-colors hover:bg-primary/5"
+                  className="flex w-full items-start justify-between gap-4 px-2 py-5 text-left transition-colors hover:bg-primary/5"
                 >
                   <span className="flex min-w-0 items-start gap-3">
                     <span className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${selectedVendorDeliveryRate?.id === rate.id ? 'border-primary' : 'border-muted-foreground/40'}`}>
