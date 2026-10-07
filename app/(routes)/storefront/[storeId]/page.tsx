@@ -14,6 +14,8 @@ import { useCart } from "@/context/CartContext";
 import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
 import FoodProductGrid from "@/components/FoodproductGrid";
+import FoodItemModal from "@/components/FoodItemModal";
+import ProductSearch, { ProductSearchItem } from "@/components/ProductSearch";
 import BannerCarousel from "@/components/BannerCarousel";
 import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
 import { AvailabilityModal } from "@/components/AvailabilityModal";
@@ -183,12 +185,14 @@ function V2StoreHeader({
   toggleCart,
   showMobileSearch,
   setShowMobileSearch,
+  searchItems,
 }: Pick<
   V2TemplateProps,
   "storeDetails" | "logoUrl" | "searchQuery" | "setSearchQuery" | "toggleCart"
 > & {
   showMobileSearch: boolean;
   setShowMobileSearch: (v: boolean) => void;
+  searchItems: ProductSearchItem[];
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-[#F1F1F1] bg-white/95 backdrop-blur">
@@ -215,13 +219,7 @@ function V2StoreHeader({
 
         <div className="hidden flex-1 justify-center px-6 md:flex">
           <div className="relative w-full max-w-lg">
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products..."
-              className="h-10 rounded-full border-[#E5E7EB] bg-[#F6F7F6] pl-10 pr-4 text-sm focus-visible:ring-[#005B14]/30"
-            />
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+            <ProductSearch value={searchQuery} onChange={setSearchQuery} items={searchItems} />
           </div>
         </div>
 
@@ -242,14 +240,7 @@ function V2StoreHeader({
       {showMobileSearch && (
         <div className="border-t border-[#F1F1F1] px-4 py-3 md:hidden">
           <div className="relative">
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products..."
-              autoFocus
-              className="h-10 rounded-full border-[#E5E7EB] bg-[#F6F7F6] pl-10 pr-4 text-sm"
-            />
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]" />
+            <ProductSearch value={searchQuery} onChange={setSearchQuery} items={searchItems} />
           </div>
         </div>
       )}
@@ -864,6 +855,14 @@ function V2RetailStorefront({
       <V2StoreHeader
         storeDetails={storeDetails}
         logoUrl={logoUrl}
+        searchItems={allProducts.map(product => ({
+          id: product.id,
+          name: product.product_name,
+          onSelect: () => {
+            sessionStorage.setItem(`storefront_product_${storeId}_${product.id}`, JSON.stringify(product));
+            window.location.href = `/storefront/${storeId}/product/${product.id}`;
+          },
+        }))}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         toggleCart={toggleCart}
@@ -998,7 +997,15 @@ function V2RetailStorefront({
                   </Button>
                   {filterOpen && (
                     <div className="absolute right-0 top-11 z-10 w-[280px] rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-xl">
-                      <p className="mb-3 text-sm font-semibold text-[#111827]">Price filter</p>
+                      <div className="mb-3 flex items-center justify-between">
+                        <p className="text-sm font-semibold text-[#111827]">Price filter</p>
+                        <button type="button" aria-label="Clear price filter" title="Clear price filter" className="flex h-8 w-8 items-center justify-center rounded hover:bg-gray-100" onClick={() => {
+                          setPriceFilter("none");
+                          setMinPrice("");
+                          setMaxPrice("");
+                          setFilterOpen(false);
+                        }}><X className="h-4 w-4" /></button>
+                      </div>
                       <div className="grid gap-2">
                         {[
                           ["none", "Default"],
@@ -1205,6 +1212,8 @@ function V2FoodStorefront({
 }: V2FoodTemplateProps) {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All meals");
+  const [searchedFood, setSearchedFood] = useState<FoodItem | null>(null);
+  const foodSearchItems = foodItems.map(item => ({ id: item.uid, name: item.name, onSelect: () => setSearchedFood(item) }));
   const [fulfillmentMode, setFulfillmentMode] = useState<"pickup" | "delivery">("pickup");
   useEffect(() => {
     sessionStorage.setItem(`storefront_brand_${storeId}`, JSON.stringify({
@@ -1238,6 +1247,7 @@ function V2FoodStorefront({
       <V2StoreHeader
         storeDetails={storeDetails}
         logoUrl={logoUrl}
+        searchItems={foodSearchItems}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         toggleCart={toggleCart}
@@ -1320,11 +1330,11 @@ function V2FoodStorefront({
                     {searchQuery && <p className="mt-1 text-sm text-[#71717A]">Showing results for “{searchQuery}”</p>}
                   </div>
                   <div className="relative w-full sm:w-80">
-                    <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search menu" className="h-11 rounded-full border-[#ECECEC] bg-[#F6F7F6] pl-11" />
-                    <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71717A]" />
+                    <ProductSearch value={searchQuery} onChange={setSearchQuery} items={foodSearchItems} />
                   </div>
                 </div>
-                <FoodProductGrid items={visibleItems} isLoading={isLoadingProducts} searchQuery={searchQuery} />
+                <FoodProductGrid items={visibleItems} isLoading={isLoadingProducts} searchQuery={searchQuery.trim()} />
+                <FoodItemModal item={searchedFood} open={searchedFood !== null} onOpenChange={open => { if (!open) setSearchedFood(null); }} />
               </div>
             </div>
           </section>
@@ -2072,7 +2082,7 @@ function Page() {
   }, [isMockFoodStore, storeId, storeDetails?.business_type]);
 
   const filteredProducts = products.filter((p) =>
-    p.product_name.toLowerCase().includes(searchQuery.toLowerCase())
+    p.product_name.toLowerCase().includes(searchQuery.trim().toLowerCase())
   );
 
   const handleAddToCart = (e: React.MouseEvent, product: Product) => {

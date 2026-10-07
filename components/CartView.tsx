@@ -5,14 +5,14 @@ import React from 'react'
 import Image from 'next/image'
 import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { PlusIcon } from 'lucide-react'
+import { PlusIcon, Trash2 } from 'lucide-react'
 import MinusIcon from '@/components/svgIcons/MinusIcon'
 import { useCart } from '@/context/CartContext'
 import TrashIcon from './svgIcons/TrashIcon'
 import SpeedafIcon from './svgIcons/SpeedafIcon'
 
 export default function CartView() {
-  const { cart, updateQuantity, removeFromCart, getCartTotal } = useCart()
+  const { cart, updateQuantity, removeFromCart, getCartTotal, clearCart } = useCart()
   const router = useRouter()
   const params = useParams()
   const storeId = params.storeId as string
@@ -31,8 +31,20 @@ export default function CartView() {
   return (
     <div className="w-full h-full flex flex-col">
       {/* Cart Header */}
-      <div className="pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4">
         <h2 className="text-xl font-semibold">Cart ({cart.length})</h2>
+        {cart.length > 0 && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+            onClick={clearCart}
+          >
+            <Trash2 className="h-4 w-4" />
+            Clear cart
+          </Button>
+        )}
       </div>
 
       {/* Cart Items - Scrollable */}
