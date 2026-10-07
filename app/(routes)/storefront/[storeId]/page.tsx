@@ -468,7 +468,7 @@ function RetailStorefrontFooter({
           </div>
         </div>
         <div className="border-t border-white/15">
-          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-xs text-white/65 md:flex-row md:items-center md:justify-between lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-5 text-center text-xs text-white/65 md:flex-row md:items-center md:justify-between md:text-left lg:px-8">
             <p>{storeDetails.store_name} © {new Date().getFullYear()}</p>
             <p>
               Powered by{" "}
@@ -703,7 +703,7 @@ function FoodStorefrontFooter({
         </div>
 
         <div className="border-t border-white/15">
-          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-xs text-white/65 md:flex-row md:items-center md:justify-between lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-5 text-center text-xs text-white/65 md:flex-row md:items-center md:justify-between md:text-left lg:px-8">
             <p>{storeDetails.store_name} © {new Date().getFullYear()}</p>
             <p>
               Powered by{" "}
