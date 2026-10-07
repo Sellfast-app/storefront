@@ -103,7 +103,7 @@ function Page() {
   const productId = params.id as string
   const vendorBrand = <VendorBrand storeId={storeId} />
 
-  const { addToCart, cart } = useCart()
+  const { addToCart, cart, updateQuantity } = useCart()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [showCart, setShowCart] = useState(false)
@@ -250,25 +250,17 @@ function Page() {
 
   const incrementQuantity = () => {
     if (product) {
-      addToCart({
-        id: product.id,
-        name: product.product_name,
-        price: product.product_price,
-        image: product.product_images[0] || Banner,
-        description: product.product_description,
-      }, 1)
+      if (currentQuantity > 0) {
+        updateQuantity(product.id, currentQuantity + 1)
+      } else {
+        handleAddToCart()
+      }
     }
   }
 
   const decrementQuantity = () => {
     if (product && currentQuantity > 0) {
-      addToCart({
-        id: product.id,
-        name: product.product_name,
-        price: product.product_price,
-        image: product.product_images[0] || Banner,
-        description: product.product_description,
-      }, -1)
+      updateQuantity(product.id, currentQuantity - 1)
     }
   }
 
@@ -413,11 +405,11 @@ function Page() {
                 <div className='flex items-center justify-between mt-2'>
                   <h3 className='font-semibold text-xl'>₦{product.product_price.toLocaleString()}</h3>
                   <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
-                    <button onClick={incrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
+                    <button type='button' aria-label='Increase quantity' onClick={incrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
                       <PlusIcon className='w-4 h-4' />
                     </button>
                     <span className='px-4 bg-card h-full flex items-center'>{currentQuantity}</span>
-                    <button onClick={decrementQuantity} className='p-1 hover:bg-gray-200 rounded' disabled={currentQuantity === 0}>
+                    <button type='button' aria-label='Decrease quantity' onClick={decrementQuantity} className='p-1 hover:bg-gray-200 rounded' disabled={currentQuantity === 0}>
                       <MinusIcon className='w-4 h-4' />
                     </button>
                   </div>
