@@ -7,7 +7,9 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Banner from "@/public/Banner.png";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogOverlay } from "@/components/ui/dialog";
 import { useCart } from "@/context/CartContext";
 import CartButton from "@/components/CartButton";
 import CartView from "@/components/CartView";
@@ -1359,6 +1361,13 @@ function V2EventStorefront({
   const [selectedEventId, setSelectedEventId] = useState(events[0]?.id || "");
   const [ticketQuantities, setTicketQuantities] = useState<Record<string, number>>({});
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [showTicketCheckout, setShowTicketCheckout] = useState(false);
+  const [ticketCustomer, setTicketCustomer] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    whatsapp: "",
+  });
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) || events[0];
   const otherEvents = events.filter((e) => e.id !== selectedEvent?.id);
@@ -1379,6 +1388,7 @@ function V2EventStorefront({
   );
   const ticketTotal = ticketSubtotal + serviceFee;
   const totalTickets = selectedTickets.reduce((sum, item) => sum + item.quantity, 0);
+  const ticketCustomerIsComplete = Object.values(ticketCustomer).every((value) => value.trim().length > 0);
 
   const updateTicketQuantity = (ticketId: string, next: number, limit: number) => {
     setTicketQuantities((cur) => ({
@@ -1695,6 +1705,7 @@ function V2EventStorefront({
                     <Button
                       className="mt-5 h-11 w-full rounded-full bg-[#005B14] text-sm font-semibold hover:bg-[#004610] disabled:opacity-40"
                       disabled={totalTickets === 0}
+                      onClick={() => setShowTicketCheckout(true)}
                     >
                       {totalTickets === 0 ? "Select tickets to continue" : `Continue · ${totalTickets} ticket${totalTickets > 1 ? "s" : ""}`}
                     </Button>
@@ -1773,6 +1784,69 @@ function V2EventStorefront({
           )}
         </main>
       )}
+
+      <Dialog open={showTicketCheckout} onOpenChange={setShowTicketCheckout}>
+        <DialogOverlay className="backdrop-blur-xs" />
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Ticket checkout</DialogTitle>
+            <p className="text-sm text-[#6B7280]">Enter your details to receive your e-ticket confirmation.</p>
+          </DialogHeader>
+
+          <form
+            className="space-y-4 pt-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!ticketCustomerIsComplete) return;
+              sessionStorage.setItem(`ticket_checkout_${storeDetails.id}`, JSON.stringify({
+                eventId: selectedEvent?.id,
+                tickets: selectedTickets.map(({ ticket, quantity }) => ({ ticketId: ticket.id, quantity })),
+                customer: ticketCustomer,
+                total: ticketTotal,
+              }));
+              setShowTicketCheckout(false);
+            }}
+          >
+            <div className="rounded-xl border border-[#E8E8E8] bg-[#F7FFF9] p-4">
+              <p className="text-sm font-semibold">{selectedEvent?.name}</p>
+              <div className="mt-3 space-y-2 text-sm text-[#6B7280]">
+                {selectedTickets.map(({ ticket, quantity }) => (
+                  <div key={ticket.id} className="flex justify-between gap-4">
+                    <span>{quantity}× {ticket.name}</span>
+                    <span>{ticket.type === "free" ? "Free" : `₦${((ticket.price || 0) * quantity).toLocaleString()}`}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between border-t border-[#E8E8E8] pt-2 font-semibold text-[#111827]">
+                  <span>Total</span>
+                  <span>{ticketTotal === 0 ? "Free" : `₦${ticketTotal.toLocaleString()}`}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label className="mb-1 block text-xs">First name *</Label>
+                <Input value={ticketCustomer.firstName} onChange={(event) => setTicketCustomer((current) => ({ ...current, firstName: event.target.value }))} placeholder="First name" />
+              </div>
+              <div>
+                <Label className="mb-1 block text-xs">Last name *</Label>
+                <Input value={ticketCustomer.lastName} onChange={(event) => setTicketCustomer((current) => ({ ...current, lastName: event.target.value }))} placeholder="Last name" />
+              </div>
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Email *</Label>
+              <Input type="email" value={ticketCustomer.email} onChange={(event) => setTicketCustomer((current) => ({ ...current, email: event.target.value }))} placeholder="you@example.com" />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">WhatsApp number *</Label>
+              <Input type="tel" value={ticketCustomer.whatsapp} onChange={(event) => setTicketCustomer((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="+234 801 234 5678" />
+            </div>
+            <Button type="submit" className="h-11 w-full rounded-full bg-[#005B14] text-sm font-semibold hover:bg-[#004610]" disabled={!ticketCustomerIsComplete}>
+              Continue to payment
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <StorefrontFooter storeDetails={storeDetails} logoUrl={logoUrl} />
     </div>

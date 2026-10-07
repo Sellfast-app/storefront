@@ -20,7 +20,7 @@ import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
 import StateRegionSelect from '@/components/stateRegionSelect';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { CreditCard, Loader2, MapPin, ShieldCheck, Truck, X, Copy } from 'lucide-react';
+import { Loader2, Truck, X, Copy } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 const countryToCode: Record<string, string> = {
@@ -187,6 +187,15 @@ interface StorePaymentMethod {
   subAccountIdentifier?: string | null;
 }
 
+interface VendorDeliveryRate {
+  id: string;
+  location: string;
+  rate: number;
+  description?: string;
+  delivery_time?: string;
+  estimated_delivery?: string;
+}
+
 interface CryptoPaymentInit {
   reference: string;
   depositAddress: string;
@@ -216,6 +225,8 @@ interface CustomerDetails {
 
 interface CheckoutDraft {
   customerDetails: CustomerDetails;
+  firstName?: string;
+  lastName?: string;
   phoneDialCode: string;
   deliveryMethod: DeliveryMethodType | null;
   deliveryNotes: string;
@@ -309,12 +320,18 @@ export default function CheckoutPage() {
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<SelectedQuote | null>(null);
   const [showSendboxModal, setShowSendboxModal] = useState(false);
+  const [vendorDeliveryRates, setVendorDeliveryRates] = useState<VendorDeliveryRate[]>([]);
+  const [selectedVendorDeliveryRate, setSelectedVendorDeliveryRate] = useState<VendorDeliveryRate | null>(null);
+  const [showVendorDeliveryModal, setShowVendorDeliveryModal] = useState(false);
+  const [vendorDeliverySearch, setVendorDeliverySearch] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
     ...DEFAULT_CUSTOMER_DETAILS,
   });
+  const [customerFirstName, setCustomerFirstName] = useState('');
+  const [customerLastName, setCustomerLastName] = useState('');
 
   const { cart, getCartTotal, clearCart, isFoodCart } = useCart();
   const isSearchingOnMobile = searchQuery.trim() !== '';
@@ -352,6 +369,9 @@ export default function CheckoutPage() {
             ...DEFAULT_CUSTOMER_DETAILS,
             ...draft.customerDetails,
           });
+          const savedName = draft.customerDetails.name.trim().split(/\s+/);
+          setCustomerFirstName(draft.firstName || savedName[0] || '');
+          setCustomerLastName(draft.lastName || savedName.slice(1).join(' '));
         }
         if (typeof draft.phoneDialCode === 'string') {
           setPhoneDialCode(draft.phoneDialCode);
@@ -379,6 +399,8 @@ export default function CheckoutPage() {
 
     const draft: CheckoutDraft = {
       customerDetails,
+      firstName: customerFirstName,
+      lastName: customerLastName,
       phoneDialCode,
       deliveryMethod,
       deliveryNotes,
@@ -388,6 +410,8 @@ export default function CheckoutPage() {
     sessionStorage.setItem(getCheckoutDraftKey(storeId), JSON.stringify(draft));
   }, [
     customerDetails,
+    customerFirstName,
+    customerLastName,
     deliveryMethod,
     deliveryNotes,
     loadedCheckoutDraftStoreId,
@@ -412,6 +436,19 @@ export default function CheckoutPage() {
 
           const modes: string[] = storeDetails.enabled_fulfillment_modes || [];
           setEnabledFulfillmentModes(modes);
+          const configuredRates = storeDetails.metadata?.manual_shipping_rates;
+          if (Array.isArray(configuredRates)) {
+            setVendorDeliveryRates(
+              configuredRates.filter(
+                (rate: Partial<VendorDeliveryRate>): rate is VendorDeliveryRate =>
+                  typeof rate.id === 'string' &&
+                  typeof rate.location === 'string' &&
+                  typeof rate.rate === 'number' &&
+                  Number.isFinite(rate.rate) &&
+                  rate.rate > 0
+              )
+            );
+          }
           setDeliveryMethod(currentMethod =>
             currentMethod && modes.includes(currentMethod) ? currentMethod : null
           );
@@ -574,8 +611,26 @@ export default function CheckoutPage() {
   }, [canUseKlump, isKlumpReady]);
 
   const handleEditAddress = () => setIsEditingAddress(true);
-  const handleSaveAddress = () => setIsEditingAddress(false);
-  const handleCancelEdit = () => setIsEditingAddress(false);
+  const getCustomerName = () => `${customerFirstName.trim()} ${customerLastName.trim()}`.trim();
+  const hasCustomerDetails = Boolean(
+    customerFirstName.trim() &&
+    customerLastName.trim() &&
+    customerDetails.email.trim() &&
+    customerDetails.phone.trim() &&
+    customerDetails.address.trim() &&
+    customerDetails.city.trim() &&
+    customerDetails.state.trim() &&
+    customerDetails.post_code.trim() &&
+    customerDetails.country.trim()
+  );
+  const handleSaveAddress = () => {
+    if (!customerFirstName.trim() || !customerLastName.trim()) {
+      toast.error('First name and last name are required');
+      return;
+    }
+    setCustomerDetails((current) => ({ ...current, name: getCustomerName() }));
+    setIsEditingAddress(false);
+  };
   const handleCancelDeliveryEdit = () => setIsEditingDelivery(false);
 
   const handleInputChange = (field: keyof typeof customerDetails, value: string) => {
@@ -671,9 +726,14 @@ export default function CheckoutPage() {
   const validateCheckout = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!deliveryMethod) { toast.error("Please select a delivery method"); return false; }
+    if (deliveryMethod === 'vendor' && vendorDeliveryRates.length > 0 && !appliedCoupon && !selectedVendorDeliveryRate) {
+      toast.error("Please select a vendor delivery location and price");
+      setShowVendorDeliveryModal(true);
+      return false;
+    }
     if (!emailRegex.test(customerDetails.email)) { toast.error("Please enter a valid email address"); return false; }
     if (customerDetails.phone.length < 7) { toast.error("Please enter a valid phone number"); return false; }
-    if (!customerDetails.name.trim()) { toast.error("Name is required"); return false; }
+    if (!customerFirstName.trim() || !customerLastName.trim()) { toast.error("First name and last name are required"); return false; }
     if (!customerDetails.address.trim()) { toast.error("Address is required"); return false; }
     if (!customerDetails.city.trim()) { toast.error("City is required"); return false; }
     if (!customerDetails.state.trim()) { toast.error("State / Region is required"); return false; }
@@ -683,7 +743,7 @@ export default function CheckoutPage() {
   };
 
   const getCustomerInfo = () => ({
-    name: customerDetails.name,
+    name: getCustomerName(),
     email: customerDetails.email,
     phone: `${phoneDialCode}${customerDetails.phone}`,
     address: customerDetails.address,
@@ -728,6 +788,13 @@ export default function CheckoutPage() {
     ...cryptoOptionField(),
     delivery_method: deliveryMethod,
     delivery_fee: deliveryFee,
+    ...(selectedVendorDeliveryRate && !appliedCoupon && {
+      delivery_rate: {
+        id: selectedVendorDeliveryRate.id,
+        location: selectedVendorDeliveryRate.location,
+        fee: selectedVendorDeliveryRate.rate,
+      },
+    }),
     coupon_applied: Boolean(appliedCoupon),
     ...(appliedCoupon && {
       coupon_code: appliedCoupon.code,
@@ -755,6 +822,13 @@ export default function CheckoutPage() {
     ...cryptoOptionField(),
     delivery_method: deliveryMethod, // sends 'relay' or 'pickup' as-is to backend
     delivery_fee: deliveryFee,
+    ...(selectedVendorDeliveryRate && !appliedCoupon && {
+      delivery_rate: {
+        id: selectedVendorDeliveryRate.id,
+        location: selectedVendorDeliveryRate.location,
+        fee: selectedVendorDeliveryRate.rate,
+      },
+    }),
     coupon_applied: Boolean(appliedCoupon),
     ...(appliedCoupon && {
       coupon_code: appliedCoupon.code,
@@ -806,6 +880,12 @@ export default function CheckoutPage() {
   const handleSaveDelivery = async () => {
     if (!deliveryMethod) {
       toast.error('Please select a delivery method');
+      return;
+    }
+
+    if (deliveryMethod === 'vendor' && vendorDeliveryRates.length > 0 && !appliedCoupon && !selectedVendorDeliveryRate) {
+      toast.error('Please select a vendor delivery location and price');
+      setShowVendorDeliveryModal(true);
       return;
     }
 
@@ -922,7 +1002,9 @@ export default function CheckoutPage() {
     if (isFood) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const payload: any = { ...buildFoodPayload() };
-      if (!hasCouponVendorDelivery && !selectedQuote?.orderKey) {
+      const hasSavedVendorDelivery = deliveryMethod === 'vendor' &&
+        (vendorDeliveryRates.length === 0 || Boolean(selectedVendorDeliveryRate));
+      if (!hasCouponVendorDelivery && !hasSavedVendorDelivery && !selectedQuote?.orderKey) {
         throw new Error('Please save delivery details to prepare this food order');
       }
       if (!appliedCoupon && selectedQuote?.orderKey) {
@@ -1202,7 +1284,7 @@ export default function CheckoutPage() {
     return (
       <div className='mb-6'>
         <Label className='text-xs mb-3 block'>Delivery Method *</Label>
-        <RadioGroup
+          <RadioGroup
           value={deliveryMethod ?? undefined}
           onValueChange={(value) => {
             if (appliedCoupon && value !== 'vendor') {
@@ -1212,6 +1294,11 @@ export default function CheckoutPage() {
             setDeliveryMethod(value as DeliveryMethodType);
             setSelectedQuote(null);
             setDeliveryQuote(null);
+            setSelectedVendorDeliveryRate(null);
+            if (value === 'vendor' && !appliedCoupon && vendorDeliveryRates.length > 0) {
+              setVendorDeliverySearch('');
+              setShowVendorDeliveryModal(true);
+            }
           }}
           className="space-y-3"
           disabled={!isEditingDelivery}
@@ -1504,95 +1591,36 @@ export default function CheckoutPage() {
             <div className='flex gap-2'><CartButton /></div>
           </div>
 
-          {/* 1. Customer Address */}
+          {/* 1. Delivery details */}
           <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
             <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
-              <h3 className='font-semibold'>1. CUSTOMER ADDRESS</h3>
-              {!isEditingAddress ? (
-                <Button variant="outline" className='text-[#4FCA6A]' onClick={handleEditAddress}>
-                  Change <EditIcon />
-                </Button>
-              ) : (
-                <div className='flex items-center gap-2'>
-                  <Button variant="outline" onClick={handleCancelEdit}><X /> <span className="hidden sm:inline ml-2">Cancel</span></Button>
-                  <Button onClick={handleSaveAddress}><SaveIcon className="hidden sm:inline ml-2" /> <span>Save Changes</span></Button>
-                </div>
-              )}
+              <h3 className='font-semibold'>1. DELIVERY DETAILS</h3>
+              <Button variant="outline" className='text-[#4FCA6A]' onClick={handleEditAddress}>
+                {hasCustomerDetails ? 'Change details' : 'Add delivery details'}
+                {hasCustomerDetails && <EditIcon />}
+              </Button>
             </CardHeader>
 
-            <CardContent className='pt-6 space-y-4'>
-              <div>
-                <Label className='text-xs mb-1'>Full Name *</Label>
-                <Input disabled={!isEditingAddress} value={customerDetails.name} onChange={e => handleInputChange('name', e.target.value)} placeholder="Enter your full name" />
-              </div>
-              <div>
-                <Label className='text-xs mb-1'>Email *</Label>
-                <Input type='email' disabled={!isEditingAddress} value={customerDetails.email} onChange={e => handleInputChange('email', e.target.value)} placeholder="your@email.com" />
-              </div>
-              <div>
-                <Label className='text-xs mb-1'>Phone Number *</Label>
-                <div className="flex">
-                  <Select value={phoneDialCode} onValueChange={setPhoneDialCode} disabled={!isEditingAddress}>
-                    <SelectTrigger className="w-[120px] rounded-r-none border-r-0 focus:ring-0 flex-shrink-0">
-                      <SelectValue>
-                        <span className="flex items-center gap-1.5">
-                          <span>{PHONE_CODES.find(c => c.dial === phoneDialCode)?.flag ?? '🏳'}</span>
-                          <span className="text-xs font-mono">{phoneDialCode}</span>
-                        </span>
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[260px]">
-                      {PHONE_CODES.map((country, index) => (
-                        <SelectItem key={`${country.code}-${index}`} value={country.dial}>
-                          <span className="flex items-center gap-2">
-                            <span>{country.flag}</span>
-                            <span className="text-xs text-muted-foreground font-mono w-10 flex-shrink-0">{country.dial}</span>
-                            <span className="text-sm">{country.name}</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input type="tel" disabled={!isEditingAddress} value={customerDetails.phone} onChange={e => handleInputChange('phone', e.target.value)} placeholder="8012345678" className="rounded-l-none flex-1" />
+            <CardContent className='pt-6'>
+              {hasCustomerDetails ? (
+                <div className='grid gap-3 text-sm text-[#4B5563] sm:grid-cols-2'>
+                  <div><p className='text-xs text-[#A0A0A0]'>Customer</p><p className='font-medium text-foreground'>{getCustomerName()}</p></div>
+                  <div><p className='text-xs text-[#A0A0A0]'>Phone</p><p className='font-medium text-foreground'>{phoneDialCode} {customerDetails.phone}</p></div>
+                  <div><p className='text-xs text-[#A0A0A0]'>Email</p><p className='break-all font-medium text-foreground'>{customerDetails.email}</p></div>
+                  <div><p className='text-xs text-[#A0A0A0]'>Delivery address</p><p className='font-medium text-foreground'>{customerDetails.address}, {customerDetails.city}, {customerDetails.state}</p></div>
                 </div>
-              </div>
-              <div>
-                <Label className='text-xs mb-1'>Delivery Address *</Label>
-                <Input disabled={!isEditingAddress} value={customerDetails.address} onChange={e => handleInputChange('address', e.target.value)} placeholder="Enter your complete address" />
-              </div>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                <div>
-                  <Label className='text-xs mb-1'>City *</Label>
-                  <Input disabled={!isEditingAddress} value={customerDetails.city} onChange={e => handleInputChange('city', e.target.value)} placeholder="e.g., Lagos" />
+              ) : (
+                <div className='rounded-lg border border-dashed border-[#D9EBDD] bg-[#F7FFF9] px-4 py-5 text-sm text-[#6B7280]'>
+                  Add your contact and delivery address to see the available shipping prices for your location.
                 </div>
-                <div>
-                  <StateRegionSelect countryCode={customerDetails.country} value={customerDetails.state} onChange={(value) => handleInputChange('state', value)} disabled={!isEditingAddress} />
-                </div>
-              </div>
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                <div>
-                  <Label className='text-xs mb-1'>Post Code *</Label>
-                  <Input disabled={!isEditingAddress} value={customerDetails.post_code} onChange={e => handleInputChange('post_code', e.target.value)} placeholder="e.g., 100001" />
-                </div>
-                <div>
-                  <Label className='text-xs mb-1'>Country *</Label>
-                  <Select disabled={!isEditingAddress} value={customerDetails.country} onValueChange={(value) => handleInputChange('country', value)}>
-                    <SelectTrigger className='w-full'><SelectValue placeholder="Select country" /></SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {Object.entries(countryToCode).map(([name, code]) => (
-                        <SelectItem key={code} value={code}>{name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
           {/* 2. Delivery Details */}
           <Card className='shadow-none mt-6 border-[#F5F5F5] dark:border-[#1F1F1F]'>
             <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
-              <h3 className='font-semibold'>2. DELIVERY DETAILS</h3>
+              <h3 className='font-semibold'>2. SHIPPING &amp; DELIVERY</h3>
               {!isEditingDelivery ? (
                 <Button variant="outline" className='text-[#4FCA6A]' onClick={() => setIsEditingDelivery(true)}>
                   Change <EditIcon />
@@ -1629,6 +1657,29 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              {deliveryMethod === 'vendor' && vendorDeliveryRates.length > 0 && !appliedCoupon && (
+                <div className='mb-6'>
+                  <Label className='mb-3 block text-xs uppercase tracking-wide'>Select shipping rate</Label>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      setVendorDeliverySearch('');
+                      setShowVendorDeliveryModal(true);
+                    }}
+                    className='w-full rounded-lg border border-dashed border-primary/40 bg-[#F7FFF9] px-4 py-4 text-left transition-colors hover:bg-primary/5'
+                  >
+                    <span className='block text-sm font-medium text-primary'>
+                      {selectedVendorDeliveryRate ? `Shipping to ${selectedVendorDeliveryRate.location}` : 'Select a shipping price'}
+                    </span>
+                    <span className='mt-1 block text-xs text-muted-foreground'>
+                      {selectedVendorDeliveryRate
+                        ? `Delivery fee: ₦${selectedVendorDeliveryRate.rate.toLocaleString()}`
+                        : 'Choose the delivery location and price for your order.'}
+                    </span>
+                  </button>
+                </div>
+              )}
+
               <div className='flex gap-4 overflow-x-auto pb-2 scrollbar-hide'>
                 {cart.map((item, index) => (
                   <div key={item.id} className='flex-shrink-0 w-[280px]'>
@@ -1660,6 +1711,101 @@ export default function CheckoutPage() {
           </Link>
         </div>
       </div>
+
+      {/* Customer details modal */}
+      <Dialog open={isEditingAddress} onOpenChange={setIsEditingAddress}>
+        <DialogOverlay className="backdrop-blur-xs" />
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Change details</DialogTitle>
+            <p className="text-sm text-muted-foreground">Add the details needed to deliver your order.</p>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label className='mb-1 block text-xs'>First name *</Label>
+                <Input value={customerFirstName} onChange={(event) => setCustomerFirstName(event.target.value)} placeholder="First name" />
+              </div>
+              <div>
+                <Label className='mb-1 block text-xs'>Last name *</Label>
+                <Input value={customerLastName} onChange={(event) => setCustomerLastName(event.target.value)} placeholder="Last name" />
+              </div>
+            </div>
+
+            <div>
+              <Label className='mb-1 block text-xs'>Phone number *</Label>
+              <div className="flex">
+                <Select value={phoneDialCode} onValueChange={setPhoneDialCode}>
+                  <SelectTrigger className="w-[120px] rounded-r-none border-r-0 focus:ring-0 flex-shrink-0">
+                    <SelectValue>
+                      <span className="flex items-center gap-1.5">
+                        <span>{PHONE_CODES.find(c => c.dial === phoneDialCode)?.flag ?? '🏳'}</span>
+                        <span className="text-xs font-mono">{phoneDialCode}</span>
+                      </span>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[260px]">
+                    {PHONE_CODES.map((country, index) => (
+                      <SelectItem key={`${country.code}-${index}`} value={country.dial}>
+                        <span className="flex items-center gap-2">
+                          <span>{country.flag}</span>
+                          <span className="w-10 flex-shrink-0 font-mono text-xs text-muted-foreground">{country.dial}</span>
+                          <span className="text-sm">{country.name}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input type="tel" value={customerDetails.phone} onChange={event => handleInputChange('phone', event.target.value)} placeholder="8012345678" className="flex-1 rounded-l-none" />
+              </div>
+            </div>
+
+            <div>
+              <Label className='mb-1 block text-xs'>Email *</Label>
+              <Input type='email' value={customerDetails.email} onChange={event => handleInputChange('email', event.target.value)} placeholder="your@email.com" />
+            </div>
+
+            <div>
+              <Label className='mb-1 block text-xs'>Address *</Label>
+              <Input value={customerDetails.address} onChange={event => handleInputChange('address', event.target.value)} placeholder="Shipping address" />
+            </div>
+
+            <div className='grid gap-4 sm:grid-cols-2'>
+              <div>
+                <Label className='mb-1 block text-xs'>Country *</Label>
+                <Select value={customerDetails.country} onValueChange={(value) => handleInputChange('country', value)}>
+                  <SelectTrigger className='w-full'><SelectValue placeholder="Select country" /></SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {Object.entries(countryToCode).map(([name, code]) => (
+                      <SelectItem key={code} value={code}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <StateRegionSelect countryCode={customerDetails.country} value={customerDetails.state} onChange={(value) => handleInputChange('state', value)} disabled={false} />
+              </div>
+            </div>
+
+            <div className='grid gap-4 sm:grid-cols-2'>
+              <div>
+                <Label className='mb-1 block text-xs'>City *</Label>
+                <Input value={customerDetails.city} onChange={event => handleInputChange('city', event.target.value)} placeholder="City" />
+              </div>
+              <div>
+                <Label className='mb-1 block text-xs'>Post code *</Label>
+                <Input value={customerDetails.post_code} onChange={event => handleInputChange('post_code', event.target.value)} placeholder="Post code" />
+              </div>
+            </div>
+
+            <Button type="button" className="w-full" onClick={handleSaveAddress}>
+              <SaveIcon className="mr-2" />
+              Save address
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Sendbox Courier Selection Modal */}
       <Dialog open={showSendboxModal} onOpenChange={() => { }}>
@@ -1702,6 +1848,72 @@ export default function CheckoutPage() {
             <Button variant="outline" onClick={() => { setShowSendboxModal(false); setIsEditingDelivery(true); }}>
               Cancel
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showVendorDeliveryModal} onOpenChange={setShowVendorDeliveryModal}>
+        <DialogOverlay className="backdrop-blur-xs" />
+        <DialogContent className="max-h-[80vh] overflow-hidden sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold">Select shipping</DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              Choose the vendor delivery location that applies to your address.
+            </p>
+          </DialogHeader>
+
+          <Input
+            value={vendorDeliverySearch}
+            onChange={(event) => setVendorDeliverySearch(event.target.value)}
+            placeholder="Search delivery locations..."
+            className="mt-3"
+          />
+
+          <div className="max-h-[48vh] overflow-y-auto divide-y rounded-lg border">
+            {vendorDeliveryRates
+              .filter((rate) => rate.location.toLowerCase().includes(vendorDeliverySearch.trim().toLowerCase()))
+              .map((rate) => (
+                <button
+                  key={rate.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedVendorDeliveryRate(rate);
+                    setSelectedQuote({
+                      fee: rate.rate,
+                      rate_card_id: null,
+                      name: `Vendor Delivery - ${rate.location}`,
+                    });
+                    setShowVendorDeliveryModal(false);
+                    setIsEditingDelivery(false);
+                  }}
+                  className="flex w-full items-start justify-between gap-4 px-4 py-4 text-left transition-colors hover:bg-primary/5"
+                >
+                  <span className="flex min-w-0 items-start gap-3">
+                    <span className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${selectedVendorDeliveryRate?.id === rate.id ? 'border-primary' : 'border-muted-foreground/40'}`}>
+                      {selectedVendorDeliveryRate?.id === rate.id && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    </span>
+                    <span>
+                      <span className="block text-sm font-medium">{rate.location}</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {rate.description || 'Vendor delivery'}
+                      </span>
+                      {(rate.delivery_time || rate.estimated_delivery) && (
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {rate.delivery_time || rate.estimated_delivery}
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-primary">
+                    ₦{rate.rate.toLocaleString()}
+                  </span>
+                </button>
+              ))}
+            {vendorDeliveryRates.filter((rate) => rate.location.toLowerCase().includes(vendorDeliverySearch.trim().toLowerCase())).length === 0 && (
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                No delivery locations match your search.
+              </p>
+            )}
           </div>
         </DialogContent>
       </Dialog>
