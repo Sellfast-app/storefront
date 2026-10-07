@@ -364,7 +364,7 @@ function RetailStorefrontFooter({
   return (
     <footer className="mt-16 bg-[url('/storefront-footer-bg.png')] bg-cover bg-center text-white">
       <div className="bg-[#061400]/20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-[1.2fr_0.8fr_0.9fr_1.25fr] lg:px-8">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-5 gap-y-8 px-4 py-12 [&>div]:min-w-0 [&>div:first-child]:col-span-2 [&>div:last-child]:col-span-2 md:grid-cols-[1.2fr_0.8fr_0.9fr_1.25fr] md:gap-10 md:[&>div:first-child]:col-span-1 md:[&>div:last-child]:col-span-1 lg:px-8">
           <div>
             <div className="mb-8 flex items-center gap-3">
               {logoUrl ? (
@@ -574,7 +574,7 @@ function FoodStorefrontFooter({
   return (
     <footer className="mt-16 bg-[url('/storefront-footer-bg.png')] bg-cover bg-center text-white">
       <div className="bg-[#061400]/20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-2 lg:grid-cols-[1.25fr_1fr_0.85fr_1fr_1.25fr] lg:px-8">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-5 gap-y-8 px-4 py-12 [&>div]:min-w-0 [&>div:first-child]:col-span-2 [&>div:nth-child(4)]:col-span-2 [&>div:last-child]:col-span-2 md:gap-10 md:[&>div:first-child]:col-span-1 md:[&>div:nth-child(4)]:col-span-1 md:[&>div:last-child]:col-span-1 lg:grid-cols-[1.25fr_1fr_0.85fr_1fr_1.25fr] lg:px-8">
           <div>
             <div className="mb-5 flex items-center gap-3">
               {logoUrl ? (
