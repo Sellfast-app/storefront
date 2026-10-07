@@ -1,8 +1,8 @@
 "use client";
 
 import CartButton from '@/components/CartButton';
+import VendorBrand from '@/components/VendorBrand';
 import ArrowIcon from '@/components/svgIcons/ArrowIcon';
-import EditIcon from '@/components/svgIcons/EditIcon';
 import SaveIcon from '@/components/svgIcons/SaveIcon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -19,7 +19,7 @@ import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
 import StateRegionSelect from '@/components/stateRegionSelect';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Truck, X, Copy } from 'lucide-react';
+import { Loader2, Truck, X, Copy, Minus, Plus } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 const countryToCode: Record<string, string> = {
@@ -286,7 +286,6 @@ export default function CheckoutPage() {
   const params = useParams();
   const storeId = params.storeId as string;
   const [storeBrand, setStoreBrand] = useState<{ name: string; logo: string | null }>({ name: '', logo: null });
-  const [logoFailed, setLogoFailed] = useState(false);
   const [searchQuery] = useState('');
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [isEditingDelivery, setIsEditingDelivery] = useState(true);
@@ -324,6 +323,7 @@ export default function CheckoutPage() {
   const [vendorDeliveryRates, setVendorDeliveryRates] = useState<VendorDeliveryRate[]>([]);
   const [selectedVendorDeliveryRate, setSelectedVendorDeliveryRate] = useState<VendorDeliveryRate | null>(null);
   const [showVendorDeliveryModal, setShowVendorDeliveryModal] = useState(false);
+  const [showShippingMethodModal, setShowShippingMethodModal] = useState(false);
   const [vendorDeliverySearch, setVendorDeliverySearch] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
@@ -334,7 +334,7 @@ export default function CheckoutPage() {
   const [customerFirstName, setCustomerFirstName] = useState('');
   const [customerLastName, setCustomerLastName] = useState('');
 
-  const { cart, getCartTotal, clearCart, isFoodCart } = useCart();
+  const { cart, getCartTotal, clearCart, isFoodCart, updateQuantity } = useCart();
   const isSearchingOnMobile = searchQuery.trim() !== '';
 
   const isFood = isFoodCart();
@@ -424,7 +424,6 @@ export default function CheckoutPage() {
   useEffect(() => {
     const fetchStoreFulfillmentModes = async () => {
       setStoreBrand({ name: '', logo: null });
-      setLogoFailed(false);
       try {
         setIsLoadingModes(true);
         const response = await fetch(`/api/stores/${storeId}`);
@@ -643,7 +642,6 @@ export default function CheckoutPage() {
     setCustomerDetails((current) => ({ ...current, name: getCustomerName() }));
     setIsEditingAddress(false);
   };
-  const handleCancelDeliveryEdit = () => setIsEditingDelivery(false);
 
   const handleInputChange = (field: keyof typeof customerDetails, value: string) => {
     setCustomerDetails(prev => {
@@ -1309,6 +1307,7 @@ export default function CheckoutPage() {
             setSelectedVendorDeliveryRate(null);
             if (value === 'vendor' && !appliedCoupon && vendorDeliveryRates.length > 0) {
               setVendorDeliverySearch('');
+              setShowShippingMethodModal(false);
               setShowVendorDeliveryModal(true);
             }
           }}
@@ -1356,53 +1355,58 @@ export default function CheckoutPage() {
     );
   };
 
-  const shipmentLabel = (method: DeliveryMethodType | null) => {
-  if (!method) return 'Select delivery method';
-  if (method === 'relay') return 'Relay by Chowdeck';
-  if (method === 'pickup') return 'Store Pickup';
-  if (method === 'vendor') return 'Fulfilled By Vendor';
-  if (method === 'gig') return 'GIG Logistics';
-  return 'Door Delivery';
-};
+  useEffect(() => {
+    if (!isEditingDelivery && !isFetchingQuote && (selectedQuote || !needsQuote)) {
+      setShowShippingMethodModal(false);
+    }
+  }, [isEditingDelivery, isFetchingQuote, selectedQuote, needsQuote]);
 
-  const vendorBrand = (
-    <Link href={`/storefront/${storeId}`} aria-label={`${storeBrand.name || 'Store'} home`} className="flex h-12 min-w-0 max-w-[200px] items-center">
-      {storeBrand.logo && !logoFailed ? (
-        <Image
-          src={storeBrand.logo}
-          alt={`${storeBrand.name} logo`}
-          width={160}
-          height={48}
-          className="h-12 w-auto max-w-full object-contain object-left"
-          onError={() => setLogoFailed(true)}
-        />
-      ) : storeBrand.name ? (
-        <span className="truncate text-base font-semibold">{storeBrand.name}</span>
-      ) : (
-        <span className="h-10 w-28 animate-pulse rounded bg-gray-100" aria-label="Loading store logo" />
-      )}
-    </Link>
-  );
+  const vendorBrand = <VendorBrand storeId={storeId} brand={storeBrand} />;
+  const updateCheckoutQuantity = (id: string | number, quantity: number) => {
+    updateQuantity(id, quantity);
+    if (needsQuote && !hasCouponVendorDelivery) {
+      setSelectedQuote(null);
+      setDeliveryQuote(null);
+      setIsEditingDelivery(true);
+    }
+  };
 
   return (
-    <div className='flex flex-col bg-[#FCFCFC]'>
+    <div className='min-h-screen bg-white'>
       {/* Mobile Header */}
-      <div className='md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10'>
+      <div className='sticky top-0 z-10 border-b bg-white p-4 md:px-8'>
         <div className='flex items-center justify-between'>
           {vendorBrand}
           <div className='flex gap-2'><CartButton /></div>
         </div>
       </div>
 
-      <div className='p-6 flex flex-col md:flex-row justify-between gap-4 md:h-screen md:overflow-hidden'>
+      <div className='mx-auto flex max-w-[1440px] flex-col gap-8 px-4 py-8 md:flex-row md:px-8 md:py-12'>
         {/* Left: Order Summary */}
-        <div className={`w-full md:w-1/2 md:overflow-y-auto md:h-full order-2 md:order-2 ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
+        <div className={`order-2 w-full min-w-0 md:w-1/2 ${isSearchingOnMobile ? 'hidden' : 'block'}`}>
           
-          <Card className='border-0 bg-[#F7F7F7] shadow-none dark:bg-[#171717]'>
-            <CardContent className='pb-2 border-b border-[#F5F5F5] dark:border-[#1F1F1F] space-y-4 pt-6'>
-              <h3 className='text-xl font-semibold uppercase tracking-tight'>Your order</h3>
+          <Card className='gap-0 rounded-none border-0 bg-[#F7F7F7] py-6 shadow-none'>
+            <CardContent className='space-y-4 px-5 pb-2 sm:px-7'>
+              <h3 className='pb-5 text-center text-2xl font-semibold uppercase'>Your order</h3>
+              <div className='bg-white px-4'>
+                <div className='flex justify-between border-b border-dashed py-4 text-xs font-semibold uppercase'><span>Product</span><span>Subtotal</span></div>
+                {cart.map((item) => (
+                  <div key={item.id} className='flex items-start gap-3 border-b border-dashed py-4'>
+                    <Image src={item.image} alt={item.name} width={72} height={84} className='h-20 w-16 shrink-0 object-cover' />
+                    <div className='min-w-0 flex-1'>
+                      <p className='break-words text-sm font-medium leading-5'>{item.name}</p>
+                      <div className='mt-2 inline-flex items-center border'>
+                        <button type='button' aria-label={`Decrease ${item.name} quantity`} className='flex h-8 w-8 items-center justify-center' disabled={item.quantity <= 1 || isProcessingPayment} onClick={() => updateCheckoutQuantity(item.id, item.quantity - 1)}><Minus className='h-3.5 w-3.5' /></button>
+                        <span className='flex h-8 min-w-8 items-center justify-center border-x text-sm'>{item.quantity}</span>
+                        <button type='button' aria-label={`Increase ${item.name} quantity`} className='flex h-8 w-8 items-center justify-center' disabled={isProcessingPayment} onClick={() => updateCheckoutQuantity(item.id, item.quantity + 1)}><Plus className='h-3.5 w-3.5' /></button>
+                      </div>
+                    </div>
+                    <span className='shrink-0 text-xs sm:text-sm'>₦{(item.price * item.quantity).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
               <div className='flex items-center justify-between'>
-                <span className='text-sm'>Item&apos;s total ({cart.length})</span>
+                <span className='text-sm'>Subtotal</span>
                 <span className='text-sm'>₦{itemsTotal.toLocaleString()}</span>
               </div>
               {selectedQuote && (
@@ -1435,13 +1439,8 @@ export default function CheckoutPage() {
                   <span>Calculated after saving delivery</span>
                 </div>
               )}
-              <div className='flex items-center justify-between border-t pt-2'>
-                <span className='text-sm font-semibold'>Total Amount</span>
-                <h4 className='font-bold'>₦{total.toLocaleString()}</h4>
-              </div>
             </CardContent>
             <CardContent className='pb-2 border-b border-[#F5F5F5] dark:border-[#1F1F1F] space-y-3 pt-4'>
-              <Label className='text-xs block'>Payment Method</Label>
               <div className="space-y-3 rounded-lg border border-[#F5F5F5] p-3 dark:border-[#1F1F1F]">
                 <Label className='text-xs mb-1'>Have a coupon code?</Label>
                 <div className="flex flex-col gap-2 sm:flex-row">
@@ -1476,6 +1475,10 @@ export default function CheckoutPage() {
                   </div>
                 )}
               </div>
+              <div className='flex items-center justify-between border-y border-dashed py-4 text-xl font-semibold'>
+                <span>Total to pay</span><span>₦{total.toLocaleString()}</span>
+              </div>
+              {!isZeroBalanceOrder && <h3 className='pt-4 text-2xl font-semibold'>Choose Payment Method</h3>}
               {isZeroBalanceOrder ? (
                 <div className="rounded-lg border border-[#4FCA6A]/30 bg-[#4FCA6A]/10 p-3 text-sm text-[#2E7D42]">
                   Fully covered by coupon. No payment gateway is required.
@@ -1485,7 +1488,7 @@ export default function CheckoutPage() {
                   <RadioGroup
                     value={paymentMethod}
                     onValueChange={(value) => setPaymentMethod(value as PaymentMethodType)}
-                    className="space-y-3"
+                    className="grid grid-cols-2 gap-3 [&>div]:min-h-14 [&>div]:border [&>div]:bg-white [&>div]:p-3 [&>div]:items-center [&_label>span]:hidden"
                   >
                     {enabledPaymentMethods.paystack && (
                       <div className="flex items-start space-x-2">
@@ -1578,7 +1581,7 @@ export default function CheckoutPage() {
             </CardContent>
             <CardFooter className='pt-4'>
               <Button
-                className='w-full bg-[#4FCA6A] hover:bg-[#45b85e]'
+                className='h-14 w-full rounded-none bg-[#4FCA6A] text-base hover:bg-[#45b85e]'
                 onClick={handleProceedToPayment}
                 disabled={
                   isProcessingPayment ||
@@ -1616,124 +1619,70 @@ export default function CheckoutPage() {
         </div>
 
         {/* Right: Forms */}
-        <div className='w-full md:w-1/2 md:overflow-y-auto md:h-full order-1 md:order-1'>
-          <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-[#FCFCFC] z-10 pb-4'>
-            {vendorBrand}
-            <div className='flex gap-2'><CartButton /></div>
-          </div>
+        <div className='order-1 w-full min-w-0 md:w-1/2'>
 
           {/* 1. Delivery details */}
-          <Card className='shadow-none border-[#F5F5F5] dark:border-[#1F1F1F]'>
-            <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
-              <h3 className='font-semibold'>1. DELIVERY DETAILS</h3>
-              <Button variant="outline" className='text-[#4FCA6A]' onClick={handleEditAddress}>
-                {hasCustomerDetails ? 'Change details' : 'Add delivery details'}
-                {hasCustomerDetails && <EditIcon />}
-              </Button>
+          <Card className='gap-0 border-0 p-0 shadow-none'>
+            <CardHeader className='px-0 pb-4'>
+              <h3 className='text-2xl font-semibold'>Delivery Details</h3>
             </CardHeader>
 
-            <CardContent className='pt-6'>
+            <CardContent className='rounded-lg border border-[#D9DDE1] bg-[#F8F9FA] p-6'>
+              <div className='flex justify-center'>
+                <Button variant='outline' className='h-12 rounded-none border-[#005B14] bg-white px-6 text-[#005B14]' onClick={handleEditAddress}>
+                  {hasCustomerDetails ? 'Change delivery details' : 'Add delivery details'}
+                </Button>
+              </div>
               {hasCustomerDetails ? (
-                <div className='grid gap-3 text-sm text-[#4B5563] sm:grid-cols-2'>
+                <div className='mt-5 grid gap-3 text-sm text-[#4B5563] sm:grid-cols-2'>
                   <div><p className='text-xs text-[#A0A0A0]'>Customer</p><p className='font-medium text-foreground'>{getCustomerName()}</p></div>
                   <div><p className='text-xs text-[#A0A0A0]'>Phone</p><p className='font-medium text-foreground'>{phoneDialCode} {customerDetails.phone}</p></div>
                   <div><p className='text-xs text-[#A0A0A0]'>Email</p><p className='break-all font-medium text-foreground'>{customerDetails.email}</p></div>
                   <div><p className='text-xs text-[#A0A0A0]'>Delivery address</p><p className='font-medium text-foreground'>{customerDetails.address}, {customerDetails.city}, {customerDetails.state}</p></div>
                 </div>
               ) : (
-                <div className='rounded-lg border border-dashed border-[#D9EBDD] bg-[#F7FFF9] px-4 py-5 text-sm text-[#6B7280]'>
-                  Add your contact and delivery address to see the available shipping prices for your location.
-                </div>
+                null
               )}
             </CardContent>
           </Card>
 
           {/* 2. Delivery Details */}
-          <Card className='shadow-none mt-6 border-[#F5F5F5] dark:border-[#1F1F1F]'>
-            <CardHeader className='flex flex-row items-center justify-between border-b border-[#F5F5F5] dark:border-[#1F1F1F]'>
-              <h3 className='font-semibold'>2. SHIPPING &amp; DELIVERY</h3>
-              {!isEditingDelivery ? (
-                <Button variant="outline" className='text-[#4FCA6A]' onClick={() => setIsEditingDelivery(true)}>
-                  Change <EditIcon />
-                </Button>
-              ) : (
-                <div className='flex items-center gap-2'>
-                  <Button variant="outline" onClick={handleCancelDeliveryEdit}><X /> <span className="hidden sm:inline ml-2">Cancel</span></Button>
-                  <Button onClick={handleSaveDelivery} disabled={isFetchingQuote}>
-                    {isFetchingQuote ? (
-                      <><Loader2 className='w-4 h-4 mr-2 animate-spin' /> Getting quote...</>
-                    ) : (
-                      <><SaveIcon className="hidden sm:inline ml-2" /> <span>Save Changes</span></>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </CardHeader>
-
-            <CardContent className='pt-6'>
-              <DeliveryMethodSection />
+          <Card className='mt-7 gap-0 border-0 p-0 shadow-none'>
+            <CardContent className='p-0'>
 
               <div className='mb-4'>
-                <Label className='text-xs mb-1'>Delivery Notes (Optional)</Label>
+                <Label className='mb-3 block text-sm'>Note for merchant</Label>
                 <div className='relative'>
                   <textarea
                     className='w-full min-h-[100px] px-3 py-2 text-sm border border-[#E0E0E0] rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-[#4FCA6A] disabled:bg-gray-50'
-                    disabled={!isEditingDelivery}
                     value={deliveryNotes}
                     onChange={handleNotesChange}
-                    placeholder="Add any special instructions..."
+                    placeholder="Add any extra information for the merchant"
                     maxLength={200}
                   />
                   <span className='absolute bottom-2 right-3 text-xs text-[#A0A0A0]'>{deliveryNotes.length}/200</span>
                 </div>
               </div>
 
-              {deliveryMethod === 'vendor' && vendorDeliveryRates.length > 0 && !appliedCoupon && (
-                <div className='mb-6'>
-                  <Label className='mb-3 block text-xs uppercase tracking-wide'>Select shipping rate</Label>
+              <div className='mt-7'>
+                  <h3 className='mb-5 text-lg font-semibold uppercase'>Click here to select shipping rate</h3>
+                  <div className='rounded-lg border border-[#D9DDE1] bg-[#F8F9FA] px-5 py-7 text-center'>
+                  <p className='mb-3 text-sm text-[#818896]'>Click the button below to choose a shipping method</p>
                   <button
                     type='button'
                     onClick={() => {
-                      setVendorDeliverySearch('');
-                      setShowVendorDeliveryModal(true);
+                      setIsEditingDelivery(true);
+                      setShowShippingMethodModal(true);
                     }}
-                    className='w-full rounded-lg border border-dashed border-primary/40 bg-[#F7FFF9] px-4 py-4 text-left transition-colors hover:bg-primary/5'
+                    className='border border-[#005B14] bg-white px-6 py-3 text-sm font-medium uppercase text-[#005B14] hover:bg-primary/5'
                   >
                     <span className='block text-sm font-medium text-primary'>
-                      {selectedVendorDeliveryRate ? `Shipping to ${selectedVendorDeliveryRate.location}` : 'Select a shipping price'}
-                    </span>
-                    <span className='mt-1 block text-xs text-muted-foreground'>
-                      {selectedVendorDeliveryRate
-                        ? `Delivery fee: ₦${selectedVendorDeliveryRate.rate.toLocaleString()}`
-                        : 'Choose the delivery location and price for your order.'}
+                      Select a shipping price
                     </span>
                   </button>
-                </div>
-              )}
-
-              <div className='flex gap-4 overflow-x-auto pb-2 scrollbar-hide'>
-                {cart.map((item, index) => (
-                  <div key={item.id} className='flex-shrink-0 w-[280px]'>
-                    <div className='flex justify-between items-center'>
-                      <p className='text-sm font-medium'>Shipment {index + 1}/{cart.length}</p>
-                      <span className='text-xs text-[#A0A0A0]'>{shipmentLabel(deliveryMethod)}</span>
-                    </div>
-                    <div className='border border-[#E0E0E0] rounded-lg p-4 mt-2'>
-                      <p className='text-sm font-medium'>{shipmentLabel(deliveryMethod)}</p>
-                      <div className='flex gap-3 mt-3'>
-                        <Image src={item.image} alt={item.name} width={50} height={50} className='object-cover w-12 h-12 rounded-lg' />
-                        <div className='flex flex-col justify-between'>
-                          <p className='text-sm line-clamp-2'>{item.name}</p>
-                          <div className='flex items-center gap-2'>
-                            <span className='text-sm font-semibold'>₦{item.price.toLocaleString()}</span>
-                            <span className='text-xs text-[#A0A0A0]'>x{item.quantity}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  {selectedQuote && <p className='mt-4 text-sm text-[#71717A]'>{selectedQuote.name} · {appliedCoupon ? 'Free' : `₦${selectedQuote.fee.toLocaleString()}`}</p>}
                   </div>
-                ))}
-              </div>
+                </div>
             </CardContent>
           </Card>
 
@@ -1744,12 +1693,23 @@ export default function CheckoutPage() {
       </div>
 
       {/* Customer details modal */}
+      <Dialog open={showShippingMethodModal} onOpenChange={setShowShippingMethodModal}>
+        <DialogContent className='max-h-[85vh] overflow-y-auto rounded-none p-7 sm:max-w-lg'>
+          <DialogHeader className='border-b pb-5'><DialogTitle className='text-2xl'>Select shipping</DialogTitle></DialogHeader>
+          <DeliveryMethodSection />
+          {deliveryMethod === 'vendor' && vendorDeliveryRates.length > 0 && !appliedCoupon && (
+            <Button variant='outline' onClick={() => { setVendorDeliverySearch(''); setShowShippingMethodModal(false); setShowVendorDeliveryModal(true); }}>Select delivery location and price</Button>
+          )}
+          <Button className='h-12 rounded-none' disabled={isFetchingQuote || !deliveryMethod} onClick={async () => { await handleSaveDelivery(); }}>
+            {isFetchingQuote ? 'Getting shipping price...' : 'Save shipping'}
+          </Button>
+        </DialogContent>
+      </Dialog>
       <Dialog open={isEditingAddress} onOpenChange={setIsEditingAddress}>
         <DialogOverlay className="backdrop-blur-xs" />
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-none border-0 p-6 sm:max-w-2xl sm:rounded-none sm:p-8">
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-none border-0 p-6 sm:max-w-xl sm:rounded-none sm:p-8 [&_input]:h-12 [&_input]:rounded-none [&_input]:text-base [&_[data-slot=select-trigger]]:h-12 [&_[data-slot=select-trigger]]:rounded-none">
           <DialogHeader className="border-b border-[#ECECEC] pb-4">
             <DialogTitle className="text-2xl font-semibold">Change details</DialogTitle>
-            <p className="text-sm text-muted-foreground">Add the details needed to deliver your order.</p>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
@@ -1885,17 +1845,16 @@ export default function CheckoutPage() {
 
       <Dialog open={showVendorDeliveryModal} onOpenChange={setShowVendorDeliveryModal}>
         <DialogOverlay className="backdrop-blur-xs" />
-        <DialogContent className="max-h-[80vh] overflow-hidden rounded-3xl border-0 p-6 sm:max-w-xl sm:p-8">
+        <DialogContent className="max-h-[80vh] overflow-hidden rounded-none border-0 p-6 sm:max-w-xl sm:rounded-none sm:p-8">
           <DialogHeader>
             <DialogTitle className="text-2xl font-semibold">Select shipping</DialogTitle>
-            <p className="text-sm text-muted-foreground">Choose the delivery location that applies to your address.</p>
           </DialogHeader>
 
           <Input
             value={vendorDeliverySearch}
             onChange={(event) => setVendorDeliverySearch(event.target.value)}
             placeholder="Search delivery locations..."
-            className="mt-3 h-12 rounded-full bg-[#F1F2F3] px-5"
+            className="mt-3 h-12 rounded-lg bg-white px-5"
           />
 
           <div className="max-h-[48vh] divide-y overflow-y-auto">

@@ -1206,6 +1206,12 @@ function V2FoodStorefront({
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All meals");
   const [fulfillmentMode, setFulfillmentMode] = useState<"pickup" | "delivery">("pickup");
+  useEffect(() => {
+    sessionStorage.setItem(`storefront_brand_${storeId}`, JSON.stringify({
+      name: storeDetails.store_name,
+      logo: logoUrl,
+    }));
+  }, [storeId, storeDetails.store_name, logoUrl]);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryCity, setDeliveryCity] = useState("");
