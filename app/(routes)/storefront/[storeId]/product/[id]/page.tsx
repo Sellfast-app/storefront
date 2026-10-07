@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation'
 import Banner from '@/public/Banner.png'
 import Image from 'next/image'
 import Link from 'next/link'
-import Logo from '@/components/svgIcons/Logo'
 import { Input } from '@/components/ui/input'
 import SearchIcon from '@/components/svgIcons/SearchIcon'
 import FilterIcon from '@/components/svgIcons/FilterIcon'
@@ -101,6 +100,41 @@ function Page() {
   const params = useParams()
   const storeId = params.storeId as string
   const productId = params.id as string
+  const [storeBrand, setStoreBrand] = useState<{ name: string; logo: string | null }>({ name: '', logo: null })
+  const [logoFailed, setLogoFailed] = useState(false)
+
+  useEffect(() => {
+    setLogoFailed(false)
+    setStoreBrand({ name: '', logo: null })
+    try {
+      const savedBrand = sessionStorage.getItem(`storefront_brand_${storeId}`)
+      if (!savedBrand) return
+      const brand = JSON.parse(savedBrand)
+      setStoreBrand({
+        name: typeof brand.name === 'string' ? brand.name : '',
+        logo: typeof brand.logo === 'string' ? brand.logo : null,
+      })
+    } catch {
+      setStoreBrand({ name: '', logo: null })
+    }
+  }, [storeId])
+
+  const vendorBrand = (
+    <Link href={`/storefront/${storeId}`} aria-label={`${storeBrand.name || 'Store'} home`} className="flex h-12 min-w-0 max-w-[200px] items-center">
+      {storeBrand.logo && !logoFailed ? (
+        <Image
+          src={storeBrand.logo}
+          alt={`${storeBrand.name} logo`}
+          width={160}
+          height={48}
+          className="h-12 w-auto max-w-full object-contain object-left"
+          onError={() => setLogoFailed(true)}
+        />
+      ) : (
+        <span className="truncate text-base font-semibold">{storeBrand.name || 'Store'}</span>
+      )}
+    </Link>
+  )
 
   const { addToCart, cart } = useCart()
 
@@ -343,7 +377,7 @@ function Page() {
       {/* Mobile Header */}
       <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10`}>
         <div className='flex items-center justify-between'>
-          <Link href={`/storefront/${storeId}`}><Logo /></Link>
+          {vendorBrand}
           <div className='flex gap-2'>
             <div className="relative flex items-center">
               <Input
@@ -579,7 +613,7 @@ function Page() {
         {/* Right Column — Related Products */}
         <div className='w-full md:w-[55%] md:overflow-y-auto md:h-full'>
           <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-[#FCFCFC] z-10 pb-4'>
-            <Link href={`/storefront/${storeId}`}><Logo /></Link>
+            {vendorBrand}
             <div className='flex gap-2'>
               <div className="relative flex items-center">
                 <Input

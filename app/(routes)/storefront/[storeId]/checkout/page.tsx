@@ -3,7 +3,6 @@
 import CartButton from '@/components/CartButton';
 import ArrowIcon from '@/components/svgIcons/ArrowIcon';
 import EditIcon from '@/components/svgIcons/EditIcon';
-import Logo from '@/components/svgIcons/Logo';
 import SaveIcon from '@/components/svgIcons/SaveIcon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -286,6 +285,8 @@ const normalizePaymentMethods = (methods: StorePaymentMethod[]) => {
 export default function CheckoutPage() {
   const params = useParams();
   const storeId = params.storeId as string;
+  const [storeBrand, setStoreBrand] = useState<{ name: string; logo: string | null }>({ name: '', logo: null });
+  const [logoFailed, setLogoFailed] = useState(false);
   const [searchQuery] = useState('');
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [isEditingDelivery, setIsEditingDelivery] = useState(true);
@@ -422,6 +423,8 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const fetchStoreFulfillmentModes = async () => {
+      setStoreBrand({ name: '', logo: null });
+      setLogoFailed(false);
       try {
         setIsLoadingModes(true);
         const response = await fetch(`/api/stores/${storeId}`);
@@ -430,6 +433,15 @@ export default function CheckoutPage() {
 
         if (result.status === 'success' && result.data?.storeDetails) {
           const storeDetails = result.data.storeDetails;
+          const logo = typeof storeDetails.logo === 'string' ? storeDetails.logo : null;
+          setStoreBrand({
+            name: storeDetails.store_name || 'Store',
+            logo: logo
+              ? logo.startsWith('/') || logo.startsWith('http')
+                ? logo
+                : `${process.env.NEXT_PUBLIC_API_BASE_URL}${logo}`
+              : null,
+          });
           const businessType: string = storeDetails.business_type || '';
           const isRestaurant = businessType === 'Restaurant/Food Service';
           setIsFoodStore(isRestaurant);
@@ -1353,12 +1365,31 @@ export default function CheckoutPage() {
   return 'Door Delivery';
 };
 
+  const vendorBrand = (
+    <Link href={`/storefront/${storeId}`} aria-label={`${storeBrand.name || 'Store'} home`} className="flex h-12 min-w-0 max-w-[200px] items-center">
+      {storeBrand.logo && !logoFailed ? (
+        <Image
+          src={storeBrand.logo}
+          alt={`${storeBrand.name} logo`}
+          width={160}
+          height={48}
+          className="h-12 w-auto max-w-full object-contain object-left"
+          onError={() => setLogoFailed(true)}
+        />
+      ) : storeBrand.name ? (
+        <span className="truncate text-base font-semibold">{storeBrand.name}</span>
+      ) : (
+        <span className="h-10 w-28 animate-pulse rounded bg-gray-100" aria-label="Loading store logo" />
+      )}
+    </Link>
+  );
+
   return (
     <div className='flex flex-col bg-[#FCFCFC]'>
       {/* Mobile Header */}
       <div className='md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10'>
         <div className='flex items-center justify-between'>
-          <Link href={`/storefront/${storeId}`}><Logo /></Link>
+          {vendorBrand}
           <div className='flex gap-2'><CartButton /></div>
         </div>
       </div>
@@ -1587,7 +1618,7 @@ export default function CheckoutPage() {
         {/* Right: Forms */}
         <div className='w-full md:w-1/2 md:overflow-y-auto md:h-full order-1 md:order-1'>
           <div className='hidden md:flex items-center justify-between mb-6 sticky top-0 bg-[#FCFCFC] z-10 pb-4'>
-            <Link href={`/storefront/${storeId}`}><Logo /></Link>
+            {vendorBrand}
             <div className='flex gap-2'><CartButton /></div>
           </div>
 

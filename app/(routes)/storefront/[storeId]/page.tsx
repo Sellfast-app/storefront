@@ -776,6 +776,13 @@ function V2RetailStorefront({
   const productsPerPage = 12;
 
   useEffect(() => {
+    sessionStorage.setItem(`storefront_brand_${storeId}`, JSON.stringify({
+      name: storeDetails.store_name,
+      logo: logoUrl,
+    }));
+  }, [storeId, storeDetails.store_name, logoUrl]);
+
+  useEffect(() => {
     if (typeof window === "undefined" || allProducts.length === 0) return;
     sessionStorage.setItem(`storefront_products_${storeId}`, JSON.stringify(allProducts));
   }, [allProducts, storeId]);
@@ -1199,6 +1206,9 @@ function V2FoodStorefront({
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All meals");
   const [fulfillmentMode, setFulfillmentMode] = useState<"pickup" | "delivery">("pickup");
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryCity, setDeliveryCity] = useState("");
   const categories = Array.from(
     new Set(
       foodItems
@@ -1270,7 +1280,10 @@ function V2FoodStorefront({
                 {(["pickup", "delivery"] as const).map((mode) => (
                   <button
                     key={mode}
-                    onClick={() => setFulfillmentMode(mode)}
+                    onClick={() => {
+                      setFulfillmentMode(mode);
+                      setShowLocationModal(true);
+                    }}
                     className={`rounded-full px-5 py-2 capitalize transition ${fulfillmentMode === mode ? "bg-[#005B14] text-white shadow-sm" : "text-[#71717A]"}`}
                   >
                     {mode}
@@ -1314,6 +1327,81 @@ function V2FoodStorefront({
             storeDetails={storeDetails}
             logoUrl={logoUrl}
           />
+
+          <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>
+            <DialogOverlay className="backdrop-blur-sm" />
+            <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl border-0 p-6 sm:max-w-xl sm:p-8">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-semibold">Select location</DialogTitle>
+              </DialogHeader>
+
+              <div className="mt-2 flex rounded-full bg-[#F1F2F3] p-1">
+                {(["pickup", "delivery"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setFulfillmentMode(mode)}
+                    className={`flex-1 rounded-full px-4 py-3 text-sm font-medium capitalize transition ${fulfillmentMode === mode ? "bg-white text-[#111827] shadow-sm" : "text-[#71717A]"}`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+
+              {fulfillmentMode === "pickup" ? (
+                <div className="mt-5 divide-y divide-[#ECECEC] rounded-2xl border border-[#ECECEC]">
+                  <div className="flex items-start justify-between gap-4 p-5">
+                    <div>
+                      <p className="text-base font-semibold">{storeDetails.store_name}</p>
+                      <p className="mt-2 text-sm text-[#71717A]">
+                        <MapPin className="mr-1 inline h-4 w-4" />
+                        {[storeDetails.metadata?.address, storeDetails.metadata?.city, storeDetails.metadata?.state, storeDetails.metadata?.country]
+                          .filter(Boolean)
+                          .join(", ") || "Pickup location unavailable"}
+                      </p>
+                    </div>
+                    <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#005B14]">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#005B14]" />
+                    </span>
+                  </div>
+                  <div className="p-5">
+                    <Button type="button" className="w-full rounded-full bg-[#005B14] hover:bg-[#004610]" onClick={() => setShowLocationModal(false)}>
+                      Order for pickup
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-5 space-y-4">
+                  <div>
+                    <Label className="mb-2 block text-sm">Delivery address</Label>
+                    <Input
+                      value={deliveryAddress}
+                      onChange={(event) => setDeliveryAddress(event.target.value)}
+                      placeholder="Enter your delivery address"
+                      className="h-12 rounded-full bg-[#F1F2F3] px-5"
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm">City</Label>
+                    <Input
+                      value={deliveryCity}
+                      onChange={(event) => setDeliveryCity(event.target.value)}
+                      placeholder="Enter your city"
+                      className="h-12 rounded-full bg-[#F1F2F3] px-5"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    disabled={!deliveryAddress.trim()}
+                    className="h-12 w-full rounded-full bg-[#005B14] hover:bg-[#004610]"
+                    onClick={() => setShowLocationModal(false)}
+                  >
+                    Continue with delivery
+                  </Button>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </main>
       )}
     </div>
