@@ -851,6 +851,9 @@ function V2RetailStorefront({
 
   return (
     <div id="top" className="min-h-screen bg-white text-[#111827]">
+      <div className="flex h-10 items-center justify-center bg-[#005B14] px-10 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-white sm:text-xs">
+        {storeDetails.store_name}
+      </div>
       <V2StoreHeader
         storeDetails={storeDetails}
         logoUrl={logoUrl}
@@ -868,8 +871,8 @@ function V2RetailStorefront({
           </div>
         ) : (
           <>
-            {/* ── Hero Banner Carousel ── */}
-            <section className="relative h-[420px] overflow-hidden bg-[#061400] md:h-[520px]">
+            {/* ── Retail reference hero ── */}
+            <section className="relative h-[520px] overflow-hidden bg-[#061400] md:h-[680px]">
               {heroBanners.map((banner, index) => (
                 <div
                   key={index}
@@ -885,16 +888,23 @@ function V2RetailStorefront({
                     className="object-cover opacity-60"
                     sizes="100vw"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#061400]/85 via-[#061400]/50 to-transparent" />
-                  <div className="relative z-10 flex h-full items-end pb-12 px-6 md:px-12 lg:px-16">
-                    <div className="max-w-xl text-white">
-                      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#4FCA6A]">
-                        {storeDetails.business_type}
+                  <div className="absolute inset-0 bg-black/30" />
+                  <div className="relative z-10 flex h-full items-center justify-center px-6 text-center">
+                    <div className="max-w-2xl text-white">
+                      <p className="mb-4 text-xs font-semibold uppercase tracking-[0.35em] text-white/90">
+                        {storeDetails.business_type || "Shop with us"}
                       </p>
-                      <h1 className="text-3xl font-bold leading-tight md:text-5xl">
+                      <h1 className="text-4xl font-bold uppercase leading-[0.95] tracking-tight md:text-7xl">
                         {banner.headline}
                       </h1>
-                      <p className="mt-3 text-sm text-white/75 md:text-base">{banner.sub}</p>
+                      <p className="mx-auto mt-5 max-w-xl text-base text-white/90 md:text-xl">{banner.sub}</p>
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById("all-products")?.scrollIntoView({ behavior: "smooth" })}
+                        className="mt-8 min-w-48 bg-white px-7 py-4 text-xs font-semibold uppercase tracking-[0.12em] text-[#111827] transition-opacity hover:opacity-90"
+                      >
+                        Shop now
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -926,34 +936,30 @@ function V2RetailStorefront({
               </div>
             </section>
 
-            {/* ── Store Stats Bar ── */}
-            <section className="border-b border-[#F1F1F1] bg-[#FAFAFA]">
-              <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 overflow-x-auto px-6 py-4 lg:px-8">
-                {[
-                  { label: "Total Listings", value: listings },
-                  { label: "Avg. Rating", value: `${ratings} ★` },
-                  { label: "Est. Delivery", value: "2–5 days" },
-                  { label: "Secure Checkout", value: "Paystack & more" },
-                ].map((stat) => (
-                  <div key={stat.label} className="shrink-0 text-center">
-                    <p className="text-xs text-[#9CA3AF]">{stat.label}</p>
-                    <p className="mt-0.5 text-sm font-semibold text-[#111827]">{stat.value}</p>
-                  </div>
-                ))}
+            {/* ── Brand panel ── */}
+            <section className="mx-auto mt-12 flex min-h-[270px] max-w-7xl items-center overflow-hidden bg-[#F5F7F3] px-6 py-10 lg:mt-16 lg:min-h-[390px] lg:px-16">
+              <div className="relative z-10 max-w-xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#005B14]">{storeDetails.store_name}</p>
+                <h2 className="mt-5 text-4xl font-semibold leading-tight text-[#111827] md:text-6xl">{storeDetails.store_description || "Discover something made for you."}</h2>
               </div>
+              {bannerUrl && <Image src={bannerUrl} alt="" fill className="object-cover object-right opacity-20" sizes="50vw" />}
             </section>
 
-            {/* ── Category Pills ── */}
-            <section className="mx-auto max-w-7xl px-4 pt-8 lg:px-8">
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {/* ── Product tabs ── */}
+            <section className="mx-auto max-w-7xl px-4 pt-16 lg:px-8" id="products">
+              <div className="text-center">
+                <h2 className="text-3xl font-semibold uppercase tracking-wide md:text-5xl">Our Products</h2>
+                <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-[#6B7280]">{storeDetails.store_description || "Explore our collection and find what suits your style and needs."}</p>
+              </div>
+              <div className="mt-10 flex justify-center gap-6 overflow-x-auto border-b border-[#ECECEC] pb-0 sm:gap-12">
                 {categories.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className={`h-9 shrink-0 rounded-full px-5 text-sm font-medium transition-colors ${
+                    className={`shrink-0 border-b-4 px-2 pb-4 text-xs font-bold uppercase transition-colors sm:text-sm ${
                       activeCategory === cat
-                        ? "bg-[#005B14] text-white"
-                        : "border border-[#E5E7EB] bg-white text-[#374151] hover:border-[#005B14]/40 hover:text-[#005B14]"
+                        ? "border-[#005B14] text-[#111827]"
+                        : "border-transparent text-[#71717A] hover:text-[#005B14]"
                     }`}
                   >
                     {cat}
@@ -967,7 +973,7 @@ function V2RetailStorefront({
               <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h2 className="text-xl font-bold">
-                    {searchQuery ? `Results for "${searchQuery}"` : "All Products"}
+                    {searchQuery ? `Results for "${searchQuery}"` : activeCategory === "All" ? "All Products" : activeCategory}
                   </h2>
                   <p className="text-sm text-[#6B7280]">
                     {displayProducts.length} item{displayProducts.length !== 1 ? "s" : ""}
@@ -1044,7 +1050,6 @@ function V2RetailStorefront({
                         key={product.id}
                         product={product}
                         storeId={storeId}
-                        onAddToCart={handleAddToCart}
                       />
                     ))}
                   </div>
@@ -1113,11 +1118,9 @@ function V2RetailStorefront({
 function RetailProductCard({
   product,
   storeId,
-  onAddToCart,
 }: {
   product: Product;
   storeId: string;
-  onAddToCart: (e: React.MouseEvent, product: Product) => void;
 }) {
   const hasVariants = (() => {
     try {
@@ -1136,8 +1139,8 @@ function RetailProductCard({
       onClick={() => sessionStorage.setItem(`storefront_product_${storeId}_${product.id}`, JSON.stringify(product))}
       className="group block"
     >
-      <div className="overflow-hidden rounded-2xl border border-[#F1F1F1] bg-white transition-shadow hover:shadow-md">
-        <div className="relative aspect-[3/4] overflow-hidden bg-[#F9FAFB]">
+      <div className="overflow-hidden bg-white">
+        <div className="relative aspect-[0.88] overflow-hidden bg-[#F3F1ED]">
           <Image
             src={product.product_images[0] || Banner}
             alt={product.product_name}
@@ -1146,28 +1149,31 @@ function RetailProductCard({
             sizes="(max-width: 768px) 50vw, 25vw"
           />
           {product.product_quantity === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#374151]">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+              <span className="bg-white px-3 py-1 text-xs font-semibold text-[#374151]">
                 Sold Out
               </span>
             </div>
           )}
+          <button
+            type="button"
+            aria-label={`Add ${product.product_name} to wishlist`}
+            onClick={(event) => event.stopPropagation()}
+            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center bg-white text-xl text-[#71717A]"
+          >
+            ♡
+          </button>
         </div>
-        <div className="p-3">
-          <p className="line-clamp-2 text-sm font-medium leading-snug text-[#111827]">
+        <div className="pt-4">
+          <p className="line-clamp-2 text-base leading-snug text-[#111827]">
             {product.product_name}
           </p>
-          <p className="mt-1.5 text-base font-bold text-[#111827]">
+          <p className="mt-2 text-sm font-bold text-[#111827]">
             ₦{product.product_price.toLocaleString()}
           </p>
-          <Button
-            size="sm"
-            className="mt-3 h-8 w-full rounded-full bg-[#4FCA6A] text-xs text-white hover:bg-[#3DBA57] disabled:bg-[#D1D5DB]"
-            onClick={(e) => onAddToCart(e, product)}
-            disabled={product.product_quantity === 0}
-          >
-            {hasVariants ? "Select Options" : product.product_quantity === 0 ? "Sold Out" : "Add to Cart"}
-          </Button>
+          <span className="mt-2 inline-block border-b border-[#D1D5DB] pb-1 text-sm text-[#555]">
+            {product.product_quantity === 0 ? "Sold out" : hasVariants ? "Select options" : "View product"}
+          </span>
         </div>
       </div>
     </Link>
