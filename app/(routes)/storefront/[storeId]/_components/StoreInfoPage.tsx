@@ -297,20 +297,20 @@ function StoreInfoRetailFooter({
                 setEmail("");
                 setMessage("You're on the list.");
               }}
-              className="mt-5"
+              className="mt-5 w-full min-w-0"
             >
-              <div className="flex flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 shadow-sm backdrop-blur sm:flex-row lg:flex-col xl:flex-row">
+              <div className="flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 shadow-sm backdrop-blur sm:flex-row lg:flex-col xl:flex-row">
                 <Input
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   type="email"
                   required
                   placeholder="Enter your email"
-                  className="h-11 flex-1 rounded-xl border-0 bg-white px-4 text-sm text-[#111827] shadow-none focus-visible:ring-0"
+                  className="h-11 w-full min-w-0 flex-1 rounded-xl border-0 bg-white px-4 text-base text-[#111827] shadow-none focus-visible:ring-0 sm:text-sm"
                 />
                 <Button
                   type="submit"
-                  className="h-11 shrink-0 rounded-xl bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57]"
+                  className="h-11 w-full shrink-0 rounded-xl bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57] sm:w-auto"
                 >
                   Join
                 </Button>

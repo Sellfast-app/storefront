@@ -231,24 +231,24 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
       {/* Backdrop with blur */}
       <div className="absolute inset-0 backdrop-blur-xs bg-black/50" onClick={() => onOpenChange(false)} />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="relative flex max-h-[100dvh] w-full max-w-5xl flex-col overflow-hidden bg-white shadow-xl sm:max-h-[92vh] sm:rounded-3xl">
         {/* Close button */}
         <button
           onClick={() => onOpenChange(false)}
-          className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] text-[#71717A] bg-white hover:bg-gray-50"
+          className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#71717A] shadow-sm hover:bg-gray-50"
           aria-label="Close"
         >
           <X className="h-4 w-4" />
         </button>
 
-        <div className="flex flex-col lg:flex-row">
+        <div className="flex min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
           {/* Left - Product image */}
-          <div className="relative w-full lg:w-1/2 min-h-[280px] overflow-hidden rounded-t-2xl lg:rounded-l-2xl lg:rounded-tr-none bg-gray-100">
+          <div className="relative min-h-[260px] w-full shrink-0 overflow-hidden bg-gray-100 sm:min-h-[320px] lg:h-auto lg:min-h-[620px] lg:w-[48%]">
             <Image
               src={item.product_images[imageIndex] || Banner}
               alt={item.name}
@@ -270,32 +270,33 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
           </div>
 
           {/* Right - Customization */}
-          <div className="w-full lg:w-1/2 p-5 lg:p-6 space-y-5">
+          <div className="w-full space-y-6 p-5 lg:flex-1 lg:overflow-y-auto lg:p-8">
             {/* Product name & base price */}
             <div>
-              <h2 className="text-lg font-bold text-[#111827]">{item.name}</h2>
-              <p className="text-xs text-[#71717A] mt-1">{item.description}</p>
-              <p className="text-xl font-bold text-[#111827] mt-2">₦{basePrice.toLocaleString()}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-[#71717A]">{item.type}</p>
+              <h2 className="mt-1 text-2xl font-bold text-[#111827]">{item.name}</h2>
+              {item.description && <p className="mt-2 text-sm leading-6 text-[#71717A]">{item.description}</p>}
+              <p className="mt-3 text-lg font-bold text-[#111827]">From ₦{basePrice.toLocaleString()}</p>
             </div>
 
             {/* Portion selection for Simple items */}
             {(item.type === "Simple" && item.portion.length > 0) && (
               <div>
-                <h3 className="text-sm font-semibold mb-2">Choose a Portion</h3>
+                <h3 className="mb-3 text-base font-semibold">Choose a portion</h3>
                 <div className="space-y-2">
                   {item.portion.map((p) => (
                     <button
                       key={p.uid}
                       onClick={() => setSelectedPortion(p)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition-all ${selectedPortion?.uid === p.uid ? "border-[#4FCA6A] bg-[#4FCA6A]/5" : "border-gray-100 hover:border-gray-200"}`}
+                      className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${selectedPortion?.uid === p.uid ? "border-[#005B14] bg-[#005B14]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
                     >
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{p.name}</span>
-                        <span className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                        <span className="mt-0.5 flex items-center gap-1 text-xs text-gray-400">
                           {p.startPrepTime}–{p.endPrepTime} mins
                         </span>
                       </div>
-                      <span className="font-semibold text-[#4FCA6A]">₦{p.price.toLocaleString()}</span>
+                      <span className="font-semibold text-[#111827]">₦{p.price.toLocaleString()}</span>
                     </button>
                   ))}
                 </div>
@@ -305,7 +306,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
             {/* Serving type for Customizable items */}
             {(item.type === "Customizable" && item.servingType.length > 0) && (
               <div>
-                <h3 className="text-sm font-semibold mb-2">Choose a Serving Type</h3>
+                <h3 className="mb-3 text-base font-semibold">Choose a serving type</h3>
                 <div className="space-y-2">
                   {item.servingType.map((type) => {
                     const price = item.servingTypePricing?.find((entry) => entry.servingType === type)?.price || 0;
@@ -314,10 +315,10 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                       <button
                         key={type}
                         onClick={() => setSelectedServingType(type)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition-all ${isSelected ? "border-[#4FCA6A] bg-[#4FCA6A]/5" : "border-gray-100 hover:border-gray-200"}`}
+                        className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${isSelected ? "border-[#005B14] bg-[#005B14]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
                       >
                         <span className="font-medium capitalize">{type}</span>
-                        <span className="font-semibold text-[#4FCA6A]">₦{price.toLocaleString()}</span>
+                        <span className="font-semibold text-[#111827]">₦{price.toLocaleString()}</span>
                       </button>
                     );
                   })}
@@ -330,11 +331,11 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
               const selected = selectedAddOns[group.uid] || [];
               return (
                 <div key={group.uid}>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold">{group.name}</h3>
                       <p className="text-xs text-gray-400">
-                        {group.isRequired ? "Required" : "Optional"}
+                        {group.isRequired ? "Select an option" : "Optional"}
                       </p>
                     </div>
                     {selected.length > 0 && (
@@ -359,11 +360,11 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                               toggleAddOn(group, option);
                             }
                           }}
-                          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition-all ${isSelected ? "border-[#4FCA6A] bg-[#4FCA6A]/5" : "border-gray-100 hover:border-gray-200"}`}
+                          className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${isSelected ? "border-[#005B14] bg-[#005B14]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
                         >
                           <div className="flex items-center gap-3">
                             <div
-                              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? "border-[#4FCA6A] bg-[#4FCA6A]" : "border-gray-300"}`}
+                              className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 ${isSelected ? "border-[#005B14] bg-[#005B14]" : "border-gray-300"}`}
                             >
                               {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                             </div>
@@ -388,7 +389,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                                   event.stopPropagation();
                                   updateAddOnQuantity(group.uid, option.uid, 1);
                                 }}
-                                className="rounded p-1 text-[#4FCA6A] hover:bg-[#4FCA6A]/10"
+                                className="rounded p-1 text-[#005B14] hover:bg-[#005B14]/10"
                               >
                                 <Plus className="h-3.5 w-3.5" />
                               </button>
@@ -402,40 +403,51 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
               );
             })}
 
-            {/* Price + Quantity + CTA */}
-            <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100">
+            {/* Price and quantity summary */}
+            <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-5">
               <div>
-                <p className="text-xs text-gray-500">Total</p>
+                <p className="text-xs text-gray-500">Your total</p>
                 <p className="text-2xl font-bold text-[#111827]">₦{totalPrice.toLocaleString()}</p>
               </div>
 
-              <div className="flex items-center gap-2">
+              {!isUnavailable && (
+                <div className="flex items-center border rounded-xl p-1 bg-[#E0E0E0] text-xs">
+                  <button
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="p-1 hover:bg-gray-200 rounded"
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <span className="px-4 bg-card h-full flex items-center">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity((q) => q + 1)}
+                    className="p-1 hover:bg-gray-200 rounded"
+                    aria-label="Increase quantity"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Primary action */}
+            <div className="border-t border-gray-100 pt-3">
+              <div className="flex w-full">
                 {!isUnavailable && (
-                  <div className="flex items-center border rounded-xl p-1 bg-[#E0E0E0] text-xs">
-                    <button
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="p-1 hover:bg-gray-200 rounded"
-                      aria-label="Decrease quantity"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="px-4 bg-card h-full flex items-center">{quantity}</span>
-                    <button
-                      onClick={() => setQuantity((q) => q + 1)}
-                      className="p-1 hover:bg-gray-200 rounded"
-                      aria-label="Increase quantity"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <Button
+                    onClick={handleAddToCart}
+                    disabled={!isReadyToAdd}
+                    className="w-full bg-black hover:bg-gray-800 text-white"
+                  >
+                    {`Add ${quantity} to cart (₦${totalPrice.toLocaleString()})`}
+                  </Button>
                 )}
-                <Button
-                  onClick={handleAddToCart}
-                  disabled={!isReadyToAdd}
-                  className="min-w-[140px] bg-black hover:bg-gray-800 text-white"
-                >
-                  {isUnavailable ? "Sold Out" : `Add ${quantity} to cart (₦${totalPrice.toLocaleString()})`}
-                </Button>
+                {isUnavailable && (
+                  <Button disabled className="w-full bg-gray-100 text-gray-400">
+                    Sold Out
+                  </Button>
+                )}
               </div>
             </div>
           </div>

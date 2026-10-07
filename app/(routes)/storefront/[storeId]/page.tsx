@@ -441,20 +441,20 @@ function RetailStorefrontFooter({
             <p className="mt-4 text-sm leading-6 text-white/70">
               Get new arrivals, restocks and store updates from {storeDetails.store_name}.
             </p>
-            <form onSubmit={handleSubmit} className="mt-5">
-              <div className="flex flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 shadow-sm backdrop-blur sm:flex-row lg:flex-col xl:flex-row">
+            <form onSubmit={handleSubmit} className="mt-5 w-full min-w-0">
+              <div className="flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 shadow-sm backdrop-blur sm:flex-row lg:flex-col xl:flex-row">
                 <Input
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   type="email"
                   required
                   placeholder="Enter your email"
-                  className="h-11 flex-1 rounded-xl border-0 bg-white px-4 text-sm text-[#111827] shadow-none focus-visible:ring-0"
+                  className="h-11 w-full min-w-0 flex-1 rounded-xl border-0 bg-white px-4 text-base text-[#111827] shadow-none focus-visible:ring-0 sm:text-sm"
                 />
                 <Button
                   type="submit"
                   disabled={status === "loading"}
-                  className="h-11 shrink-0 rounded-xl bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57]"
+                  className="h-11 w-full shrink-0 rounded-xl bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57] sm:w-auto"
                 >
                   {status === "loading" ? "..." : "Join"}
                 </Button>
@@ -675,20 +675,20 @@ function FoodStorefrontFooter({
             <p className="mt-4 text-sm leading-6 text-white/70">
               Get menu updates and fresh offers from {storeDetails.store_name}.
             </p>
-            <form onSubmit={handleSubmit} className="mt-5">
-              <div className="flex flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 backdrop-blur sm:flex-row lg:flex-col xl:flex-row">
+            <form onSubmit={handleSubmit} className="mt-5 w-full min-w-0">
+              <div className="flex w-full min-w-0 flex-col gap-2 rounded-2xl border border-white/20 bg-white/10 p-2 backdrop-blur sm:flex-row lg:flex-col xl:flex-row">
                 <Input
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   type="email"
                   required
                   placeholder="Enter your email"
-                  className="h-11 flex-1 rounded-xl border-0 bg-white text-sm text-[#111827] shadow-none focus-visible:ring-0"
+                  className="h-11 w-full min-w-0 flex-1 rounded-xl border-0 bg-white text-base text-[#111827] shadow-none focus-visible:ring-0 sm:text-sm"
                 />
                 <Button
                   type="submit"
                   disabled={status === "loading"}
-                  className="h-11 shrink-0 rounded-xl bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57]"
+                  className="h-11 w-full shrink-0 rounded-xl bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57] sm:w-auto"
                 >
                   {status === "loading" ? "..." : "Join"}
                 </Button>
@@ -774,6 +774,11 @@ function V2RetailStorefront({
   const [maxPrice, setMaxPrice] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 12;
+
+  useEffect(() => {
+    if (typeof window === "undefined" || allProducts.length === 0) return;
+    sessionStorage.setItem(`storefront_products_${storeId}`, JSON.stringify(allProducts));
+  }, [allProducts, storeId]);
 
   const categories = ["All", ...Array.from(
     new Set(allProducts.map((p) => p.product_type).filter(Boolean))
@@ -1126,7 +1131,11 @@ function RetailProductCard({
   })();
 
   return (
-    <Link href={`/storefront/${storeId}/product/${product.id}`} className="group block">
+    <Link
+      href={`/storefront/${storeId}/product/${product.id}`}
+      onClick={() => sessionStorage.setItem(`storefront_product_${storeId}_${product.id}`, JSON.stringify(product))}
+      className="group block"
+    >
       <div className="overflow-hidden rounded-2xl border border-[#F1F1F1] bg-white transition-shadow hover:shadow-md">
         <div className="relative aspect-[3/4] overflow-hidden bg-[#F9FAFB]">
           <Image
@@ -1182,6 +1191,8 @@ function V2FoodStorefront({
   isLoadingProducts,
 }: V2FoodTemplateProps) {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("All meals");
+  const [fulfillmentMode, setFulfillmentMode] = useState<"pickup" | "delivery">("pickup");
   const categories = Array.from(
     new Set(
       foodItems
@@ -1195,6 +1206,10 @@ function V2FoodStorefront({
         .filter(Boolean)
     )
   );
+
+  const visibleItems = activeCategory === "All meals"
+    ? foodItems
+    : foodItems.filter((item) => item.category.includes(activeCategory));
 
   return (
     <div className="min-h-screen bg-white text-[#111827]">
@@ -1214,7 +1229,7 @@ function V2FoodStorefront({
         </main>
       ) : (
         <main>
-          <section className="relative h-[360px] overflow-hidden md:h-[430px]">
+          <section className="relative h-[300px] overflow-hidden md:h-[380px]">
             {storeDetails.banner_style === "carousel" ? (
               <BannerCarousel
                 images={storeDetails.banner_images || []}
@@ -1230,78 +1245,42 @@ function V2FoodStorefront({
                 sizes="100vw"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent" />
-            <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center px-4 lg:px-6">
-              <div className="max-w-2xl">
-                <div className="mb-4 inline-flex rounded-full bg-[#005B14] px-3 py-1 text-xs font-medium text-white">
-                  Food & Restaurant
-                </div>
-                <h1 className="text-4xl font-semibold md:text-6xl">
-                  {storeDetails.store_name}
-                </h1>
-                <p className="mt-3 max-w-xl text-base text-[#71717A]">
-                  {storeDetails.store_description || "Order fresh meals for pickup or vendor delivery."}
-                </p>
-                <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <Button className="rounded-full bg-[#005B14] hover:bg-[#004610]">
-                    Start order
-                  </Button>
-                  <div className="inline-flex rounded-full bg-[#F1F3F1] p-1 text-sm">
-                    <button className="rounded-full bg-white px-5 py-2 font-medium shadow-sm">
-                      Pickup
-                    </button>
-                    <button className="px-5 py-2 text-[#71717A]">Delivery</button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <div className="absolute inset-0 bg-black/15" />
           </section>
 
-          <section className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
-            <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
+          <section className="mx-auto max-w-7xl px-4 py-7 lg:px-6">
+            <div className="flex flex-col gap-4 border-b border-[#ECECEC] pb-6 md:flex-row md:items-end md:justify-between">
               <div>
-                <h2 className="text-2xl font-semibold">
+                <h1 className="text-2xl font-semibold text-[#111827] sm:text-3xl">
                   {storeDetails.store_name}
-                  {storeDetails.metadata?.city ? (
-                    <span className="text-[#71717A]"> - {storeDetails.metadata.city}</span>
-                  ) : null}
-                </h2>
-                <div className="mt-3 flex flex-wrap gap-2 text-sm text-[#71717A]">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F6F7F6] px-3 py-2">
-                    <MapPin className="h-4 w-4" />
-                    {storeDetails.metadata?.address || "Select location"}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F6F7F6] px-3 py-2">
-                    <Truck className="h-4 w-4" />
-                    Vendor delivery available
-                  </span>
-                </div>
+                  {storeDetails.metadata?.city ? ` - ${storeDetails.metadata.city}` : ""}
+                </h1>
+                <p className="mt-2 flex items-center gap-1 text-sm text-[#71717A]">
+                  <MapPin className="h-4 w-4" />
+                  {storeDetails.metadata?.address || "Store location"}
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                {[
-                  ["Items", listings || foodItems.length],
-                  ["Rating", ratings],
-                  ["Open", "Today"],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-xl border bg-white px-4 py-3">
-                    <p className="text-xs text-[#71717A]">{label}</p>
-                    <p className="mt-1 text-sm font-semibold">{value}</p>
-                  </div>
+              <div className="inline-flex w-fit rounded-full bg-[#F1F3F1] p-1 text-sm">
+                {(["pickup", "delivery"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setFulfillmentMode(mode)}
+                    className={`rounded-full px-5 py-2 capitalize transition ${fulfillmentMode === mode ? "bg-[#005B14] text-white shadow-sm" : "text-[#71717A]"}`}
+                  >
+                    {mode}
+                  </button>
                 ))}
               </div>
             </div>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
-              <aside className="hidden lg:block">
-                <div className="sticky top-24 space-y-2">
-                  {["All meals", ...categories].map((category, index) => (
+            <div className="mt-7 grid gap-7 lg:grid-cols-[190px_1fr]">
+              <aside className="lg:block">
+                <div className="flex gap-2 overflow-x-auto pb-1 lg:sticky lg:top-24 lg:block lg:space-y-2 lg:overflow-visible">
+                  {["All meals", ...categories].map((category) => (
                     <button
                       key={category}
-                      className={`w-full rounded-full px-5 py-3 text-left text-sm font-medium ${
-                        index === 0
-                          ? "bg-[#005B14] text-white"
-                          : "text-[#111827] hover:bg-[#F6F7F6]"
-                      }`}
+                      onClick={() => setActiveCategory(category)}
+                      className={`shrink-0 rounded-full px-5 py-3 text-left text-sm font-medium transition lg:block lg:w-full ${activeCategory === category ? "bg-[#111827] text-white" : "text-[#111827] hover:bg-[#F6F7F6]"}`}
                     >
                       {category}
                     </button>
@@ -1310,28 +1289,17 @@ function V2FoodStorefront({
               </aside>
 
               <div>
-                <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="mb-6 flex flex-col gap-3 border-b border-[#ECECEC] pb-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h3 className="text-xl font-semibold">Menu</h3>
-                    <p className="text-sm text-[#71717A]">
-                      Choose a meal, customize options and checkout securely.
-                    </p>
+                    <h2 className="text-xl font-semibold">{activeCategory}</h2>
+                    {searchQuery && <p className="mt-1 text-sm text-[#71717A]">Showing results for “{searchQuery}”</p>}
                   </div>
-                  <div className="relative md:w-80">
-                    <Input
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder="Search menu"
-                      className="h-11 rounded-full border-[#ECECEC] bg-[#F6F7F6] pl-11"
-                    />
+                  <div className="relative w-full sm:w-80">
+                    <Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search menu" className="h-11 rounded-full border-[#ECECEC] bg-[#F6F7F6] pl-11" />
                     <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71717A]" />
                   </div>
                 </div>
-                <FoodProductGrid
-                  items={foodItems}
-                  isLoading={isLoadingProducts}
-                  searchQuery={searchQuery}
-                />
+                <FoodProductGrid items={visibleItems} isLoading={isLoadingProducts} searchQuery={searchQuery} />
               </div>
             </div>
           </section>

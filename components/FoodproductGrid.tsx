@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Clock, Flame, Leaf } from "lucide-react";
 import { FoodItem } from "@/lib/mockdata";
 import { getFoodCardPrice } from "@/lib/foodPricing";
 import FoodItemModal from "./FoodItemModal";
@@ -13,266 +12,74 @@ interface FoodProductGridProps {
   searchQuery?: string;
 }
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; bg: string; dot: string; text: string }
-> = {
-  "Available Today": {
-    label: "Available Today",
-    bg: "bg-green-500",
-    dot: "bg-white",
-    text: "text-white",
-  },
-  "Out of Stock": {
-    label: "Sold Out",
-    bg: "bg-red-500",
-    dot: "bg-white",
-    text: "text-white",
-  },
-  Seasonal: {
-    label: "Pre-order",
-    bg: "bg-orange-400",
-    dot: "bg-white",
-    text: "text-white",
-  },
-};
-
-const TYPE_CONFIG: Record<string, { label: string; style: string }> = {
-  Customizable: {
-    label: "Customizable",
-    style: "bg-[#4FCA6A]/10 text-[#4FCA6A] border border-[#4FCA6A]/30",
-  },
-  Bundle: {
-    label: "Bundle Meal",
-    style: "bg-purple-50 text-purple-600 border border-purple-200",
-  },
-  Simple: {
-    label: "Simple",
-    style: "bg-blue-50 text-blue-600 border border-blue-200",
-  },
-};
-
-const LABEL_ICONS: Record<string, React.ReactNode> = {
-  Spicy: <Flame className="w-3 h-3 text-red-500" />,
-  Vegetarian: <Leaf className="w-3 h-3 text-green-500" />,
-  "Gluten-Free": <span className="text-[10px] font-bold text-amber-600">GF</span>,
-  Halal: <span className="text-[10px] font-bold text-teal-600">H</span>,
-  "Dairy-Free": <span className="text-[10px] font-bold text-blue-500">DF</span>,
-  "Contains Nuts": <span className="text-[10px] font-bold text-orange-500">N</span>,
-};
-
-function getPrepTimeRange(item: FoodItem): string | null {
-  if (item.type === "Simple" && item.portion.length > 0) {
-    const min = Math.min(...item.portion.map((p) => p.startPrepTime));
-    const max = Math.max(...item.portion.map((p) => p.endPrepTime));
-    return `${min} - ${max} mins`;
-  }
-  return null;
-}
-
-function getServingLabel(item: FoodItem): string {
-  const unit = item.servingType[0] || "plate";
-  if (item.type === "Simple" && item.portion.length > 0) {
-    return `${unit}`;
-  }
-  return unit;
-}
-
-function ImageCarousel({
-  images,
-  name,
-}: {
-  images: string[];
-  name: string;
-}) {
-  const [current, setCurrent] = useState(0);
-
-  const prev = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCurrent((c) => (c - 1 + images.length) % images.length);
-  };
-
-  const next = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCurrent((c) => (c + 1) % images.length);
-  };
-
-  return (
-    <div className="relative w-full h-44 overflow-hidden rounded-t-2xl group">
-      <Image
-        src={images[current] || "/placeholder-food.jpg"}
-        alt={name}
-        fill
-        className="object-cover transition-transform duration-500 group-hover:scale-105"
-        sizes="(max-width: 768px) 50vw, 33vw"
-      />
-
-      <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={prev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-            aria-label="Previous image"
-          >
-            <ChevronLeft className="w-3.5 h-3.5 text-gray-700" />
-          </button>
-          <button
-            onClick={next}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-            aria-label="Next image"
-          >
-            <ChevronRight className="w-3.5 h-3.5 text-gray-700" />
-          </button>
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-            {images.map((_, i) => (
-              <button
-                key={i}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setCurrent(i);
-                }}
-                className={`w-1.5 h-1.5 rounded-full transition-all ${i === current ? "bg-white scale-125" : "bg-white/50"}`}
-                aria-label={`Go to image ${i + 1}`}
-              />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 function FoodCard({ item }: { item: FoodItem }) {
   const [modalOpen, setModalOpen] = useState(false);
-
-  const status = STATUS_CONFIG[item.status] || STATUS_CONFIG["Available Today"];
-  const typeConfig = TYPE_CONFIG[item.type] || TYPE_CONFIG["Simple"];
-  const prepTime = getPrepTimeRange(item);
-  const basePrice = getFoodCardPrice(item);
-  const servingLabel = getServingLabel(item);
+  const price = getFoodCardPrice(item);
   const isUnavailable = item.status === "Out of Stock";
 
   return (
     <>
-      <div
-        className={`flex flex-col rounded-2xl border border-[#F0F0F0] bg-white overflow-hidden hover:border-[#4FCA6A] hover:shadow-md transition-all duration-200 ${isUnavailable ? "opacity-70" : ""}`}
+      <article
+        className={`group cursor-pointer ${isUnavailable ? "opacity-60" : ""}`}
         role="button"
         tabIndex={0}
         onClick={() => setModalOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
             setModalOpen(true);
           }
         }}
-        aria-label={`Open details for ${item.name}`}
+        aria-label={`View ${item.name}`}
       >
-        <div className="relative block">
-          <ImageCarousel images={item.product_images} name={item.name} />
-
-          <div
-            className={`absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${status.bg} ${status.text}`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-            {status.label}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1.5 p-2.5 flex-1">
-          <span className="text-sm font-semibold text-gray-900 line-clamp-2 leading-tight transition-colors">
-            {item.name}
-          </span>
-
-          <div className="flex flex-wrap items-center gap-1">
-            <span
-              className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${typeConfig.style}`}
-            >
-              {typeConfig.label}
-            </span>
-            {item.labels.slice(0, 2).map((label) => (
-              <span
-                key={label}
-                className="flex items-center gap-0.5 text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full"
-              >
-                {LABEL_ICONS[label] ?? null}
-                {label}
-              </span>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 text-[11px] text-gray-400">
-            <span className="capitalize">{servingLabel}</span>
-            {item.labels[0] && (
-              <>
-                <span>·</span>
-                <span className="flex items-center gap-0.5">
-                  {LABEL_ICONS[item.labels[0]] ?? null}
-                  {item.labels[0]}
-                </span>
-              </>
-            )}
-            {prepTime && (
-              <>
-                <span>·</span>
-                <span className="flex items-center gap-0.5">
-                  <Clock className="w-3 h-3" />
-                  {prepTime}
-                </span>
-              </>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between gap-2 mt-auto pt-1">
-            <div className="flex min-w-0 flex-col">
-              {basePrice !== null && (
-                <span className="text-sm font-bold text-gray-900">
-                  ₦{basePrice.toLocaleString()}
-                </span>
-              )}
-              <span className="text-[10px] text-gray-400">
-                per {servingLabel}
+        <div className="relative aspect-[1.12/1] overflow-hidden rounded-2xl bg-[#F3F4F2]">
+          <Image
+            src={item.product_images[0] || "/placeholder-food.jpg"}
+            alt={item.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 25vw"
+          />
+          {isUnavailable && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[#111827]">
+                Sold out
               </span>
             </div>
+          )}
+        </div>
 
-            {isUnavailable ? (
-              <span className="inline-flex min-h-8 shrink-0 items-center justify-center rounded-xl bg-gray-100 px-3 py-1.5 text-center text-[11px] font-medium leading-tight text-gray-400">
-                Sold Out
-              </span>
-            ) : (
-              <span className="text-[10px] font-medium text-[#4FCA6A]">
-                Tap to view
-              </span>
-            )}
+        <div className="px-0.5 pt-3">
+          <h3 className="line-clamp-1 text-sm font-semibold text-[#111827] sm:text-base">
+            {item.name}
+          </h3>
+          {item.description && (
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#71717A] sm:text-sm">
+              {item.description}
+            </p>
+          )}
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="text-xs text-[#71717A]">From</span>
+            <span className="text-sm font-bold text-[#111827] sm:text-base">
+              {price === null ? "-" : `₦${price.toLocaleString()}`}
+            </span>
           </div>
         </div>
-      </div>
+      </article>
 
-      <FoodItemModal
-        item={item}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-      />
+      <FoodItemModal item={item} open={modalOpen} onOpenChange={setModalOpen} />
     </>
   );
 }
 
 function FoodCardSkeleton() {
   return (
-    <div className="flex flex-col rounded-2xl border border-[#F0F0F0] bg-white overflow-hidden animate-pulse">
-      <div className="w-full h-44 bg-gray-100" />
-      <div className="p-2.5 flex flex-col gap-2">
-        <div className="h-4 bg-gray-100 rounded w-3/4" />
-        <div className="h-3 bg-gray-100 rounded w-1/2" />
-        <div className="h-3 bg-gray-100 rounded w-2/3" />
-        <div className="flex justify-between items-center mt-2">
-          <div className="h-4 bg-gray-100 rounded w-1/3" />
-          <div className="h-7 bg-gray-100 rounded-xl w-1/4" />
-        </div>
+    <div className="animate-pulse">
+      <div className="aspect-[1.12/1] rounded-2xl bg-gray-100" />
+      <div className="space-y-2 px-0.5 pt-3">
+        <div className="h-4 w-3/4 rounded bg-gray-100" />
+        <div className="h-3 w-5/6 rounded bg-gray-100" />
+        <div className="h-4 w-1/3 rounded bg-gray-100" />
       </div>
     </div>
   );
@@ -289,9 +96,9 @@ export default function FoodProductGrid({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <FoodCardSkeleton key={i} />
+      <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 xl:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <FoodCardSkeleton key={index} />
         ))}
       </div>
     );
@@ -299,8 +106,8 @@ export default function FoodProductGrid({
 
   if (filtered.length === 0) {
     return (
-      <div className="col-span-2 lg:col-span-3 text-center py-12">
-        <p className="text-gray-500 text-sm">
+      <div className="col-span-full py-16 text-center">
+        <p className="text-sm text-[#71717A]">
           {searchQuery
             ? `No food items found matching "${searchQuery}"`
             : "No food items available right now"}
@@ -310,7 +117,7 @@ export default function FoodProductGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 xl:grid-cols-4">
       {filtered.map((item) => (
         <FoodCard key={item.uid} item={item} />
       ))}
