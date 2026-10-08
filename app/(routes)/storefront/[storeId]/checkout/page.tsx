@@ -4,6 +4,7 @@ import CartButton from '@/components/CartButton';
 import VendorBrand from '@/components/VendorBrand';
 import ArrowIcon from '@/components/svgIcons/ArrowIcon';
 import SaveIcon from '@/components/svgIcons/SaveIcon';
+import PaystackLogo from '@/components/svgIcons/PaystackLogo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -1485,44 +1486,31 @@ export default function CheckoutPage() {
                 </div>
               ) : (
                 <>
-                  <RadioGroup
-                    value={paymentMethod}
-                    onValueChange={(value) => setPaymentMethod(value as PaymentMethodType)}
-                    className="grid grid-cols-2 gap-3 [&>div]:min-h-14 [&>div]:border [&>div]:bg-white [&>div]:p-3 [&>div]:items-center [&_label>span]:hidden"
-                  >
+                  <div role="group" aria-label="Payment method" className="grid grid-cols-2 gap-3">
                     {enabledPaymentMethods.paystack && (
-                      <div className="flex items-start space-x-2">
-                        <RadioGroupItem value="paystack" id="paystack" />
-                        <Label htmlFor="paystack" className="text-sm font-normal cursor-pointer">
-                          Paystack
-                          <span className="block text-xs text-[#A0A0A0]">Pay now with card, transfer, or bank options.</span>
-                        </Label>
-                      </div>
+                      <button type="button" aria-label="Paystack" aria-pressed={paymentMethod === 'paystack'}
+                        onClick={() => setPaymentMethod('paystack')}
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005B14] focus-visible:ring-offset-2 ${paymentMethod === 'paystack' ? 'border-[#005B14] bg-[#F0FAF2]' : 'border-[#E5E7EB] bg-white hover:border-[#005B14]/50'}`}>
+                        <span aria-hidden="true" className="[&>svg]:max-w-full"><PaystackLogo /></span>
+                      </button>
                     )}
                     {canUseKlump && enabledPaymentMethods.klump && (
-                      <div className="flex items-start space-x-2">
-                        <RadioGroupItem value="klump" id="klump" />
-                        <Label htmlFor="klump" className="text-sm font-normal cursor-pointer">
-                          Klump
-                          <span className="block text-xs text-[#A0A0A0]">
-                            {isKlumpReady
-                              ? 'Buy now, pay later. Available for non-food vendors only.'
-                              : 'Buy now, pay later. Checkout will open after you continue.'}
-                          </span>
-                        </Label>
-                      </div>
+                      <button type="button" aria-pressed={paymentMethod === 'klump'}
+                        onClick={() => setPaymentMethod('klump')}
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005B14] focus-visible:ring-offset-2 ${paymentMethod === 'klump' ? 'border-[#005B14] bg-[#F0FAF2]' : 'border-[#E5E7EB] bg-white hover:border-[#005B14]/50'}`}>
+                        Klump
+                      </button>
                     )}
                     {enabledPaymentMethods.crypto && (
-                      <div className="space-y-3">
-                        <div className="flex items-start space-x-2">
-                          <RadioGroupItem value="crypto" id="crypto" />
-                          <Label htmlFor="crypto" className="text-sm font-normal cursor-pointer">
-                            Crypto
-                            <span className="block text-xs text-[#A0A0A0]">Pay with a supported cryptocurrency.</span>
-                          </Label>
-                        </div>
-                        {paymentMethod === 'crypto' && (
-                          <div className="grid grid-cols-1 gap-3 pl-6 sm:grid-cols-2">
+                      <button type="button" aria-pressed={paymentMethod === 'crypto'}
+                        onClick={() => setPaymentMethod('crypto')}
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005B14] focus-visible:ring-offset-2 ${paymentMethod === 'crypto' ? 'border-[#005B14] bg-[#F0FAF2]' : 'border-[#E5E7EB] bg-white hover:border-[#005B14]/50'}`}>
+                        Crypto
+                      </button>
+                    )}
+                  </div>
+                        {enabledPaymentMethods.crypto && paymentMethod === 'crypto' && (
+                          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                               <Label className="text-xs">Network</Label>
                               <Select value={selectedCryptoChain} onValueChange={setSelectedCryptoChain}>
@@ -1561,9 +1549,6 @@ export default function CheckoutPage() {
                             )}
                           </div>
                         )}
-                      </div>
-                    )}
-                  </RadioGroup>
                   {isLoadingPaymentMethods && (
                     <p className="text-xs text-[#A0A0A0]">Loading store payment methods...</p>
                   )}
