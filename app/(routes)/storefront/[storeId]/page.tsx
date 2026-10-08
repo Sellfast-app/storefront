@@ -2,6 +2,7 @@
 "use client";
 
 import Image from "next/image";
+import { TicketPaymentPreview } from "@/components/ticket-payment-preview";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
@@ -1430,7 +1431,6 @@ function V2EventStorefront({
   storeDetails,
   searchQuery,
   setSearchQuery,
-  toggleCart,
   showCart,
   logoUrl,
   events,
@@ -1440,6 +1440,7 @@ function V2EventStorefront({
   const [ticketQuantities, setTicketQuantities] = useState<Record<string, number>>({});
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [showTicketCheckout, setShowTicketCheckout] = useState(false);
+  const [ticketPaymentStep, setTicketPaymentStep] = useState(false);
   const [ticketCustomer, setTicketCustomer] = useState({
     firstName: "",
     lastName: "",
@@ -1530,7 +1531,7 @@ function V2EventStorefront({
             >
               {showMobileSearch ? <X className="h-3.5 w-3.5" /> : <Search className="h-3.5 w-3.5" />}
             </button>
-            <CartButton onClick={toggleCart} />
+            <Link href={`/storefront/${storeDetails.id}/tickets`} className="whitespace-nowrap text-sm font-medium text-[#005B14]">My tickets</Link>
           </div>
         </div>
 
@@ -1789,7 +1790,7 @@ function V2EventStorefront({
                     </Button>
 
                     <p className="mt-3 text-center text-[10px] text-[#9CA3AF]">
-                      Secure checkout · Instant confirmation by email
+                      Test checkout · No payment will be collected
                     </p>
                   </div>
                 </div>
@@ -1863,26 +1864,28 @@ function V2EventStorefront({
         </main>
       )}
 
-      <Dialog open={showTicketCheckout} onOpenChange={setShowTicketCheckout}>
+      <Dialog open={showTicketCheckout} onOpenChange={(open) => { setShowTicketCheckout(open); if (!open) setTicketPaymentStep(false); }}>
         <DialogOverlay className="backdrop-blur-xs" />
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl">Ticket checkout</DialogTitle>
-            <p className="text-sm text-[#6B7280]">Enter your details to receive your e-ticket confirmation.</p>
+            {!ticketPaymentStep && <p className="text-sm text-[#6B7280]">Enter the ticket holder&apos;s details.</p>}
           </DialogHeader>
 
-          <form
+          {ticketPaymentStep ? <TicketPaymentPreview
+            booking={{
+              storeId: storeDetails.id, eventId: selectedEvent.id, eventName: selectedEvent.name,
+              eventDate: selectedEvent.startDate, location: selectedEvent.location,
+              customer: ticketCustomer, total: ticketTotal,
+            }}
+            selections={selectedTickets.map(({ ticket, quantity }) => ({ ticketId: ticket.id, name: ticket.name, quantity }))}
+            onBack={() => setTicketPaymentStep(false)}
+          /> : <form
             className="space-y-4 pt-2"
             onSubmit={(event) => {
               event.preventDefault();
-              if (!ticketCustomerIsComplete) return;
-              sessionStorage.setItem(`ticket_checkout_${storeDetails.id}`, JSON.stringify({
-                eventId: selectedEvent?.id,
-                tickets: selectedTickets.map(({ ticket, quantity }) => ({ ticketId: ticket.id, quantity })),
-                customer: ticketCustomer,
-                total: ticketTotal,
-              }));
-              setShowTicketCheckout(false);
+              if (!ticketCustomerIsComplete || !totalTickets || !isMockEventStorefront(storeDetails.id)) return;
+              setTicketPaymentStep(true);
             }}
           >
             <div className="rounded-xl border border-[#E8E8E8] bg-[#F7FFF9] p-4">
@@ -1920,9 +1923,9 @@ function V2EventStorefront({
               <Input type="tel" value={ticketCustomer.whatsapp} onChange={(event) => setTicketCustomer((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="+234 801 234 5678" />
             </div>
             <Button type="submit" className="h-11 w-full rounded-full bg-[#005B14] text-sm font-semibold hover:bg-[#004610]" disabled={!ticketCustomerIsComplete}>
-              Continue to payment
+              {ticketTotal === 0 ? "Review booking" : "Continue to test payment"}
             </Button>
-          </form>
+          </form>}
         </DialogContent>
       </Dialog>
 
