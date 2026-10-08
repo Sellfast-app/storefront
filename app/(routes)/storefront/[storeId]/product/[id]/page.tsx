@@ -1,4 +1,6 @@
 "use client";
+import { retailBranchProducts, selectedBranch } from '@/lib/branch-preview';
+import { isMockRetailStorefront } from '@/lib/storefront-mock';
 
 import React, { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
@@ -129,6 +131,12 @@ function Page() {
     setIsLoading(true)
     setError(null)
     try {
+      if (isMockRetailStorefront(storeId)) {
+        const branchProduct = retailBranchProducts(selectedBranch(storeId)).find(item => item.id === productId);
+        if (!branchProduct) throw new Error('This product is unavailable at the selected branch.');
+        setProduct({ ...branchProduct, store_id: storeId } as Product);
+        return;
+      }
       const storedProduct = sessionStorage.getItem(`storefront_product_${storeId}_${productId}`)
       if (!storedProduct) throw new Error('Open this product from the storefront to view its details.')
       const parsedProduct = JSON.parse(storedProduct) as Product
@@ -146,7 +154,7 @@ function Page() {
     if (!storeId) return
     try {
       const storedProducts = sessionStorage.getItem(`storefront_products_${storeId}`)
-      const products = storedProducts ? JSON.parse(storedProducts) as Product[] : []
+      const products = isMockRetailStorefront(storeId) ? retailBranchProducts(selectedBranch(storeId)) as Product[] : storedProducts ? JSON.parse(storedProducts) as Product[] : []
       setRelatedProducts(products.filter((item) => item.id !== productId).slice(0, 6))
     } catch {
       setRelatedProducts([])

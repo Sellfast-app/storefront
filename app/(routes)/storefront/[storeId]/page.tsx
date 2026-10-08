@@ -2,6 +2,7 @@
 "use client";
 
 import Image from "next/image";
+import { foodBranchProducts, retailBranchProducts, selectedBranch, previewBranches } from "@/lib/branch-preview";
 import { TicketPaymentPreview } from "@/components/ticket-payment-preview";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
@@ -1977,7 +1978,8 @@ function Page() {
             : isMockFoodStore
               ? mockFoodStoreDetails
               : mockRetailStoreDetails;
-          setStoreDetails({ ...details, id: storeId } as StoreDetails);
+          const branch = previewBranches.find(branch => branch.id === selectedBranch(storeId))!;
+          setStoreDetails({ ...details, id: storeId, metadata: { ...details.metadata, ...(!isMockEventStore ? { address: branch.address, city: branch.name } : {}) } } as StoreDetails);
           setStoreReviews(mockStoreReviews);
           setListings(
             isMockEventStore
@@ -2039,7 +2041,7 @@ function Page() {
       setIsLoadingProducts(true);
       try {
         if (isMockRetailStore) {
-          setProducts(mockRetailProducts.map((p) => ({ ...p, store_id: storeId })));
+          setProducts(retailBranchProducts(selectedBranch(storeId)).map((p) => ({ ...p, store_id: storeId })));
           return;
         }
         const queryParams = new URLSearchParams({
@@ -2066,7 +2068,7 @@ function Page() {
       setIsLoadingProducts(true);
       try {
         if (isMockFoodStore) {
-          setFoodItems(mockStorefrontFoodItems.map((item) => ({ ...item, storeId })));
+          setFoodItems(foodBranchProducts(selectedBranch(storeId)).map((item) => ({ ...item, storeId })));
           return;
         }
         const response = await fetch(`/api/stores/${storeId}/food`, { cache: "no-store" });
