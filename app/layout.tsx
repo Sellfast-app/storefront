@@ -1,14 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
-import { Space_Grotesk } from 'next/font/google';
 import Script from 'next/script';
 import { Toaster } from 'sonner';
 import { Suspense } from "react"; 
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-});
 
 export const metadata: Metadata = {
   title: "Swiftree Storefront",
@@ -23,6 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="preload" href="/fonts/inter-4.1/InterVariable.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://js.useklump.com" />
         <link rel="dns-prefetch" href="https://js.useklump.com" />
         {/* Google Tag Manager */}
@@ -39,7 +36,7 @@ export default function RootLayout({
         />
         {/* End Google Tag Manager */}
       </head>
-      <body className={`${spaceGrotesk.className} antialiased`}>
+      <body className="antialiased">
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe 
