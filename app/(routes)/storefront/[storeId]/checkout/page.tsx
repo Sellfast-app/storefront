@@ -245,6 +245,17 @@ const DEFAULT_CUSTOMER_DETAILS: CustomerDetails = {
 };
 
 const getCheckoutDraftKey = (storeId: string) => `checkout_draft_${storeId}`;
+const getCheckoutSessionKey = (storeId: string) => `checkout_session_${storeId}`;
+const getTrackedCheckoutKey = (storeId: string) => `checkout_tracked_${storeId}`;
+
+function getOrCreateCheckoutSessionId(storeId: string) {
+  const key = getCheckoutSessionKey(storeId);
+  const current = sessionStorage.getItem(key);
+  if (current) return current;
+  const created = crypto.randomUUID();
+  sessionStorage.setItem(key, created);
+  return created;
+}
 
 const getKlumpConstructor = (): KlumpConstructor | null => {
   if (typeof window === 'undefined') return null;
@@ -342,6 +353,19 @@ export default function CheckoutPage() {
   const canUseKlump = !isFoodStore && !isFood;
 
   const itemsTotal = getCartTotal();
+
+  useEffect(() => {
+    if (!storeId || cart.length === 0) return;
+    const sessionId = getOrCreateCheckoutSessionId(storeId);
+    if (sessionStorage.getItem(getTrackedCheckoutKey(storeId)) === sessionId) return;
+    void fetch('/api/analytics/checkout-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storeId, checkoutSessionId: sessionId }),
+    }).then((response) => {
+      if (response.ok) sessionStorage.setItem(getTrackedCheckoutKey(storeId), sessionId);
+    }).catch(() => undefined);
+  }, [cart.length, storeId]);
   const couponDiscount = appliedCoupon ? Math.min(itemsTotal, appliedCoupon.amount) : 0;
   const remainingItemsTotal = Math.max(itemsTotal - couponDiscount, 0);
   const deliveryFee = appliedCoupon ? 0 : selectedQuote?.fee || 0;
@@ -1010,9 +1034,10 @@ export default function CheckoutPage() {
 
   // ── Order creation ──────────────────────────────────────────────────────────
   const createOrder = async () => {
+    const checkoutSessionId = getOrCreateCheckoutSessionId(storeId);
     if (isFood) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const payload: any = { ...buildFoodPayload() };
+      const payload: any = { ...buildFoodPayload(), checkout_session_id: checkoutSessionId };
       const hasSavedVendorDelivery = deliveryMethod === 'vendor' &&
         (vendorDeliveryRates.length === 0 || Boolean(selectedVendorDeliveryRate));
       if (!hasCouponVendorDelivery && !hasSavedVendorDelivery && !selectedQuote?.orderKey) {
@@ -1032,11 +1057,13 @@ export default function CheckoutPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || `Failed to create food order: ${response.status}`);
       if (result.status !== 'success') throw new Error(result.message || 'Food order creation failed');
+      sessionStorage.removeItem(getCheckoutSessionKey(storeId));
+      sessionStorage.removeItem(getTrackedCheckoutKey(storeId));
       return result;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload: any = { ...buildBasePayload() };
+    const payload: any = { ...buildBasePayload(), checkout_session_id: checkoutSessionId };
     if (deliveryMethod === 'sendbox' && selectedQuote?.rate_card_id) {
       payload.rate_card_id = selectedQuote.rate_card_id;
     }
@@ -1049,6 +1076,8 @@ export default function CheckoutPage() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.message || `Failed to create order: ${response.status}`);
     if (result.status !== 'success') throw new Error(result.message || 'Order creation failed');
+    sessionStorage.removeItem(getCheckoutSessionKey(storeId));
+    sessionStorage.removeItem(getTrackedCheckoutKey(storeId));
     return result;
   };
 
