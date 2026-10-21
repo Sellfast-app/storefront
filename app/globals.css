@@ -3,6 +3,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+:root {
+  --store-primary: #005B14;
+  --store-secondary: #4FCA6A;
+  --store-accent: #E8F5E9;
+}
 
 @theme inline {
   --color-background: var(--background);
@@ -119,5 +124,31 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+@keyframes storefront-announcement-scroll {
+  from { transform: translateX(100%); }
+  to { transform: translateX(-100%); }
+}
+
+.storefront-announcement-track {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  justify-content: space-around;
+  gap: 8rem;
+  white-space: nowrap;
+  animation: storefront-announcement-scroll 24s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storefront-announcement-track {
+    animation: none;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .storefront-announcement-track span + span {
+    display: none;
   }
 }

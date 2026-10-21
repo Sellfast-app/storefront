@@ -72,10 +72,6 @@ interface StoreDetails {
   banner: string | null;
   banner_style?: "portrait" | "carousel";
   banner_images?: string[];
-  cac: string | null;
-  tin: string | null;
-  doctype: string | null;
-  cert_media: string | null;
   metadata: {
     city: string;
     phone: string;
@@ -92,6 +88,12 @@ interface StoreDetails {
       primary: string;
       secondary: string;
     };
+    storefront_announcement?: {
+      enabled: boolean;
+      message: string;
+      background_color: string;
+      text_color: string;
+    };
     address_line_2: string;
     instagram?: string;
     facebook?: string;
@@ -99,6 +101,10 @@ interface StoreDetails {
     x?: string;
     email?: string;
   };
+  cac: string | null;
+  tin: string | null;
+  doctype: string | null;
+  cert_media: string | null;
   updated_at: string;
   subaccount_code: string | null;
   availability?: StoreAvailabilityEntry[];
@@ -209,7 +215,7 @@ function V2StoreHeader({
               className="h-10 w-10 rounded-full object-cover ring-2 ring-[#E8F5E9]"
             />
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#005B14] text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--store-primary)] text-white">
               <Store className="h-4 w-4" />
             </div>
           )}
@@ -248,6 +254,35 @@ function V2StoreHeader({
       )}
     </header>
   );
+}
+
+function StoreAnnouncement({ storeDetails }: { storeDetails: StoreDetails }) {
+  const announcement = storeDetails.metadata?.storefront_announcement;
+  if (!announcement?.enabled || !announcement.message.trim()) return null;
+
+  return (
+    <div
+      className="overflow-hidden py-2 text-xs font-semibold"
+      role="status"
+      aria-label="Store announcement"
+      style={{ backgroundColor: announcement.background_color, color: announcement.text_color }}
+    >
+      <div className="storefront-announcement-track" aria-hidden="true">
+        <span>{announcement.message}</span>
+        <span>{announcement.message}</span>
+      </div>
+      <span className="sr-only">{announcement.message}</span>
+    </div>
+  );
+}
+
+function storefrontThemeStyle(storeDetails: StoreDetails): React.CSSProperties {
+  const colors = storeDetails.metadata?.brand_color;
+  return {
+    "--store-primary": colors?.primary || "#005B14",
+    "--store-secondary": colors?.secondary || "#4FCA6A",
+    "--store-accent": colors?.accent || "#E8F5E9",
+  } as React.CSSProperties;
 }
 
 function StorefrontFooter({
@@ -447,7 +482,7 @@ function RetailStorefrontFooter({
                 <Button
                   type="submit"
                   disabled={status === "loading"}
-                  className="h-11 w-full shrink-0 rounded-xl bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57] sm:w-auto"
+                  className="h-11 w-full shrink-0 rounded-xl bg-[var(--store-secondary)] px-5 text-sm font-semibold text-white hover:brightness-90 sm:w-auto"
                 >
                   {status === "loading" ? "..." : "Join"}
                 </Button>
@@ -681,7 +716,7 @@ function FoodStorefrontFooter({
                 <Button
                   type="submit"
                   disabled={status === "loading"}
-                  className="h-11 w-full shrink-0 rounded-xl bg-[#4FCA6A] px-5 text-sm font-semibold text-white hover:bg-[#3DBA57] sm:w-auto"
+                  className="h-11 w-full shrink-0 rounded-xl bg-[var(--store-secondary)] px-5 text-sm font-semibold text-white hover:brightness-90 sm:w-auto"
                 >
                   {status === "loading" ? "..." : "Join"}
                 </Button>
@@ -730,7 +765,7 @@ function FooterLinkColumn({
       <ul className={`mt-6 space-y-4 text-sm font-medium ${isDark ? "text-white/70" : "text-[#666D69]"}`}>
         {links.map((link) => (
           <li key={link.label}>
-            <Link href={link.href} className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-[#005B14]"}`}>
+            <Link href={link.href} className={`transition-colors ${isDark ? "hover:text-white" : "hover:text-[var(--store-primary)]"}`}>
               {link.label}
             </Link>
           </li>
@@ -773,7 +808,8 @@ function V2RetailStorefront({
       name: storeDetails.store_name,
       logo: logoUrl,
     }));
-  }, [storeId, storeDetails.store_name, logoUrl]);
+    sessionStorage.setItem(`storefront_theme_${storeId}`, JSON.stringify(storeDetails.metadata?.brand_color || {}));
+  }, [storeId, storeDetails.store_name, storeDetails.metadata?.brand_color, logoUrl]);
 
   useEffect(() => {
     if (typeof window === "undefined" || allProducts.length === 0) return;
@@ -850,10 +886,13 @@ function V2RetailStorefront({
   }, [currentPage, totalPages]);
 
   return (
-    <div id="top" className="min-h-screen bg-white text-[#111827]">
-      <div className="flex h-10 items-center justify-center bg-[#005B14] px-10 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-white sm:text-xs">
-        {storeDetails.store_name}
-      </div>
+    <div id="top" data-storefront-theme className="min-h-screen bg-white text-[#111827]" style={storefrontThemeStyle(storeDetails)}>
+      <StoreAnnouncement storeDetails={storeDetails} />
+      {!storeDetails.metadata?.storefront_announcement?.enabled && (
+        <div className="flex h-10 items-center justify-center px-10 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-white sm:text-xs" style={{ backgroundColor: "var(--store-primary)" }}>
+          {storeDetails.store_name}
+        </div>
+      )}
       <V2StoreHeader
         storeDetails={storeDetails}
         logoUrl={logoUrl}
@@ -945,9 +984,9 @@ function V2RetailStorefront({
             </section>
 
             {/* ── Brand panel ── */}
-            <section className="mx-auto mt-12 flex min-h-[270px] max-w-7xl items-center overflow-hidden bg-[#F5F7F3] px-6 py-10 lg:mt-16 lg:min-h-[390px] lg:px-16">
+            <section className="mx-auto mt-12 flex min-h-[270px] max-w-7xl items-center overflow-hidden px-6 py-10 lg:mt-16 lg:min-h-[390px] lg:px-16" style={{ backgroundColor: "var(--store-accent)" }}>
               <div className="relative z-10 max-w-xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#005B14]">{storeDetails.store_name}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: "var(--store-primary)" }}>{storeDetails.store_name}</p>
                 <h2 className="mt-5 text-4xl font-semibold leading-tight text-[#111827] md:text-6xl">{storeDetails.store_description || "Discover something made for you."}</h2>
               </div>
               {bannerUrl && <Image src={bannerUrl} alt="" fill className="object-cover object-right opacity-20" sizes="50vw" />}
@@ -966,8 +1005,8 @@ function V2RetailStorefront({
                     onClick={() => setActiveCategory(cat)}
                     className={`shrink-0 border-b-4 px-2 pb-4 text-xs font-bold uppercase transition-colors sm:text-sm ${
                       activeCategory === cat
-                        ? "border-[#005B14] text-[#111827]"
-                        : "border-transparent text-[#71717A] hover:text-[#005B14]"
+                        ? "border-[var(--store-primary)] text-[#111827]"
+                        : "border-transparent text-[#71717A] hover:text-[var(--store-primary)]"
                     }`}
                   >
                     {cat}
@@ -991,7 +1030,7 @@ function V2RetailStorefront({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="rounded-full border-[#D8EBDD] text-[#005B14] hover:bg-[#F2FBF4] md:inline-flex gap-2"
+                    className="rounded-full border-[var(--store-accent)] text-[var(--store-primary)] hover:bg-[var(--store-accent)] md:inline-flex gap-2"
                     onClick={() => setFilterOpen((open) => !open)}
                   >
                     <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -1021,8 +1060,8 @@ function V2RetailStorefront({
                             onClick={() => setPriceFilter(value as typeof priceFilter)}
                             className={`rounded-xl px-3 py-2 text-left text-sm transition-colors ${
                               priceFilter === value
-                                ? "bg-[#005B14] text-white"
-                                : "bg-[#F9FAFB] text-[#374151] hover:bg-[#F2FBF4]"
+                                ? "bg-[var(--store-primary)] text-white"
+                                : "bg-[#F9FAFB] text-[#374151] hover:bg-[var(--store-accent)]"
                             }`}
                           >
                             {label}
@@ -1078,7 +1117,7 @@ function V2RetailStorefront({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="rounded-full border-[#D8EBDD] text-[#005B14]"
+                          className="rounded-full border-[var(--store-accent)] text-[var(--store-primary)]"
                           onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                           disabled={currentPage === 1}
                         >
@@ -1093,8 +1132,8 @@ function V2RetailStorefront({
                               onClick={() => setCurrentPage(page)}
                               className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium ${
                                 currentPage === page
-                                  ? "bg-[#005B14] text-white"
-                                  : "border border-[#E5E7EB] text-[#374151] hover:border-[#005B14]/40"
+                                  ? "bg-[var(--store-primary)] text-white"
+                                  : "border border-[#E5E7EB] text-[#374151] hover:border-[var(--store-primary)]/40"
                               }`}
                             >
                               {page}
@@ -1104,7 +1143,7 @@ function V2RetailStorefront({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="rounded-full border-[#D8EBDD] text-[#005B14]"
+                          className="rounded-full border-[var(--store-accent)] text-[var(--store-primary)]"
                           onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
                           disabled={currentPage === totalPages}
                         >
@@ -1245,7 +1284,8 @@ function V2FoodStorefront({
     : foodItems.filter((item) => item.category.includes(activeCategory));
 
   return (
-    <div className="min-h-screen bg-white text-[#111827]">
+    <div data-storefront-theme className="min-h-screen bg-white text-[#111827]" style={storefrontThemeStyle(storeDetails)}>
+      <StoreAnnouncement storeDetails={storeDetails} />
       <V2StoreHeader
         storeDetails={storeDetails}
         logoUrl={logoUrl}
@@ -1302,7 +1342,7 @@ function V2FoodStorefront({
                       setFulfillmentMode(mode);
                       setShowLocationModal(true);
                     }}
-                    className={`rounded-full px-5 py-2 capitalize transition ${fulfillmentMode === mode ? "bg-[#005B14] text-white shadow-sm" : "text-[#71717A]"}`}
+                    className={`rounded-full px-5 py-2 capitalize transition ${fulfillmentMode === mode ? "bg-[var(--store-primary)] text-white shadow-sm" : "text-[#71717A]"}`}
                   >
                     {mode}
                   </button>
@@ -1378,12 +1418,12 @@ function V2FoodStorefront({
                           .join(", ") || "Pickup location unavailable"}
                       </p>
                     </div>
-                    <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#005B14]">
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#005B14]" />
+                    <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[var(--store-primary)]">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[var(--store-primary)]" />
                     </span>
                   </div>
                   <div className="p-5">
-                    <Button type="button" className="w-full rounded-full bg-[#005B14] hover:bg-[#004610]" onClick={() => setShowLocationModal(false)}>
+                    <Button type="button" className="w-full rounded-full bg-[var(--store-primary)] hover:brightness-90" onClick={() => setShowLocationModal(false)}>
                       Order for pickup
                     </Button>
                   </div>
@@ -1411,7 +1451,7 @@ function V2FoodStorefront({
                   <Button
                     type="button"
                     disabled={!deliveryAddress.trim()}
-                    className="h-12 w-full rounded-full bg-[#005B14] hover:bg-[#004610]"
+                    className="h-12 w-full rounded-full bg-[var(--store-primary)] hover:brightness-90"
                     onClick={() => setShowLocationModal(false)}
                   >
                     Continue with delivery
@@ -1506,7 +1546,7 @@ function V2EventStorefront({
                 className="h-8 w-8 rounded-full object-cover"
               />
             ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#005B14] text-white">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--store-primary)] text-white">
                 <Ticket className="h-3.5 w-3.5" />
               </div>
             )}
@@ -1532,7 +1572,7 @@ function V2EventStorefront({
             >
               {showMobileSearch ? <X className="h-3.5 w-3.5" /> : <Search className="h-3.5 w-3.5" />}
             </button>
-            <Link href={`/storefront/${storeDetails.id}/tickets`} className="whitespace-nowrap text-sm font-medium text-[#005B14]">My tickets</Link>
+            <Link href={`/storefront/${storeDetails.id}/tickets`} className="whitespace-nowrap text-sm font-medium text-[var(--store-primary)]">My tickets</Link>
           </div>
         </div>
 
@@ -1606,22 +1646,22 @@ function V2EventStorefront({
 
                     <div className="mt-4 space-y-3">
                       <div className="flex items-start gap-3 text-sm text-[#374151]">
-                        <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[#005B14]" />
+                        <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[var(--store-primary)]" />
                         <span>{format(new Date(selectedEvent.startDate), "EEEE, MMMM d, yyyy")}</span>
                       </div>
                       <div className="flex items-start gap-3 text-sm text-[#374151]">
-                        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[#005B14]" />
+                        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--store-primary)]" />
                         <span>{selectedEvent.startTime} – {selectedEvent.endTime}</span>
                       </div>
                       <div className="flex items-start gap-3 text-sm text-[#374151]">
-                        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#005B14]" />
+                        <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[var(--store-primary)]" />
                         <span>{selectedEvent.location}</span>
                       </div>
                     </div>
 
                     {/* Mobile CTA */}
                     <a href="#tickets" className="mt-5 block lg:hidden">
-                      <Button className="h-11 w-full rounded-full bg-[#005B14] text-sm font-semibold hover:bg-[#004610]">
+                      <Button className="h-11 w-full rounded-full bg-[var(--store-primary)] text-sm font-semibold hover:brightness-90">
                         Get a Ticket
                       </Button>
                     </a>
@@ -1637,7 +1677,7 @@ function V2EventStorefront({
                       {selectedEvent.description.length > 300 && (
                         <button
                           onClick={() => setShowFullDescription(!showFullDescription)}
-                          className="mt-2 text-xs font-semibold text-[#005B14] hover:underline"
+                          className="mt-2 text-xs font-semibold text-[var(--store-primary)] hover:underline"
                         >
                           {showFullDescription ? "Show less" : "Read more"}
                         </button>
@@ -1658,8 +1698,8 @@ function V2EventStorefront({
                           className="h-10 w-10 rounded-full object-cover"
                         />
                       ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#005B14]/10">
-                          <Users className="h-5 w-5 text-[#005B14]" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--store-primary)]/10">
+                          <Users className="h-5 w-5 text-[var(--store-primary)]" />
                         </div>
                       )}
                       <div>
@@ -1673,7 +1713,7 @@ function V2EventStorefront({
                   <div className="rounded-2xl border border-[#E8E8E8] bg-white p-5 md:p-6">
                     <h2 className="mb-3 text-base font-bold">Location</h2>
                     <div className="flex items-start gap-3 text-sm text-[#374151]">
-                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#005B14]" />
+                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[var(--store-primary)]" />
                       <div>
                         <p className="font-medium">{selectedEvent.location}</p>
                         {selectedEvent.locationDetails && (
@@ -1706,7 +1746,7 @@ function V2EventStorefront({
                             key={ticket.id}
                             className={`rounded-xl border p-4 transition-colors ${
                               quantity > 0
-                                ? "border-[#005B14] bg-[#F0F7F1]"
+                                ? "border-[var(--store-primary)] bg-[var(--store-accent)]"
                                 : isSoldOut
                                   ? "border-[#F3F4F6] bg-[#FAFAFA] opacity-60"
                                   : "border-[#E8E8E8] bg-white"
@@ -1715,7 +1755,7 @@ function V2EventStorefront({
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-semibold text-[#111827]">{ticket.name}</p>
-                                <p className="mt-0.5 text-base font-bold text-[#005B14]">
+                                <p className="mt-0.5 text-base font-bold text-[var(--store-primary)]">
                                   {ticket.type === "free" ? "Free" : `₦${(ticket.price || 0).toLocaleString()}`}
                                 </p>
                                 {isSoldOut && (
@@ -1733,7 +1773,7 @@ function V2EventStorefront({
                                     type="button"
                                     disabled={quantity === 0}
                                     onClick={() => updateTicketQuantity(ticket.id, quantity - 1, limit)}
-                                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-sm font-bold text-[#374151] transition-colors hover:border-[#005B14] hover:text-[#005B14] disabled:opacity-30"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-sm font-bold text-[#374151] transition-colors hover:border-[var(--store-primary)] hover:text-[var(--store-primary)] disabled:opacity-30"
                                   >
                                     −
                                   </button>
@@ -1742,7 +1782,7 @@ function V2EventStorefront({
                                     type="button"
                                     disabled={quantity >= limit}
                                     onClick={() => updateTicketQuantity(ticket.id, quantity + 1, limit)}
-                                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-sm font-bold text-[#374151] transition-colors hover:border-[#005B14] hover:text-[#005B14] disabled:opacity-30"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-sm font-bold text-[#374151] transition-colors hover:border-[var(--store-primary)] hover:text-[var(--store-primary)] disabled:opacity-30"
                                   >
                                     +
                                   </button>
@@ -1783,7 +1823,7 @@ function V2EventStorefront({
                     )}
 
                     <Button
-                      className="mt-5 h-11 w-full rounded-full bg-[#005B14] text-sm font-semibold hover:bg-[#004610] disabled:opacity-40"
+                      className="mt-5 h-11 w-full rounded-full bg-[var(--store-primary)] text-sm font-semibold hover:brightness-90 disabled:opacity-40"
                       disabled={totalTickets === 0}
                       onClick={() => setShowTicketCheckout(true)}
                     >
@@ -1802,7 +1842,7 @@ function V2EventStorefront({
                 <section className="mt-10">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-base font-bold">Other Events</h2>
-                    <button className="flex items-center gap-1 text-xs font-semibold text-[#005B14] hover:underline">
+                    <button className="flex items-center gap-1 text-xs font-semibold text-[var(--store-primary)] hover:underline">
                       See all <ArrowRight className="h-3 w-3" />
                     </button>
                   </div>
@@ -1845,7 +1885,7 @@ function V2EventStorefront({
                               <MapPin className="h-3 w-3 shrink-0" />
                               <span className="line-clamp-1">{event.location}</span>
                             </div>
-                            <p className="mt-3 text-sm font-bold text-[#005B14]">
+                            <p className="mt-3 text-sm font-bold text-[var(--store-primary)]">
                               {eventFree && eventLowest === 0
                                 ? "Free"
                                 : eventLowest !== Infinity
@@ -1923,7 +1963,7 @@ function V2EventStorefront({
               <Label className="mb-1 block text-xs">WhatsApp number *</Label>
               <Input type="tel" value={ticketCustomer.whatsapp} onChange={(event) => setTicketCustomer((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="+234 801 234 5678" />
             </div>
-            <Button type="submit" className="h-11 w-full rounded-full bg-[#005B14] text-sm font-semibold hover:bg-[#004610]" disabled={!ticketCustomerIsComplete}>
+            <Button type="submit" className="h-11 w-full rounded-full bg-[var(--store-primary)] text-sm font-semibold hover:brightness-90" disabled={!ticketCustomerIsComplete}>
               {ticketTotal === 0 ? "Review booking" : "Continue to test payment"}
             </Button>
           </form>}
@@ -1965,6 +2005,15 @@ function Page() {
   const isMockEventStore = isMockEventStorefront(storeId);
   const isMockStore = isMockRetailStore || isMockFoodStore || isMockEventStore;
   const mockEvents = getPublishedEvents();
+
+  useEffect(() => {
+    if (!storeDetails) return;
+    const colors = storeDetails.metadata?.brand_color;
+    const root = document.documentElement;
+    root.style.setProperty("--store-primary", colors?.primary || "#005B14");
+    root.style.setProperty("--store-secondary", colors?.secondary || "#4FCA6A");
+    root.style.setProperty("--store-accent", colors?.accent || "#E8F5E9");
+  }, [storeDetails]);
 
   useEffect(() => {
     const fetchStoreData = async () => {
@@ -2138,7 +2187,7 @@ function Page() {
     return (
       <div className="flex items-center justify-center h-screen bg-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#005B14] mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--store-primary)] mx-auto mb-4" />
           <p className="text-sm text-[#6B7280]">Loading store...</p>
         </div>
       </div>
@@ -2151,7 +2200,7 @@ function Page() {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4 text-red-600">Store Not Found</h2>
           <p className="text-[#6B7280] mb-6">{error || "The store you are looking for does not exist."}</p>
-          <Link href="/"><Button className="bg-[#005B14] hover:bg-[#004610]">Go Home</Button></Link>
+          <Link href="/"><Button className="bg-[var(--store-primary)] hover:brightness-90">Go Home</Button></Link>
         </div>
       </div>
     );

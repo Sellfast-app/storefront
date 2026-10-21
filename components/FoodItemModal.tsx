@@ -288,7 +288,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                     <button
                       key={p.uid}
                       onClick={() => setSelectedPortion(p)}
-                      className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${selectedPortion?.uid === p.uid ? "border-[#005B14] bg-[#005B14]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
+                      className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${selectedPortion?.uid === p.uid ? "border-[var(--store-primary)] bg-[var(--store-primary)]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
                     >
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{p.name}</span>
@@ -315,7 +315,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                       <button
                         key={type}
                         onClick={() => setSelectedServingType(type)}
-                        className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${isSelected ? "border-[#005B14] bg-[#005B14]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
+                        className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${isSelected ? "border-[var(--store-primary)] bg-[var(--store-primary)]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
                       >
                         <span className="font-medium capitalize">{type}</span>
                         <span className="font-semibold text-[#111827]">₦{price.toLocaleString()}</span>
@@ -339,7 +339,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                       </p>
                     </div>
                     {selected.length > 0 && (
-                      <span className="text-xs text-[#4FCA6A] font-medium">
+                      <span className="text-xs text-[var(--store-secondary)] font-medium">
                         {selected.map((o) => o.quantity > 1 ? `${o.name} x${o.quantity}` : o.name).join(", ")}
                       </span>
                     )}
@@ -360,18 +360,18 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                               toggleAddOn(group, option);
                             }
                           }}
-                          className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${isSelected ? "border-[#005B14] bg-[#005B14]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
+                      className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${isSelected ? "border-[var(--store-primary)] bg-[var(--store-primary)]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
                         >
                           <div className="flex items-center gap-3">
                             <div
-                              className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 ${isSelected ? "border-[#005B14] bg-[#005B14]" : "border-gray-300"}`}
+                              className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 ${isSelected ? "border-[var(--store-primary)] bg-[var(--store-primary)]" : "border-gray-300"}`}
                             >
                               {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                             </div>
                             <span className="font-medium">{option.name} (+₦{option.price.toLocaleString()})</span>
                           </div>
                           {isSelected && (
-                            <div className="flex items-center gap-1 rounded-lg border border-[#4FCA6A]/30 bg-white p-0.5">
+                            <div className="flex items-center gap-1 rounded-lg border border-[var(--store-secondary)]/30 bg-white p-0.5">
                               <button
                                 type="button"
                                 onClick={(event) => {
@@ -389,7 +389,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                                   event.stopPropagation();
                                   updateAddOnQuantity(group.uid, option.uid, 1);
                                 }}
-                                className="rounded p-1 text-[#005B14] hover:bg-[#005B14]/10"
+                                className="rounded p-1 text-[var(--store-primary)] hover:bg-[var(--store-primary)]/10"
                               >
                                 <Plus className="h-3.5 w-3.5" />
                               </button>

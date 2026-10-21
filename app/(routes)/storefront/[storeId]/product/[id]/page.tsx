@@ -62,12 +62,12 @@ const StarRatingGreen = ({ rating }: { rating: number }) => {
     <div className='flex gap-1'>
       {[1, 2, 3, 4, 5].map((star) => (
         <svg key={star} width="16" height="16" viewBox="0 0 24 24"
-          fill={star <= fullStars ? '#4FCA6A' : star === fullStars + 1 && hasHalfStar ? 'url(#half-green)' : '#D1FFDB'}
+          fill={star <= fullStars ? 'var(--store-secondary)' : star === fullStars + 1 && hasHalfStar ? 'url(#half-green)' : 'var(--store-accent)'}
           xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="half-green">
-              <stop offset="50%" stopColor="#4FCA6A" />
-              <stop offset="50%" stopColor="#D1FFDB" />
+              <stop offset="50%" stopColor="var(--store-secondary)" />
+              <stop offset="50%" stopColor="var(--store-accent)" />
             </linearGradient>
           </defs>
           <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
@@ -118,6 +118,20 @@ function Page() {
   const [thumbsSwiper, setThumbsSwiper] = useState<any>(null);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    if (!storeId) return;
+    try {
+      const rawColors = sessionStorage.getItem(`storefront_theme_${storeId}`);
+      if (!rawColors) return;
+      const colors = JSON.parse(rawColors) as { primary?: string; secondary?: string; accent?: string };
+      document.documentElement.style.setProperty('--store-primary', colors.primary || '#005B14');
+      document.documentElement.style.setProperty('--store-secondary', colors.secondary || '#4FCA6A');
+      document.documentElement.style.setProperty('--store-accent', colors.accent || '#E8F5E9');
+    } catch {
+      // Keep the storefront default palette if the cached appearance is invalid.
+    }
+  }, [storeId]);
 
   // Variant state
   const [parsedVariants, setParsedVariants] = useState<ProductVariant[]>([]);
@@ -320,7 +334,7 @@ function Page() {
     return (
       <div className='flex items-center justify-center h-screen bg-[#FCFCFC]'>
         <div className='text-center'>
-          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-[#4FCA6A] mx-auto mb-4'></div>
+          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--store-secondary)] mx-auto mb-4'></div>
           <p className='text-gray-600'>Loading product...</p>
         </div>
       </div>
@@ -395,7 +409,7 @@ function Page() {
                       spaceBetween={8} slidesPerView={4} freeMode={true} className="w-full thumbs-swiper">
                       {product.product_images.map((image, index) => (
                         <SwiperSlide key={index}>
-                          <div className={`relative w-full h-20 cursor-pointer border-2 rounded-lg transition-all ${activeImageIndex === index ? 'border-[#4FCA6A]' : 'border-transparent'}`}>
+                          <div className={`relative w-full h-20 cursor-pointer border-2 rounded-lg transition-all ${activeImageIndex === index ? 'border-[var(--store-secondary)]' : 'border-transparent'}`}>
                             <Image src={image || Banner} alt={`${product.product_name} - Thumbnail ${index + 1}`}
                               fill className="object-cover rounded-lg" />
                           </div>
@@ -445,7 +459,7 @@ function Page() {
                               className={`
                                 px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all
                                 ${isSelected
-                                  ? 'border-[#4FCA6A] bg-[#4FCA6A]/10 text-[#4FCA6A]'
+                                  ? 'border-[var(--store-secondary)] bg-[var(--store-secondary)]/10 text-[var(--store-secondary)]'
                                   : available
                                     ? 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                                     : 'border-gray-100 dark:border-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed line-through'
@@ -483,7 +497,7 @@ function Page() {
                                 className={`
                                   relative w-9 h-9 rounded-full transition-all
                                   ${isSelected
-                                    ? 'ring-2 ring-[#4FCA6A] ring-offset-2'
+                                    ? 'ring-2 ring-[var(--store-secondary)] ring-offset-2'
                                     : 'ring-1 ring-gray-200 dark:ring-gray-700 hover:ring-gray-400'
                                   }
                                   ${outOfStock ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
@@ -523,7 +537,7 @@ function Page() {
                 {/* ── END VARIANT SELECTOR ─────────────────────────────── */}
 
                 <div className='flex justify-between items-center mt-6'>
-                  <div className='text-xs text-[#4FCA6A]'>SKU: {product.product_sku}</div>
+                  <div className='text-xs text-[var(--store-secondary)]'>SKU: {product.product_sku}</div>
                   <div className='text-xs'>Est. {product.est_prod_days_from}-{product.est_prod_days_to} days</div>
                 </div>
 
@@ -600,7 +614,7 @@ function Page() {
           {isLoadingRelated ? (
             <div className='flex items-center justify-center py-20'>
               <div className='text-center'>
-                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[#4FCA6A] mx-auto mb-2'></div>
+                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--store-secondary)] mx-auto mb-2'></div>
                 <p className='text-sm text-gray-600'>Loading related products...</p>
               </div>
             </div>
@@ -613,7 +627,7 @@ function Page() {
                     key={prod.id}
                     onClick={() => sessionStorage.setItem(`storefront_product_${storeId}_${prod.id}`, JSON.stringify(prod))}
                   >
-                    <div className='flex flex-col rounded-2xl border border-[#F5F5F5] dark:border-[#1F1F1F] hover:border-[#4FCA6A] transition-colors cursor-pointer'>
+                    <div className='flex flex-col rounded-2xl border border-[#F5F5F5] dark:border-[#1F1F1F] hover:border-[var(--store-secondary)] transition-colors cursor-pointer'>
                       <Image src={prod.product_images[0] || Banner} alt={prod.product_name}
                         width={300} height={200} className='object-cover w-full h-45 rounded-t-2xl' />
                       <p className='text-xs mt-2 px-2 line-clamp-2'>{prod.product_name}</p>

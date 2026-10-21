@@ -297,7 +297,17 @@ const normalizePaymentMethods = (methods: StorePaymentMethod[]) => {
 export default function CheckoutPage() {
   const params = useParams();
   const storeId = params.storeId as string;
-  const [storeBrand, setStoreBrand] = useState<{ name: string; logo: string | null }>({ name: '', logo: null });
+  const [storeBrand, setStoreBrand] = useState<{
+    name: string;
+    logo: string | null;
+    colors: { primary: string; secondary: string; accent: string };
+  }>({ name: '', logo: null, colors: { primary: '#005B14', secondary: '#4FCA6A', accent: '#E8F5E9' } });
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--store-primary', storeBrand.colors.primary);
+    document.documentElement.style.setProperty('--store-secondary', storeBrand.colors.secondary);
+    document.documentElement.style.setProperty('--store-accent', storeBrand.colors.accent);
+  }, [storeBrand.colors]);
   const [searchQuery] = useState('');
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [isEditingDelivery, setIsEditingDelivery] = useState(true);
@@ -448,7 +458,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const fetchStoreFulfillmentModes = async () => {
-      setStoreBrand({ name: '', logo: null });
+      setStoreBrand({ name: '', logo: null, colors: { primary: '#005B14', secondary: '#4FCA6A', accent: '#E8F5E9' } });
       try {
         setIsLoadingModes(true);
         const response = await fetch(`/api/stores/${storeId}`);
@@ -465,6 +475,11 @@ export default function CheckoutPage() {
                 ? logo
                 : `${process.env.NEXT_PUBLIC_API_BASE_URL}${logo}`
               : null,
+            colors: {
+              primary: storeDetails.metadata?.brand_color?.primary || '#005B14',
+              secondary: storeDetails.metadata?.brand_color?.secondary || '#4FCA6A',
+              accent: storeDetails.metadata?.brand_color?.accent || '#E8F5E9',
+            },
           });
           const businessType: string = storeDetails.business_type || '';
           const isRestaurant = businessType === 'Restaurant/Food Service';
@@ -1500,7 +1515,7 @@ export default function CheckoutPage() {
                   )}
                 </div>
                 {appliedCoupon && (
-                  <div className="rounded-lg border border-[#4FCA6A]/30 bg-[#4FCA6A]/10 p-3 text-sm text-[#2E7D42]">
+                  <div className="rounded-lg border border-[var(--store-secondary)]/30 bg-[var(--store-secondary)]/10 p-3 text-sm text-[#2E7D42]">
                     Coupon applied successfully. ₦{couponDiscount.toLocaleString()} has been applied to your order.
                   </div>
                 )}
@@ -1510,7 +1525,7 @@ export default function CheckoutPage() {
               </div>
               {!isZeroBalanceOrder && <h3 className='pt-4 text-2xl font-semibold'>Choose Payment Method</h3>}
               {isZeroBalanceOrder ? (
-                <div className="rounded-lg border border-[#4FCA6A]/30 bg-[#4FCA6A]/10 p-3 text-sm text-[#2E7D42]">
+                <div className="rounded-lg border border-[var(--store-secondary)]/30 bg-[var(--store-secondary)]/10 p-3 text-sm text-[#2E7D42]">
                   Fully covered by coupon. No payment gateway is required.
                 </div>
               ) : (
@@ -1519,21 +1534,21 @@ export default function CheckoutPage() {
                     {enabledPaymentMethods.paystack && (
                       <button type="button" aria-label="Paystack" aria-pressed={paymentMethod === 'paystack'}
                         onClick={() => setPaymentMethod('paystack')}
-                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005B14] focus-visible:ring-offset-2 ${paymentMethod === 'paystack' ? 'border-[#005B14] bg-[#F0FAF2]' : 'border-[#E5E7EB] bg-white hover:border-[#005B14]/50'}`}>
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'paystack' ? 'border-[var(--store-primary)] bg-[var(--store-accent)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
                         <span aria-hidden="true" className="[&>svg]:max-w-full"><PaystackLogo /></span>
                       </button>
                     )}
                     {canUseKlump && enabledPaymentMethods.klump && (
                       <button type="button" aria-pressed={paymentMethod === 'klump'}
                         onClick={() => setPaymentMethod('klump')}
-                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005B14] focus-visible:ring-offset-2 ${paymentMethod === 'klump' ? 'border-[#005B14] bg-[#F0FAF2]' : 'border-[#E5E7EB] bg-white hover:border-[#005B14]/50'}`}>
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'klump' ? 'border-[var(--store-primary)] bg-[var(--store-accent)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
                         Klump
                       </button>
                     )}
                     {enabledPaymentMethods.crypto && (
                       <button type="button" aria-pressed={paymentMethod === 'crypto'}
                         onClick={() => setPaymentMethod('crypto')}
-                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#005B14] focus-visible:ring-offset-2 ${paymentMethod === 'crypto' ? 'border-[#005B14] bg-[#F0FAF2]' : 'border-[#E5E7EB] bg-white hover:border-[#005B14]/50'}`}>
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'crypto' ? 'border-[var(--store-primary)] bg-[var(--store-accent)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
                         Crypto
                       </button>
                     )}
@@ -1595,7 +1610,7 @@ export default function CheckoutPage() {
             </CardContent>
             <CardFooter className='pt-4'>
               <Button
-                className='h-14 w-full rounded-none bg-[#4FCA6A] text-base hover:bg-[#45b85e]'
+                className='h-14 w-full rounded-none bg-[var(--store-secondary)] text-base hover:brightness-90'
                 onClick={handleProceedToPayment}
                 disabled={
                   isProcessingPayment ||
@@ -1643,7 +1658,7 @@ export default function CheckoutPage() {
 
             <CardContent className='rounded-lg border border-[#D9DDE1] bg-[#F8F9FA] p-6'>
               <div className='flex justify-center'>
-                <Button variant='outline' className='h-12 rounded-none border-[#005B14] bg-white px-6 text-[#005B14]' onClick={handleEditAddress}>
+                <Button variant='outline' className='h-12 rounded-none border-[var(--store-primary)] bg-white px-6 text-[var(--store-primary)]' onClick={handleEditAddress}>
                   {hasCustomerDetails ? 'Change delivery details' : 'Add delivery details'}
                 </Button>
               </div>
@@ -1688,7 +1703,7 @@ export default function CheckoutPage() {
                       setIsEditingDelivery(true);
                       setShowShippingMethodModal(true);
                     }}
-                    className='border border-[#005B14] bg-white px-6 py-3 text-sm font-medium uppercase text-[#005B14] hover:bg-primary/5'
+                    className='border border-[var(--store-primary)] bg-white px-6 py-3 text-sm font-medium uppercase text-[var(--store-primary)] hover:bg-[var(--store-accent)]'
                   >
                     <span className='block text-sm font-medium text-primary'>
                       Select a shipping price
@@ -1827,7 +1842,7 @@ export default function CheckoutPage() {
                 <button
                   key={quote.rate_card_id}
                   onClick={() => handleSelectSendboxQuote(quote)}
-                  className="w-full flex items-center justify-between p-4 border rounded-lg hover:border-[#4FCA6A] hover:bg-[#4FCA6A]/5 transition-all text-left"
+                  className="w-full flex items-center justify-between p-4 border rounded-lg hover:border-[var(--store-secondary)] hover:bg-[var(--store-secondary)]/5 transition-all text-left"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
