@@ -1,7 +1,5 @@
 const COUNTRY_CURRENCY: Record<string, string> = {
   NG: "NGN",
-  UK: "GBP",
-  GB: "GBP",
   KE: "KES",
   GH: "GHS",
   ZA: "ZAR",
