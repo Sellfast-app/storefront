@@ -7,6 +7,7 @@ import Banner from "@/public/Banner.png";
 import { Button } from "@/components/ui/button";
 import { FoodItem, AddOnOption, Portion } from "@/lib/mockdata";
 import { useCart } from "@/context/CartContext";
+import { formatStoreCurrency } from "@/lib/currency";
 
 interface SelectedAddOnOption extends AddOnOption {
   quantity: number;
@@ -276,7 +277,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
               <p className="text-xs font-medium uppercase tracking-wide text-[#71717A]">{item.type}</p>
               <h2 className="mt-1 text-2xl font-bold text-[#111827]">{item.name}</h2>
               {item.description && <p className="mt-2 text-sm leading-6 text-[#71717A]">{item.description}</p>}
-              <p className="mt-3 text-lg font-bold text-[#111827]">From ₦{basePrice.toLocaleString()}</p>
+              <p className="mt-3 text-lg font-bold text-[#111827]">From {formatStoreCurrency(basePrice)}</p>
             </div>
 
             {/* Portion selection for Simple items */}
@@ -296,7 +297,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                           {p.startPrepTime}–{p.endPrepTime} mins
                         </span>
                       </div>
-                      <span className="font-semibold text-[#111827]">₦{p.price.toLocaleString()}</span>
+                      <span className="font-semibold text-[#111827]">{formatStoreCurrency(p.price)}</span>
                     </button>
                   ))}
                 </div>
@@ -318,7 +319,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                         className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${isSelected ? "border-[var(--store-primary)] bg-[var(--store-primary)]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
                       >
                         <span className="font-medium capitalize">{type}</span>
-                        <span className="font-semibold text-[#111827]">₦{price.toLocaleString()}</span>
+                        <span className="font-semibold text-[#111827]">{formatStoreCurrency(price)}</span>
                       </button>
                     );
                   })}
@@ -368,7 +369,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                             >
                               {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                             </div>
-                            <span className="font-medium">{option.name} (+₦{option.price.toLocaleString()})</span>
+                            <span className="font-medium">{option.name} (+{formatStoreCurrency(option.price)})</span>
                           </div>
                           {isSelected && (
                             <div className="flex items-center gap-1 rounded-lg border border-[var(--store-secondary)]/30 bg-white p-0.5">
@@ -407,7 +408,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
             <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-5">
               <div>
                 <p className="text-xs text-gray-500">Your total</p>
-                <p className="text-2xl font-bold text-[#111827]">₦{totalPrice.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-[#111827]">{formatStoreCurrency(totalPrice)}</p>
               </div>
 
               {!isUnavailable && (
@@ -440,7 +441,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                     disabled={!isReadyToAdd}
                     className="w-full bg-black hover:bg-gray-800 text-white"
                   >
-                    {`Add ${quantity} to cart (₦${totalPrice.toLocaleString()})`}
+                    {`Add ${quantity} to cart (${formatStoreCurrency(totalPrice)})`}
                   </Button>
                 )}
                 {isUnavailable && (

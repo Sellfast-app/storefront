@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { PlusIcon, Trash2 } from 'lucide-react'
 import MinusIcon from '@/components/svgIcons/MinusIcon'
 import { useCart } from '@/context/CartContext'
+import { formatStoreCurrency } from '@/lib/currency'
 import TrashIcon from './svgIcons/TrashIcon'
 import SpeedafIcon from './svgIcons/SpeedafIcon'
 
@@ -75,7 +76,7 @@ export default function CartView() {
                       <h3 className="font-medium text-sm">{item.name}</h3>
                       <p className="text-xs text-gray-500 mt-1">Few units left</p>
                     </div>
-                    <p className="font-semibold">₦{item.price.toLocaleString()}</p>
+                    <p className="font-semibold">{formatStoreCurrency(item.price)}</p>
                   </div>
                 </div>
 
@@ -130,7 +131,7 @@ export default function CartView() {
         <div className="mt-6 pt-6 border-t space-y-4">
           <div className="flex justify-between items-center">
             <span className="font-medium">Subtotal</span>
-            <span className="font-bold text-lg">₦{subtotal.toLocaleString()}</span>
+            <span className="font-bold text-lg">{formatStoreCurrency(subtotal)}</span>
           </div>
 
           <Button 
@@ -138,7 +139,7 @@ export default function CartView() {
             onClick={handleCheckout}
             disabled={!storeId}
           >
-            Checkout (₦{subtotal.toLocaleString()})
+            Checkout ({formatStoreCurrency(subtotal)})
           </Button>
         </div>
       )}

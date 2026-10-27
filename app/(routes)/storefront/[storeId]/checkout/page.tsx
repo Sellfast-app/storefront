@@ -17,6 +17,7 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
+import { formatStoreCurrency, setStoreCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
 import StateRegionSelect from '@/components/stateRegionSelect';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -151,6 +152,13 @@ interface SelectedQuote {
   orderKey?: string;
 }
 
+interface CheckoutPricing {
+  base_items_total: number;
+  markup_total: number;
+  platform_fee: number;
+  currency?: string;
+}
+
 interface CheckoutOrderResult {
   data?: {
     order?: {
@@ -185,6 +193,7 @@ interface AppliedCoupon {
 interface StorePaymentMethod {
   provider: string;
   subAccountIdentifier?: string | null;
+  available?: boolean;
 }
 
 interface VendorDeliveryRate {
@@ -209,7 +218,7 @@ interface CryptoPaymentInit {
 
 // All possible delivery method values including relay for food stores
 type DeliveryMethodType = 'sendbox' | 'pickup' | 'vendor' | 'gig' | 'relay';
-type PaymentMethodType = 'paystack' | 'klump' | 'crypto';
+type PaymentMethodType = 'paystack' | 'seerbit' | 'klump' | 'crypto';
 type KlumpConstructor = typeof Klump;
 
 interface CustomerDetails {
@@ -285,10 +294,13 @@ const DELIVERY_METHOD_DESCRIPTIONS: Record<DeliveryMethodType, string> = {
 };
 
 const normalizePaymentMethods = (methods: StorePaymentMethod[]) => {
-  const providers = methods.map((method) => String(method.provider || '').toLowerCase());
+  const eligible = methods.filter((method) => method.available !== false);
+  const providers = eligible.map((method) => String(method.provider || '').toLowerCase());
+  const usesAvailabilityContract = methods.some((method) => typeof method.available === 'boolean');
 
   return {
-    paystack: providers.length === 0 || providers.includes('paystack'),
+    paystack: usesAvailabilityContract ? providers.includes('paystack') : providers.length === 0 || providers.includes('paystack'),
+    seerbit: providers.includes('seerbit'),
     klump: providers.includes('klump'),
     crypto: providers.includes('crypto') || providers.includes('kuvarpay'),
   };
@@ -318,12 +330,14 @@ export default function CheckoutPage() {
   const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
   const [enabledPaymentMethods, setEnabledPaymentMethods] = useState({
     paystack: true,
+    seerbit: false,
     klump: false,
     crypto: false,
   });
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
   const [isFoodStore, setIsFoodStore] = useState(false);
+  const [isV2Store, setIsV2Store] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('paystack');
   const [isKlumpReady, setIsKlumpReady] = useState(() => !!getKlumpConstructor());
   const [loadedCheckoutDraftStoreId, setLoadedCheckoutDraftStoreId] = useState<string | null>(null);
@@ -341,6 +355,7 @@ export default function CheckoutPage() {
   const [isFetchingQuote, setIsFetchingQuote] = useState(false);
   const [deliveryQuote, setDeliveryQuote] = useState<DeliveryQuote | null>(null);
   const [selectedQuote, setSelectedQuote] = useState<SelectedQuote | null>(null);
+  const [checkoutPricing, setCheckoutPricing] = useState<CheckoutPricing | null>(null);
   const [showSendboxModal, setShowSendboxModal] = useState(false);
   const [vendorDeliveryRates, setVendorDeliveryRates] = useState<VendorDeliveryRate[]>([]);
   const [selectedVendorDeliveryRate, setSelectedVendorDeliveryRate] = useState<VendorDeliveryRate | null>(null);
@@ -376,18 +391,21 @@ export default function CheckoutPage() {
       if (response.ok) sessionStorage.setItem(getTrackedCheckoutKey(storeId), sessionId);
     }).catch(() => undefined);
   }, [cart.length, storeId]);
-  const couponDiscount = appliedCoupon ? Math.min(itemsTotal, appliedCoupon.amount) : 0;
-  const remainingItemsTotal = Math.max(itemsTotal - couponDiscount, 0);
-  const deliveryFee = appliedCoupon ? 0 : selectedQuote?.fee || 0;
-  const total = remainingItemsTotal + deliveryFee;
+  const baseItemsTotal = checkoutPricing?.base_items_total ?? itemsTotal;
+  const markupTotal = checkoutPricing?.markup_total ?? 0;
+  const platformFee = checkoutPricing?.platform_fee ?? 0;
+  const couponDiscount = appliedCoupon ? Math.min(baseItemsTotal, appliedCoupon.amount) : 0;
+  const remainingItemsTotal = Math.max(baseItemsTotal - couponDiscount, 0);
+  const deliveryFee = appliedCoupon ? 0 : selectedQuote?.fee || selectedVendorDeliveryRate?.rate || 0;
+  const total = remainingItemsTotal + markupTotal + platformFee + deliveryFee;
   const isZeroBalanceOrder = appliedCoupon !== null && total === 0;
-  const orderPayloadItemsTotal = isZeroBalanceOrder ? itemsTotal : remainingItemsTotal;
+  const orderPayloadItemsTotal = isZeroBalanceOrder ? itemsTotal : remainingItemsTotal + markupTotal;
   const hasCouponVendorDelivery = appliedCoupon !== null && deliveryMethod === 'vendor';
 
   // Food orders must be quoted first because the backend returns the orderKey used to create the order.
   const needsQuote =
     deliveryMethod !== null &&
-    (isFood ||
+    (isFood || isV2Store ||
       deliveryMethod === 'sendbox' ||
       deliveryMethod === 'gig' ||
       deliveryMethod === 'relay');
@@ -418,7 +436,7 @@ export default function CheckoutPage() {
         if (draft.deliveryMethod) {
           setDeliveryMethod(draft.deliveryMethod);
         }
-        if (draft.paymentMethod === 'paystack' || draft.paymentMethod === 'klump' || draft.paymentMethod === 'crypto') {
+        if (draft.paymentMethod === 'paystack' || draft.paymentMethod === 'seerbit' || draft.paymentMethod === 'klump' || draft.paymentMethod === 'crypto') {
           setPaymentMethod(draft.paymentMethod);
         }
       }
@@ -467,6 +485,7 @@ export default function CheckoutPage() {
 
         if (result.status === 'success' && result.data?.storeDetails) {
           const storeDetails = result.data.storeDetails;
+          setStoreCurrency(storeId, storeDetails.metadata);
           const logo = typeof storeDetails.logo === 'string' ? storeDetails.logo : null;
           setStoreBrand({
             name: storeDetails.store_name || 'Store',
@@ -484,6 +503,7 @@ export default function CheckoutPage() {
           const businessType: string = storeDetails.business_type || '';
           const isRestaurant = businessType === 'Restaurant/Food Service';
           setIsFoodStore(isRestaurant);
+          setIsV2Store(Boolean(storeDetails.metadata?.v2));
 
           const modes: string[] = storeDetails.enabled_fulfillment_modes || [];
           setEnabledFulfillmentModes(modes);
@@ -531,10 +551,15 @@ export default function CheckoutPage() {
         }
 
         const methods: StorePaymentMethod[] = Array.isArray(result.data) ? result.data : [];
-        setEnabledPaymentMethods(normalizePaymentMethods(methods));
+        const available = normalizePaymentMethods(methods);
+        setEnabledPaymentMethods(available);
+        setPaymentMethod((current) => {
+          if (available[current]) return current;
+          return available.paystack ? 'paystack' : available.seerbit ? 'seerbit' : available.klump ? 'klump' : available.crypto ? 'crypto' : 'paystack';
+        });
       } catch (error) {
         console.error('Error fetching payment methods:', error);
-        setEnabledPaymentMethods({ paystack: true, klump: false, crypto: false });
+        setEnabledPaymentMethods({ paystack: true, seerbit: false, klump: false, crypto: false });
       } finally {
         setIsLoadingPaymentMethods(false);
       }
@@ -547,19 +572,20 @@ export default function CheckoutPage() {
     if (appliedCoupon && deliveryMethod === 'vendor') return;
     setSelectedQuote(null);
     setDeliveryQuote(null);
+    setCheckoutPricing(null);
   }, [appliedCoupon, deliveryMethod]);
 
   useEffect(() => {
-    if (!canUseKlump && paymentMethod === 'klump') {
-      setPaymentMethod('paystack');
+    if (paymentMethod === 'seerbit' && !enabledPaymentMethods.seerbit) {
+      setPaymentMethod(enabledPaymentMethods.paystack ? 'paystack' : enabledPaymentMethods.klump ? 'klump' : enabledPaymentMethods.crypto ? 'crypto' : 'paystack');
     }
-    if (paymentMethod === 'klump' && !enabledPaymentMethods.klump) {
-      setPaymentMethod('paystack');
+    if ((!canUseKlump || !enabledPaymentMethods.klump) && paymentMethod === 'klump') {
+      setPaymentMethod(enabledPaymentMethods.paystack ? 'paystack' : enabledPaymentMethods.seerbit ? 'seerbit' : enabledPaymentMethods.crypto ? 'crypto' : 'paystack');
     }
     if (paymentMethod === 'crypto' && !enabledPaymentMethods.crypto) {
-      setPaymentMethod('paystack');
+      setPaymentMethod(enabledPaymentMethods.paystack ? 'paystack' : enabledPaymentMethods.seerbit ? 'seerbit' : enabledPaymentMethods.klump ? 'klump' : 'paystack');
     }
-  }, [canUseKlump, enabledPaymentMethods.crypto, enabledPaymentMethods.klump, paymentMethod]);
+  }, [canUseKlump, enabledPaymentMethods.crypto, enabledPaymentMethods.klump, enabledPaymentMethods.paystack, enabledPaymentMethods.seerbit, paymentMethod]);
 
   useEffect(() => {
     if (paymentMethod !== 'crypto' || cryptoChains.length > 0) return;
@@ -749,14 +775,28 @@ export default function CheckoutPage() {
 
     try {
       const coupon = await validateCouponCode(normalizedCode);
+      const previewResponse = await fetch('/api/orders/food/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...buildFoodPayload(),
+          delivery_method: 'vendor',
+          coupon_code: coupon.code,
+        }),
+      });
+      const previewResult = await previewResponse.json();
+      if (!previewResponse.ok || !previewResult.data?.pricing) {
+        throw new Error(previewResult.message || 'Unable to calculate the updated checkout total.');
+      }
 
       setAppliedCoupon(coupon);
       setCouponCode(coupon.code);
       setDeliveryMethod('vendor');
       setSelectedQuote({ fee: 0, rate_card_id: null, name: 'Vendor Delivery' });
+      setCheckoutPricing(previewResult.data.pricing);
       setDeliveryQuote(null);
       setIsEditingDelivery(false);
-      toast.success(`Coupon applied successfully. ₦${coupon.amount.toLocaleString()} has been applied to your order.`);
+      toast.success(`Coupon applied successfully. ${formatStoreCurrency(coupon.amount)} has been applied to your order.`);
     } catch (error) {
       setAppliedCoupon(null);
       toast.error(error instanceof Error ? error.message : 'Coupon not approved. Check the code and try again.');
@@ -770,6 +810,7 @@ export default function CheckoutPage() {
     setCouponCode('');
     setSelectedQuote(null);
     setDeliveryQuote(null);
+    setCheckoutPricing(null);
     setIsEditingDelivery(true);
   };
 
@@ -968,6 +1009,7 @@ export default function CheckoutPage() {
 
       const method = result.data?.delivery_method;
       const quoteData = result.data?.quote;
+      if (result.data?.pricing) setCheckoutPricing(result.data.pricing);
 
       if (isFood) {
         const orderKey = result.data?.orderKey;
@@ -981,7 +1023,7 @@ export default function CheckoutPage() {
 
         if (deliveryMethod === 'vendor' || method === 'vendor') {
           setSelectedQuote({
-            fee: 0,
+            fee: appliedCoupon ? 0 : selectedVendorDeliveryRate?.rate || 0,
             rate_card_id: null,
             name: 'Vendor Delivery',
             orderKey,
@@ -1009,7 +1051,7 @@ export default function CheckoutPage() {
         const quoteName = typeof relayQuote?.name === 'string' ? relayQuote.name : 'Relay by Chowdeck';
 
         setSelectedQuote({ fee, rate_card_id: rateCardId, name: quoteName, orderKey });
-        toast.success(`Relay delivery fee: ₦${fee.toLocaleString()} added to total`);
+        toast.success(`Relay delivery fee: ${formatStoreCurrency(fee)} added to total`);
         return;
       }
 
@@ -1023,13 +1065,17 @@ export default function CheckoutPage() {
         if (!gigQuote || !gigQuote.fee) throw new Error('Invalid GIG quote response');
         setDeliveryQuote({ gigQuote, deliveryMethod: 'gig' });
         setSelectedQuote({ fee: gigQuote.fee, rate_card_id: null, name: 'GIG Logistics' });
-        toast.success(`GIG delivery fee: ₦${gigQuote.fee.toLocaleString()} added to total`);
+        toast.success(`GIG delivery fee: ${formatStoreCurrency(gigQuote.fee)} added to total`);
       } else if (method === 'relay') {
         // Relay quote — same shape as GIG (single fee, no rate_card_id)
         const relayFee = typeof quoteData?.fee === 'number' ? quoteData.fee : quoteData;
         const fee = typeof relayFee === 'number' ? relayFee : 0;
         setSelectedQuote({ fee, rate_card_id: null, name: 'Relay by Chowdeck' });
-        toast.success(`Relay delivery fee: ₦${fee.toLocaleString()} added to total`);
+        toast.success(`Relay delivery fee: ${formatStoreCurrency(fee)} added to total`);
+      } else if (method === 'vendor' || method === 'pickup') {
+        const fee = method === 'vendor' ? selectedVendorDeliveryRate?.rate || 0 : 0;
+        setSelectedQuote({ fee, rate_card_id: null, name: method === 'vendor' ? 'Vendor Delivery' : 'Store Pickup' });
+        setIsEditingDelivery(false);
       } else {
         toast.error('Unsupported delivery method returned');
       }
@@ -1044,7 +1090,7 @@ export default function CheckoutPage() {
   const handleSelectSendboxQuote = (quote: SendboxQuote) => {
     setSelectedQuote({ fee: quote.fee, rate_card_id: quote.rate_card_id, name: quote.name });
     setShowSendboxModal(false);
-    toast.success(`${quote.name} selected — ₦${quote.fee.toLocaleString()} delivery fee added`);
+    toast.success(`${quote.name} selected — ${formatStoreCurrency(quote.fee)} delivery fee added`);
   };
 
   // ── Order creation ──────────────────────────────────────────────────────────
@@ -1285,6 +1331,7 @@ export default function CheckoutPage() {
           deliveryNotes,
           orderData: orderResult,
           paymentReference,
+          paymentProvider: paymentMethod,
           coupon: appliedCoupon,
         }));
 
@@ -1384,7 +1431,7 @@ export default function CheckoutPage() {
           <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-green-700 dark:text-green-400">✓ {selectedQuote.name}</p>
-              <p className="text-xs text-green-600 dark:text-green-500">Delivery fee: ₦{selectedQuote.fee.toLocaleString()}</p>
+              <p className="text-xs text-green-600 dark:text-green-500">Delivery fee: {formatStoreCurrency(selectedQuote.fee)}</p>
             </div>
             {needsQuote && !isEditingDelivery && (
               <button
@@ -1409,6 +1456,7 @@ export default function CheckoutPage() {
   const vendorBrand = <VendorBrand storeId={storeId} brand={storeBrand} />;
   const updateCheckoutQuantity = (id: string | number, quantity: number) => {
     updateQuantity(id, quantity);
+    setCheckoutPricing(null);
     if (needsQuote && !hasCouponVendorDelivery) {
       setSelectedQuote(null);
       setDeliveryQuote(null);
@@ -1446,18 +1494,30 @@ export default function CheckoutPage() {
                         <button type='button' aria-label={`Increase ${item.name} quantity`} className='flex h-8 w-8 items-center justify-center' disabled={isProcessingPayment} onClick={() => updateCheckoutQuantity(item.id, item.quantity + 1)}><Plus className='h-3.5 w-3.5' /></button>
                       </div>
                     </div>
-                    <span className='shrink-0 text-xs sm:text-sm'>₦{(item.price * item.quantity).toLocaleString()}</span>
+                    <span className='shrink-0 text-xs sm:text-sm'>{formatStoreCurrency(item.price * item.quantity)}</span>
                   </div>
                 ))}
               </div>
               <div className='flex items-center justify-between'>
                 <span className='text-sm'>Subtotal</span>
-                <span className='text-sm'>₦{itemsTotal.toLocaleString()}</span>
+                <span className='text-sm'>{formatStoreCurrency(baseItemsTotal)}</span>
               </div>
+              {markupTotal > 0 && (
+                <div className='flex items-center justify-between'>
+                  <span className='text-sm'>Product markup</span>
+                  <span className='text-sm'>{formatStoreCurrency(markupTotal)}</span>
+                </div>
+              )}
+              {platformFee > 0 && (
+                <div className='flex items-center justify-between'>
+                  <span className='text-sm'>Swiftree platform fee</span>
+                  <span className='text-sm'>{formatStoreCurrency(platformFee)}</span>
+                </div>
+              )}
               {selectedQuote && (
                 <div className='flex items-center justify-between'>
                   <span className='text-sm'>Delivery Fee ({selectedQuote.name})</span>
-                  <span className='text-sm'>{appliedCoupon ? 'Free' : `₦${selectedQuote.fee.toLocaleString()}`}</span>
+                  <span className='text-sm'>{appliedCoupon ? 'Free' : formatStoreCurrency(selectedQuote.fee)}</span>
                 </div>
               )}
               {appliedCoupon && !selectedQuote && (
@@ -1470,11 +1530,11 @@ export default function CheckoutPage() {
                 <>
                   <div className='flex items-center justify-between'>
                     <span className='text-sm'>Coupon ({appliedCoupon.code})</span>
-                    <span className='text-sm text-[#4FCA6A]'>-₦{couponDiscount.toLocaleString()}</span>
+                    <span className='text-sm text-[#4FCA6A]'>-{formatStoreCurrency(couponDiscount)}</span>
                   </div>
                   <div className='flex items-center justify-between'>
                     <span className='text-sm'>Remaining item balance</span>
-                    <span className='text-sm'>₦{remainingItemsTotal.toLocaleString()}</span>
+                    <span className='text-sm'>{formatStoreCurrency(remainingItemsTotal)}</span>
                   </div>
                 </>
               )}
@@ -1516,12 +1576,12 @@ export default function CheckoutPage() {
                 </div>
                 {appliedCoupon && (
                   <div className="rounded-lg border border-[var(--store-secondary)]/30 bg-[var(--store-secondary)]/10 p-3 text-sm text-[#2E7D42]">
-                    Coupon applied successfully. ₦{couponDiscount.toLocaleString()} has been applied to your order.
+                    Coupon applied successfully. {formatStoreCurrency(couponDiscount)} has been applied to your order.
                   </div>
                 )}
               </div>
               <div className='flex items-center justify-between border-y border-dashed py-4 text-xl font-semibold'>
-                <span>Total to pay</span><span>₦{total.toLocaleString()}</span>
+                <span>Total to pay</span><span>{formatStoreCurrency(total)}</span>
               </div>
               {!isZeroBalanceOrder && <h3 className='pt-4 text-2xl font-semibold'>Choose Payment Method</h3>}
               {isZeroBalanceOrder ? (
@@ -1536,6 +1596,13 @@ export default function CheckoutPage() {
                         onClick={() => setPaymentMethod('paystack')}
                         className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'paystack' ? 'border-[var(--store-primary)] bg-[var(--store-accent)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
                         <span aria-hidden="true" className="[&>svg]:max-w-full"><PaystackLogo /></span>
+                      </button>
+                    )}
+                    {enabledPaymentMethods.seerbit && (
+                      <button type="button" aria-pressed={paymentMethod === 'seerbit'}
+                        onClick={() => setPaymentMethod('seerbit')}
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'seerbit' ? 'border-[var(--store-primary)] bg-[var(--store-accent)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
+                        SeerBit
                       </button>
                     )}
                     {canUseKlump && enabledPaymentMethods.klump && (
@@ -1709,7 +1776,7 @@ export default function CheckoutPage() {
                       Select a shipping price
                     </span>
                   </button>
-                  {selectedQuote && <p className='mt-4 text-sm text-[#71717A]'>{selectedQuote.name} · {appliedCoupon ? 'Free' : `₦${selectedQuote.fee.toLocaleString()}`}</p>}
+                  {selectedQuote && <p className='mt-4 text-sm text-[#71717A]'>{selectedQuote.name} · {appliedCoupon ? 'Free' : formatStoreCurrency(selectedQuote.fee)}</p>}
                   </div>
                 </div>
             </CardContent>
@@ -1858,7 +1925,7 @@ export default function CheckoutPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-primary">₦{quote.fee.toLocaleString()}</p>
+                    <p className="text-sm font-bold text-primary">{formatStoreCurrency(quote.fee)}</p>
                   </div>
                 </button>
               ))}
@@ -1922,7 +1989,7 @@ export default function CheckoutPage() {
                     </span>
                   </span>
                   <span className="shrink-0 text-sm font-semibold text-primary">
-                    ₦{rate.rate.toLocaleString()}
+                    {formatStoreCurrency(rate.rate)}
                   </span>
                 </button>
               ))}

@@ -58,6 +58,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { format } from "date-fns";
+import { formatStoreCurrency, setStoreCurrency } from "@/lib/currency";
 
 interface StoreDetails {
   id: string;
@@ -1224,7 +1225,7 @@ function RetailProductCard({
             {product.product_name}
           </p>
           <p className="mt-2 text-sm font-bold text-[#111827]">
-            ₦{product.product_price.toLocaleString()}
+            {formatStoreCurrency(product.product_price)}
           </p>
           <span className="mt-2 inline-block border-b border-[#D1D5DB] pb-1 text-sm text-[#555]">
             {product.product_quantity === 0 ? "Sold out" : hasVariants ? "Select options" : "View product"}
@@ -1632,7 +1633,7 @@ function V2EventStorefront({
                           : hasFreeTicket
                             ? `From Free`
                             : lowestPrice !== Infinity
-                              ? `From ₦${lowestPrice.toLocaleString()}`
+                              ? `From ${formatStoreCurrency(lowestPrice)}`
                               : "Tickets available"}
                       </span>
                     </div>
@@ -1756,7 +1757,7 @@ function V2EventStorefront({
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-semibold text-[#111827]">{ticket.name}</p>
                                 <p className="mt-0.5 text-base font-bold text-[var(--store-primary)]">
-                                  {ticket.type === "free" ? "Free" : `₦${(ticket.price || 0).toLocaleString()}`}
+                                  {ticket.type === "free" ? "Free" : formatStoreCurrency(ticket.price || 0)}
                                 </p>
                                 {isSoldOut && (
                                   <p className="mt-1 text-xs font-medium text-red-500">Sold out</p>
@@ -1803,20 +1804,20 @@ function V2EventStorefront({
                             <span>
                               {ticket.type === "free"
                                 ? "Free"
-                                : `₦${((ticket.price || 0) * quantity).toLocaleString()}`}
+                                : formatStoreCurrency((ticket.price || 0) * quantity)}
                             </span>
                           </div>
                         ))}
                         {serviceFee > 0 && (
                           <div className="flex justify-between text-[#9CA3AF]">
                             <span>Service fee</span>
-                            <span>₦{serviceFee.toLocaleString()}</span>
+                            <span>{formatStoreCurrency(serviceFee)}</span>
                           </div>
                         )}
                         <div className="flex justify-between border-t border-[#F0F0F0] pt-2 font-bold text-[#111827]">
                           <span>Total</span>
                           <span>
-                            {ticketTotal === 0 ? "Free" : `₦${ticketTotal.toLocaleString()}`}
+                            {ticketTotal === 0 ? "Free" : formatStoreCurrency(ticketTotal)}
                           </span>
                         </div>
                       </div>
@@ -1889,7 +1890,7 @@ function V2EventStorefront({
                               {eventFree && eventLowest === 0
                                 ? "Free"
                                 : eventLowest !== Infinity
-                                  ? `From ₦${eventLowest.toLocaleString()}`
+                                  ? `From ${formatStoreCurrency(eventLowest)}`
                                   : "Tickets available"}
                             </p>
                           </div>
@@ -1935,12 +1936,12 @@ function V2EventStorefront({
                 {selectedTickets.map(({ ticket, quantity }) => (
                   <div key={ticket.id} className="flex justify-between gap-4">
                     <span>{quantity}× {ticket.name}</span>
-                    <span>{ticket.type === "free" ? "Free" : `₦${((ticket.price || 0) * quantity).toLocaleString()}`}</span>
+                    <span>{ticket.type === "free" ? "Free" : formatStoreCurrency((ticket.price || 0) * quantity)}</span>
                   </div>
                 ))}
                 <div className="flex justify-between border-t border-[#E8E8E8] pt-2 font-semibold text-[#111827]">
                   <span>Total</span>
-                  <span>{ticketTotal === 0 ? "Free" : `₦${ticketTotal.toLocaleString()}`}</span>
+                  <span>{ticketTotal === 0 ? "Free" : formatStoreCurrency(ticketTotal)}</span>
                 </div>
               </div>
             </div>
@@ -2028,7 +2029,9 @@ function Page() {
               ? mockFoodStoreDetails
               : mockRetailStoreDetails;
           const branch = previewBranches.find(branch => branch.id === selectedBranch(storeId))!;
-          setStoreDetails({ ...details, id: storeId, metadata: { ...details.metadata, ...(!isMockEventStore ? { address: branch.address, city: branch.name } : {}) } } as StoreDetails);
+          const mockDetails = { ...details, id: storeId, metadata: { ...details.metadata, ...(!isMockEventStore ? { address: branch.address, city: branch.name } : {}) } } as StoreDetails;
+          setStoreCurrency(storeId, mockDetails.metadata);
+          setStoreDetails(mockDetails);
           setStoreReviews(mockStoreReviews);
           setListings(
             isMockEventStore
@@ -2052,7 +2055,9 @@ function Page() {
         }
         const result = await response.json();
         if (result.status === "success" && result.data) {
-          setStoreDetails(result.data.storeDetails as StoreDetails);
+          const details = result.data.storeDetails as StoreDetails;
+          setStoreCurrency(storeId, details.metadata);
+          setStoreDetails(details);
           setStoreReviews(result.data.reviews.items || []);
           setListings(result.data.total_listings || 0);
           setRatings(result.data.ratings || 0);

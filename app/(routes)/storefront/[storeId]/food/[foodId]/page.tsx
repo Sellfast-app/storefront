@@ -20,6 +20,7 @@ import MinusIcon from "@/components/svgIcons/MinusIcon";
 import { AddOnGroup, AddOnOption, FoodItem, Portion } from "@/lib/mockdata";
 import { getFoodCardPrice } from "@/lib/foodPricing";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatStoreCurrency } from "@/lib/currency";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -575,7 +576,7 @@ function Page() {
                             </span>
                           </div>
                           <span className="font-semibold text-[#4FCA6A]">
-                            ₦{p.price.toLocaleString()}
+                            {formatStoreCurrency(p.price)}
                           </span>
                         </button>
                       ))}
@@ -608,7 +609,7 @@ function Page() {
                               >
                                 <span className="font-medium capitalize">{type}</span>
                                 <span className="font-semibold text-[#4FCA6A]">
-                                  ₦{price.toLocaleString()}
+                                  {formatStoreCurrency(price)}
                                 </span>
                               </button>
                             );
@@ -669,7 +670,7 @@ function Page() {
                                   </div>
                                   <div className="flex items-center gap-3">
                                     <span className="text-[#4FCA6A] font-semibold">
-                                      +₦{option.price.toLocaleString()}
+                                      +{formatStoreCurrency(option.price)}
                                     </span>
                                     {isSelected && (
                                       <div
@@ -725,7 +726,7 @@ function Page() {
                               <span className="text-xs text-gray-400">{bundle.category}</span>
                             </div>
                             <span className="text-sm font-semibold text-[#4FCA6A]">
-                              ₦{bundle.price.toLocaleString()}
+                              {formatStoreCurrency(bundle.price)}
                             </span>
                           </div>
                         ))}
@@ -784,7 +785,7 @@ function Page() {
                                   </div>
                                   <div className="flex items-center gap-3">
                                     <span className="text-[#4FCA6A] font-semibold">
-                                      +₦{option.price.toLocaleString()}
+                                      +{formatStoreCurrency(option.price)}
                                     </span>
                                     {isSelected && (
                                       <div
@@ -830,11 +831,11 @@ function Page() {
                     <div>
                       <span className="text-xs text-gray-500">Total Price</span>
                       <h3 className="text-xl font-bold">
-                        {totalPrice > 0 ? `₦${totalPrice.toLocaleString()}` : "—"}
+                        {totalPrice > 0 ? formatStoreCurrency(totalPrice) : "—"}
                       </h3>
                       {quantity > 1 && basePrice > 0 && (
                         <p className="text-xs text-gray-400">
-                          ₦{basePrice.toLocaleString()} × {quantity}
+                          {formatStoreCurrency(basePrice)} × {quantity}
                         </p>
                       )}
                     </div>
@@ -924,7 +925,7 @@ function Page() {
                         <p className="text-xs font-medium line-clamp-2">{item.name}</p>
                         <div className="flex items-center justify-between mt-1.5">
                           {cardPrice !== null && (
-                            <span className="text-sm font-semibold">₦{cardPrice.toLocaleString()}</span>
+                            <span className="text-sm font-semibold">{formatStoreCurrency(cardPrice)}</span>
                           )}
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
                             item.type === "Customizable"

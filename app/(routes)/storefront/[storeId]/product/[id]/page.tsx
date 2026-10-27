@@ -1,6 +1,7 @@
 "use client";
 import { retailBranchProducts, selectedBranch } from '@/lib/branch-preview';
 import { isMockRetailStorefront } from '@/lib/storefront-mock';
+import { formatStoreCurrency } from '@/lib/currency';
 
 import React, { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
@@ -425,7 +426,7 @@ function Page() {
                 <span className='text-lg font-medium'>{product.product_name}</span>
 
                 <div className='flex items-center justify-between mt-2'>
-                  <h3 className='font-semibold text-xl'>₦{product.product_price.toLocaleString()}</h3>
+                  <h3 className='font-semibold text-xl'>{formatStoreCurrency(product.product_price)}</h3>
                   <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
                     <button type='button' aria-label='Increase quantity' onClick={incrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
                       <PlusIcon className='w-4 h-4' />
@@ -547,7 +548,7 @@ function Page() {
                       <div className='flex justify-between'>
                         <div>
                           <span className='text-xs text-gray-500'>Total Price:</span>
-                          <h3 className='text-xl font-bold'>₦{totalPrice.toLocaleString()}</h3>
+                          <h3 className='text-xl font-bold'>{formatStoreCurrency(totalPrice)}</h3>
                         </div>
                         <Button onClick={() => handleAddToCart()} disabled={isAddToCartDisabled}>
                           <CartIcon />
@@ -632,7 +633,7 @@ function Page() {
                         width={300} height={200} className='object-cover w-full h-45 rounded-t-2xl' />
                       <p className='text-xs mt-2 px-2 line-clamp-2'>{prod.product_name}</p>
                       <div className='flex items-center justify-between mt-2 px-2 pb-3'>
-                        <span className='text-sm font-semibold'>₦{prod.product_price.toLocaleString()}</span>
+                        <span className='text-sm font-semibold'>{formatStoreCurrency(prod.product_price)}</span>
                         <Button className='text-xs' onClick={(e) => handleRelatedProductAddToCart(e, prod)}>
                           Add to Cart
                         </Button>
