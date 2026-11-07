@@ -331,6 +331,7 @@ function RetailStorefrontFooter({
   logoUrl,
 }: Pick<V2TemplateProps, "storeId" | "storeDetails" | "logoUrl">) {
   const [email, setEmail] = useState("");
+  const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
@@ -364,7 +365,7 @@ function RetailStorefrontFooter({
     setMessage("");
     try {
       const response = await fetch("/api/leads", {
-        body: JSON.stringify({ email, storeId }),
+        body: JSON.stringify({ email, storeId, consent }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
@@ -373,6 +374,7 @@ function RetailStorefrontFooter({
       setStatus("success");
       setMessage("You're on the list.");
       setEmail("");
+      setConsent(false);
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Unable to join list right now");
@@ -488,6 +490,16 @@ function RetailStorefrontFooter({
                   {status === "loading" ? "..." : "Join"}
                 </Button>
               </div>
+              <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-white/70">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(event) => setConsent(event.target.checked)}
+                  required
+                  className="mt-1 h-4 w-4 shrink-0 accent-[var(--store-secondary)]"
+                />
+                <span>I agree to receive email updates from {storeDetails.store_name}.</span>
+              </label>
               {message && (
                 <p className={`mt-2 text-xs ${status === "error" ? "text-red-200" : "text-white/80"}`}>
                   {message}
@@ -521,6 +533,7 @@ function FoodStorefrontFooter({
   logoUrl,
 }: Pick<V2TemplateProps, "storeId" | "storeDetails" | "logoUrl">) {
   const [email, setEmail] = useState("");
+  const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
@@ -585,7 +598,7 @@ function FoodStorefrontFooter({
     setMessage("");
     try {
       const response = await fetch("/api/leads", {
-        body: JSON.stringify({ email, storeId }),
+        body: JSON.stringify({ email, storeId, consent }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
@@ -594,6 +607,7 @@ function FoodStorefrontFooter({
       setStatus("success");
       setMessage("You're on the list.");
       setEmail("");
+      setConsent(false);
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Unable to join list right now");
@@ -722,6 +736,16 @@ function FoodStorefrontFooter({
                   {status === "loading" ? "..." : "Join"}
                 </Button>
               </div>
+              <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-white/70">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(event) => setConsent(event.target.checked)}
+                  required
+                  className="mt-1 h-4 w-4 shrink-0 accent-[var(--store-secondary)]"
+                />
+                <span>I agree to receive email updates from {storeDetails.store_name}.</span>
+              </label>
               {message && (
                 <p className={`mt-2 text-xs ${status === "error" ? "text-red-200" : "text-white/80"}`}>
                   {message}

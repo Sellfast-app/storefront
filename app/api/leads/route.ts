@@ -22,44 +22,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const payload = {
-      email,
-      source: "storefront",
-      store_id: storeId,
-      storeId,
-    };
-
-    const attempts = [
+    const response = await fetch(
       `${API_BASE_URL}/api/stores/${encodeURIComponent(storeId)}/leads`,
-      `${API_BASE_URL}/api/leads`,
-    ];
-
-    let lastStatus = 502;
-    let lastMessage = "Unable to submit lead";
-
-    for (const url of attempts) {
-      const response = await fetch(url, {
-        body: JSON.stringify(payload),
+      {
+        body: JSON.stringify({ email, source: "storefront_footer", consent: body.consent === true }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
-      });
-
-      const responseText = await response.text();
-      if (!response.ok) {
-        lastStatus = response.status;
-        lastMessage = responseText || lastMessage;
-        if (response.status === 404) continue;
-        break;
       }
-
-      const data = responseText ? JSON.parse(responseText) : { status: "success" };
-      return NextResponse.json(data, { status: response.status });
-    }
-
-    return NextResponse.json(
-      { status: "error", message: lastMessage },
-      { status: lastStatus }
     );
+    const responseText = await response.text();
+    let data: unknown;
+    try {
+      data = responseText ? JSON.parse(responseText) : { status: "success" };
+    } catch {
+      data = { status: "error", message: "Unexpected response from lead service" };
+    }
+    return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error("Lead capture error:", error);
     return NextResponse.json(
