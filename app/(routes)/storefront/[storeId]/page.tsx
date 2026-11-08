@@ -2006,6 +2006,15 @@ function Page() {
   const params = useParams();
   const storeId = params.storeId as string;
 
+  useEffect(() => {
+    if (!storeId) return;
+    const params = new URLSearchParams(window.location.search);
+    const utmSource = params.get("utm_source")?.toLowerCase();
+    if (utmSource === "swiftree_linkinbio" || utmSource === "linkinbio") {
+      sessionStorage.setItem(`sales_source_${storeId}`, "linkinbio");
+    }
+  }, [storeId]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showCart, setShowCart] = useState(false);
   const [storeDetails, setStoreDetails] = useState<StoreDetails | null>(null);

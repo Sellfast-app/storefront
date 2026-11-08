@@ -256,6 +256,7 @@ const DEFAULT_CUSTOMER_DETAILS: CustomerDetails = {
 const getCheckoutDraftKey = (storeId: string) => `checkout_draft_${storeId}`;
 const getCheckoutSessionKey = (storeId: string) => `checkout_session_${storeId}`;
 const getTrackedCheckoutKey = (storeId: string) => `checkout_tracked_${storeId}`;
+const getSalesSource = (storeId: string) => sessionStorage.getItem(`sales_source_${storeId}`) === "linkinbio" ? "linkinbio" : "direct";
 
 function getOrCreateCheckoutSessionId(storeId: string) {
   const key = getCheckoutSessionKey(storeId);
@@ -386,7 +387,7 @@ export default function CheckoutPage() {
     void fetch('/api/analytics/checkout-event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ storeId, checkoutSessionId: sessionId }),
+      body: JSON.stringify({ storeId, checkoutSessionId: sessionId, salesSource: getSalesSource(storeId) }),
     }).then((response) => {
       if (response.ok) sessionStorage.setItem(getTrackedCheckoutKey(storeId), sessionId);
     }).catch(() => undefined);
@@ -858,6 +859,8 @@ export default function CheckoutPage() {
   // ── Regular product payload ─────────────────────────────────────────────────
   const buildBasePayload = () => ({
     store_id: storeId,
+    sales_channel: "website",
+    sales_source: getSalesSource(storeId),
     items: cart.map(item => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const orderItem: any = {
@@ -906,6 +909,8 @@ export default function CheckoutPage() {
   // ── Food order payload ──────────────────────────────────────────────────────
   const buildFoodPayload = () => ({
     store_id: storeId,
+    sales_channel: "website",
+    sales_source: getSalesSource(storeId),
     total_amount: orderPayloadItemsTotal,
     original_items_total: itemsTotal,
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),

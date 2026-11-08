@@ -16,7 +16,11 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         storeId: body.storeId,
         type: "checkout.started",
-        payload: { checkout_session_id: body.checkoutSessionId },
+        payload: {
+          checkout_session_id: body.checkoutSessionId,
+          sales_channel: "website",
+          sales_source: body.salesSource === "linkinbio" ? "linkinbio" : "direct",
+        },
       }),
       cache: "no-store",
     });
