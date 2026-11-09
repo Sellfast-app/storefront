@@ -18,6 +18,7 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { formatStoreCurrency, setStoreCurrency } from '@/lib/currency';
+import { currentBranchId } from '@/lib/branch-preview';
 import { toast } from 'sonner';
 import StateRegionSelect from '@/components/stateRegionSelect';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -294,13 +295,16 @@ const DELIVERY_METHOD_DESCRIPTIONS: Record<DeliveryMethodType, string> = {
   relay: 'Delivered through Relay by Chowdeck. Delivery fee will be calculated after saving.',
 };
 
+const isFoodBusinessType = (businessType?: string) =>
+  ['food', 'food & restaurant', 'food and restaurant', 'restaurant/food service']
+    .includes(String(businessType || '').trim().toLowerCase());
+
 const normalizePaymentMethods = (methods: StorePaymentMethod[]) => {
   const eligible = methods.filter((method) => method.available !== false);
   const providers = eligible.map((method) => String(method.provider || '').toLowerCase());
-  const usesAvailabilityContract = methods.some((method) => typeof method.available === 'boolean');
 
   return {
-    paystack: usesAvailabilityContract ? providers.includes('paystack') : providers.length === 0 || providers.includes('paystack'),
+    paystack: providers.includes('paystack'),
     seerbit: providers.includes('seerbit'),
     klump: providers.includes('klump'),
     crypto: providers.includes('crypto') || providers.includes('kuvarpay'),
@@ -330,12 +334,16 @@ export default function CheckoutPage() {
   const [phoneDialCode, setPhoneDialCode] = useState('+234');
   const [enabledFulfillmentModes, setEnabledFulfillmentModes] = useState<string[]>([]);
   const [enabledPaymentMethods, setEnabledPaymentMethods] = useState({
-    paystack: true,
+    paystack: false,
     seerbit: false,
     klump: false,
     crypto: false,
   });
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
+  const [paymentMethodsError, setPaymentMethodsError] = useState('');
+  const [storeSettingsLoaded, setStoreSettingsLoaded] = useState(false);
+  const [storeSettingsValid, setStoreSettingsValid] = useState(false);
+  const [storeSettingsStoreId, setStoreSettingsStoreId] = useState<string | null>(null);
   const [isLoadingModes, setIsLoadingModes] = useState(true);
   const [isFoodStore, setIsFoodStore] = useState(false);
   const [isV2Store, setIsV2Store] = useState(false);
@@ -477,6 +485,9 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const fetchStoreFulfillmentModes = async () => {
+      setStoreSettingsLoaded(false);
+      setStoreSettingsValid(false);
+      setStoreSettingsStoreId(null);
       setStoreBrand({ name: '', logo: null, colors: { primary: '#005B14', secondary: '#4FCA6A', accent: '#E8F5E9' } });
       try {
         setIsLoadingModes(true);
@@ -501,9 +512,8 @@ export default function CheckoutPage() {
               accent: storeDetails.metadata?.brand_color?.accent || '#E8F5E9',
             },
           });
-          const businessType: string = storeDetails.business_type || '';
-          const isRestaurant = businessType === 'Restaurant/Food Service';
-          setIsFoodStore(isRestaurant);
+          const businessType: string = storeDetails.metadata?.v2?.business_type || storeDetails.business_type || '';
+          setIsFoodStore(isFoodBusinessType(businessType));
           setIsV2Store(Boolean(storeDetails.metadata?.v2));
 
           const modes: string[] = storeDetails.enabled_fulfillment_modes || [];
@@ -525,15 +535,21 @@ export default function CheckoutPage() {
             currentMethod && modes.includes(currentMethod) ? currentMethod : null
           );
           setIsEditingDelivery(true);
+          setStoreSettingsValid(true);
+        } else {
+          throw new Error(result.message || 'Store details were not returned');
         }
       } catch (error) {
         console.error('❌ Error fetching store fulfillment modes:', error);
         toast.error('Failed to load delivery options');
-        setEnabledFulfillmentModes(['pickup']);
-        setDeliveryMethod(currentMethod => currentMethod === 'pickup' ? currentMethod : null);
+        setEnabledFulfillmentModes([]);
+        setDeliveryMethod(null);
+        setStoreSettingsValid(false);
         setIsEditingDelivery(true);
       } finally {
         setIsLoadingModes(false);
+        setStoreSettingsLoaded(true);
+        setStoreSettingsStoreId(storeId);
       }
     };
 
@@ -544,14 +560,22 @@ export default function CheckoutPage() {
     const fetchStorePaymentMethods = async () => {
       try {
         setIsLoadingPaymentMethods(true);
-        const response = await fetch(`/api/stores/${storeId}/payment-methods`);
+        setPaymentMethodsError('');
+        const response = isV2Store
+          ? await fetch(`/api/v2/payment-methods/stores/${encodeURIComponent(storeId)}`, { cache: 'no-store' })
+          : await fetch(`/api/stores/${storeId}/payment-methods`, { cache: 'no-store' });
         const result = await response.json();
 
         if (!response.ok || result.status === 'error') {
           throw new Error(result.message || 'Failed to fetch payment methods');
         }
 
-        const methods: StorePaymentMethod[] = Array.isArray(result.data) ? result.data : [];
+        const methods: StorePaymentMethod[] = Array.isArray(result.data)
+          ? result.data.map((method: { id?: string; provider?: string; available?: boolean }) => ({
+              provider: method.provider || method.id || '',
+              available: isV2Store ? true : method.available,
+            }))
+          : [];
         const available = normalizePaymentMethods(methods);
         setEnabledPaymentMethods(available);
         setPaymentMethod((current) => {
@@ -560,14 +584,19 @@ export default function CheckoutPage() {
         });
       } catch (error) {
         console.error('Error fetching payment methods:', error);
-        setEnabledPaymentMethods({ paystack: true, seerbit: false, klump: false, crypto: false });
+        setEnabledPaymentMethods({ paystack: false, seerbit: false, klump: false, crypto: false });
+        setPaymentMethodsError(error instanceof Error ? error.message : 'Payment methods are unavailable.');
       } finally {
         setIsLoadingPaymentMethods(false);
       }
     };
 
-    if (storeId) fetchStorePaymentMethods();
-  }, [storeId]);
+    if (storeId && storeSettingsStoreId === storeId && storeSettingsValid) fetchStorePaymentMethods();
+    else if (storeSettingsStoreId === storeId && !storeSettingsValid) {
+      setEnabledPaymentMethods({ paystack: false, seerbit: false, klump: false, crypto: false });
+      setPaymentMethodsError('Store settings are unavailable. Refresh and try again.');
+    }
+  }, [isV2Store, storeId, storeSettingsStoreId, storeSettingsValid]);
 
   useEffect(() => {
     if (appliedCoupon && deliveryMethod === 'vendor') return;
@@ -861,6 +890,7 @@ export default function CheckoutPage() {
     store_id: storeId,
     sales_channel: "website",
     sales_source: getSalesSource(storeId),
+    ...(currentBranchId(storeId) && { branch_id: currentBranchId(storeId) }),
     items: cart.map(item => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const orderItem: any = {
@@ -911,6 +941,7 @@ export default function CheckoutPage() {
     store_id: storeId,
     sales_channel: "website",
     sales_source: getSalesSource(storeId),
+    ...(currentBranchId(storeId) && { branch_id: currentBranchId(storeId) }),
     total_amount: orderPayloadItemsTotal,
     original_items_total: itemsTotal,
     total_items: cart.reduce((sum, item) => sum + item.quantity, 0),
@@ -1245,6 +1276,10 @@ export default function CheckoutPage() {
 
   const handleProceedToPayment = async () => {
     if (!validateCheckout()) return;
+    if (!isZeroBalanceOrder && (!enabledPaymentMethods[paymentMethod] || isLoadingPaymentMethods)) {
+      toast.error('Select an available payment method before continuing.');
+      return;
+    }
     if (paymentMethod === 'crypto' && !isZeroBalanceOrder && (!selectedCryptoChain || !selectedCryptoCurrency)) {
       toast.error('Please select a crypto network and currency before continuing.');
       return;
@@ -1668,6 +1703,12 @@ export default function CheckoutPage() {
                   {isLoadingPaymentMethods && (
                     <p className="text-xs text-[#A0A0A0]">Loading store payment methods...</p>
                   )}
+                  {!isLoadingPaymentMethods && paymentMethodsError && (
+                    <p role="alert" className="text-sm text-red-600">{paymentMethodsError}</p>
+                  )}
+                  {!isLoadingPaymentMethods && !paymentMethodsError && !Object.values(enabledPaymentMethods).some(Boolean) && (
+                    <p role="alert" className="text-sm text-red-600">No online payment method is currently enabled for this store.</p>
+                  )}
                   {canUseKlump && enabledPaymentMethods.klump && <div id="klump__checkout" className="hidden" />}
                   {canUseKlump && enabledPaymentMethods.klump && (
                     <Script
@@ -1688,6 +1729,8 @@ export default function CheckoutPage() {
                   isProcessingPayment ||
                   cart.length === 0 ||
                   isLoadingModes ||
+                  !storeSettingsLoaded ||
+                  (!isZeroBalanceOrder && (isLoadingPaymentMethods || !Object.values(enabledPaymentMethods).some(Boolean))) ||
                   isFetchingQuote ||
                   !deliveryMethod ||
                   (needsQuote && !selectedQuote && !hasCouponVendorDelivery)
