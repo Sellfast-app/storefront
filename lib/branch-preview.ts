@@ -14,6 +14,12 @@ export function resolveBranch(requested: string | null, remembered: string | nul
 export function selectedBranch(storeId: string): BranchId {
   try { return resolveBranch(null, localStorage.getItem(branchKey(storeId))); } catch { return "main"; }
 }
+export function currentBranchId(storeId: string): string | null {
+  try {
+    const branchId = localStorage.getItem(branchKey(storeId));
+    return branchId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(branchId) ? branchId : null;
+  } catch { return null; }
+}
 // Explicit demo overrides, not exchange rates or production pricing rules.
 export function retailBranchProducts(branch: BranchId) {
   return mockRetailProducts.filter((_, index) => branch === "main" || index !== 4).map((product, index) => ({
