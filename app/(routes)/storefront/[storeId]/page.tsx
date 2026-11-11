@@ -95,6 +95,7 @@ interface StoreDetails {
       background_color: string;
       text_color: string;
     };
+    storefront_footer_image?: string;
     address_line_2: string;
     instagram?: string;
     facebook?: string;
@@ -291,7 +292,10 @@ function StorefrontFooter({
   logoUrl,
 }: Pick<V2TemplateProps, "storeDetails" | "logoUrl">) {
   return (
-    <footer className="mt-16 bg-[url('/storefront-footer-bg.png')] bg-cover bg-center text-white">
+    <footer
+      className="mt-16 bg-cover bg-center text-white"
+      style={{ backgroundImage: `url("${storeDetails.metadata?.storefront_footer_image || '/Banner.png'}")` }}
+    >
       <div className="bg-[#061400]/10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-8 md:flex-row lg:px-8">
           <div className="flex items-center gap-3">
@@ -393,7 +397,10 @@ function RetailStorefrontFooter({
   ];
 
   return (
-    <footer className="mt-16 bg-[url('/storefront-footer-bg.png')] bg-cover bg-center text-white">
+    <footer
+      className="mt-16 bg-cover bg-center text-white"
+      style={{ backgroundImage: `url("${storeDetails.metadata?.storefront_footer_image || '/Banner.png'}")` }}
+    >
       <div className="bg-[#061400]/20">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-5 gap-y-8 px-4 py-12 [&>div]:min-w-0 [&>div:first-child]:col-span-2 [&>div:last-child]:col-span-2 md:grid-cols-[1.2fr_0.8fr_0.9fr_1.25fr] md:gap-10 md:[&>div:first-child]:col-span-1 md:[&>div:last-child]:col-span-1 lg:px-8">
           <div>
@@ -556,11 +563,7 @@ function FoodStorefrontFooter({
         day: entry.day,
         hours: `${formatFooterTime(entry.openTime)} - ${formatFooterTime(entry.closeTime)}`,
       }))
-    : [
-        { day: "Monday - Friday", hours: "09:00 AM - 09:30 PM" },
-        { day: "Saturday", hours: "09:00 AM - 08:30 PM" },
-        { day: "Sunday", hours: "10:00 AM - 08:30 PM" },
-      ];
+    : [];
 
   const socialLinks = [
     {
@@ -586,12 +589,6 @@ function FoodStorefrontFooter({
     storeDetails.metadata?.state,
     storeDetails.metadata?.country,
   ].filter(Boolean);
-  const locationItems = [
-    storeDetails.metadata?.city ? `${storeDetails.metadata.city} Branch` : null,
-    storeDetails.metadata?.address,
-    [storeDetails.metadata?.state, storeDetails.metadata?.country].filter(Boolean).join(", "),
-  ].filter(Boolean);
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("loading");
@@ -615,7 +612,10 @@ function FoodStorefrontFooter({
   }
 
   return (
-    <footer className="mt-16 bg-[url('/storefront-footer-bg.png')] bg-cover bg-center text-white">
+    <footer
+      className="mt-16 bg-cover bg-center text-white"
+      style={{ backgroundImage: `url("${storeDetails.metadata?.storefront_footer_image || '/Banner.png'}")` }}
+    >
       <div className="bg-[#061400]/20">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-5 gap-y-8 px-4 py-12 [&>div]:min-w-0 [&>div:first-child]:col-span-2 [&>div:nth-child(4)]:col-span-2 [&>div:last-child]:col-span-2 md:gap-10 md:[&>div:first-child]:col-span-1 md:[&>div:nth-child(4)]:col-span-1 md:[&>div:last-child]:col-span-1 lg:grid-cols-[1.25fr_1fr_0.85fr_1fr_1.25fr] lg:px-8">
           <div>
@@ -684,6 +684,7 @@ function FoodStorefrontFooter({
                   <p className="mt-1 text-white/65">{entry.hours}</p>
                 </div>
               ))}
+              {workingHours.length === 0 && <p className="text-sm text-white/65">Working hours not set</p>}
             </div>
           </div>
 
@@ -704,12 +705,13 @@ function FoodStorefrontFooter({
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wide">Locations</h3>
             <div className="mt-5 space-y-3 text-sm text-white/70">
-              {(locationItems.length > 0 ? locationItems : addressParts).map((item) => (
+              {(addressParts.length > 0 ? [addressParts.join(", ")] : []).map((item) => (
                 <p key={item} className="flex gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>{item}</span>
                 </p>
               ))}
+              {addressParts.length === 0 && <p className="text-sm text-white/65">Store address unavailable</p>}
             </div>
           </div>
 
