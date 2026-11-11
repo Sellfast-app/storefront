@@ -12,12 +12,14 @@ interface AvailabilityModalProps {
   isOpen: boolean;
   storeName: string;
   nextOpening: string | null;
+  isManuallyClosed?: boolean;
 }
 
 export function AvailabilityModal({
   isOpen,
   storeName,
   nextOpening,
+  isManuallyClosed = false,
 }: AvailabilityModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
@@ -37,14 +39,12 @@ export function AvailabilityModal({
           </div>
 
           <h3 className="text-lg font-semibold">
-            This Store Is Not Open Right Now
+            {isManuallyClosed ? "This Store Is Temporarily Closed" : "This Store Is Not Open Right Now"}
           </h3>
           <p className="px-2 text-xs text-muted-foreground">
-            This store is currently outside its operating hours and cannot
-            accept orders.
-            {nextOpening
-              ? ` ${storeName} will be open ${nextOpening}.`
-              : " Please check back when the store is open."}
+            {isManuallyClosed
+              ? `${storeName} is temporarily not accepting orders. Please check back later.`
+              : `This store is currently outside its operating hours and cannot accept orders.${nextOpening ? ` ${storeName} will be open ${nextOpening}.` : " Please check back when the store is open."}`}
           </p>
         </div>
       </DialogContent>

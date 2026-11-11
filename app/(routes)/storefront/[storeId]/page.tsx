@@ -110,6 +110,7 @@ interface StoreDetails {
   updated_at: string;
   subaccount_code: string | null;
   availability?: StoreAvailabilityEntry[];
+  is_manually_closed?: boolean;
 }
 
 interface StoreReview {
@@ -2033,7 +2034,8 @@ function Page() {
   const { hasActiveSubscription, isLoading: isCheckingSubscription } = useSubscriptionCheck(vendorId);
   const { hasAvailability, isOpen, nextOpening } = useStoreAvailability(storeDetails?.availability);
   const showAvailabilityModal =
-    !isCheckingSubscription && hasActiveSubscription && hasAvailability && !isOpen;
+    storeDetails?.is_manually_closed === true ||
+    (!isCheckingSubscription && hasActiveSubscription && hasAvailability && !isOpen);
 
   const { addToCart } = useCart();
   const isMockRetailStore = isMockRetailStorefront(storeId);
@@ -2265,7 +2267,7 @@ function Page() {
     return (
       <>
         <V2EventStorefront {...sharedProps} events={mockEvents} />
-        <AvailabilityModal isOpen={showAvailabilityModal} storeName={storeDetails.store_name} nextOpening={nextOpening} />
+        <AvailabilityModal isOpen={showAvailabilityModal} storeName={storeDetails.store_name} nextOpening={nextOpening} isManuallyClosed={storeDetails.is_manually_closed} />
       </>
     );
   }
@@ -2274,7 +2276,7 @@ function Page() {
     return (
       <>
         <V2FoodStorefront {...sharedProps} foodItems={foodItems} isLoadingProducts={isLoadingProducts} />
-        <AvailabilityModal isOpen={showAvailabilityModal} storeName={storeDetails.store_name} nextOpening={nextOpening} />
+        <AvailabilityModal isOpen={showAvailabilityModal} storeName={storeDetails.store_name} nextOpening={nextOpening} isManuallyClosed={storeDetails.is_manually_closed} />
       </>
     );
   }
@@ -2288,7 +2290,7 @@ function Page() {
         isLoadingProducts={isLoadingProducts}
         handleAddToCart={handleAddToCart}
       />
-      <AvailabilityModal isOpen={showAvailabilityModal} storeName={storeDetails.store_name} nextOpening={nextOpening} />
+      <AvailabilityModal isOpen={showAvailabilityModal} storeName={storeDetails.store_name} nextOpening={nextOpening} isManuallyClosed={storeDetails.is_manually_closed} />
     </>
   );
 }
