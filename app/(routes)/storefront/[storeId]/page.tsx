@@ -133,6 +133,8 @@ interface Product {
   product_name: string;
   product_type: string;
   product_price: number;
+  original_product_price?: number;
+  discount_amount?: number;
   product_images: string[];
   product_status: string;
   est_prod_days_to: number;
