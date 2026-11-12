@@ -19,7 +19,13 @@ export async function middleware(request: NextRequest) {
   const suffix = ".swiftree.app";
 
   if (!hostname.endsWith(suffix)) {
-    if (hostname === "swiftree.app" || hostname === "www.swiftree.app" || hostname === "localhost") return NextResponse.next();
+    if (
+      hostname === "swiftree.app" ||
+      hostname === "www.swiftree.app" ||
+      hostname === "localhost" ||
+      hostname === "vercel.app" ||
+      hostname.endsWith(".vercel.app")
+    ) return NextResponse.next();
 
     const pathname = request.nextUrl.pathname;
     if (
