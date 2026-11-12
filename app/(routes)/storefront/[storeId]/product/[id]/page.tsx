@@ -37,6 +37,11 @@ interface ProductVariant {
   size: string;
   quantity: number;
   color: string;
+  price?: number;
+  original_price?: number;
+  discount_amount?: number;
+  branch_available?: boolean;
+  branch_stock?: number | null;
 }
 
 interface Product {
@@ -49,6 +54,8 @@ interface Product {
   product_name: string;
   product_type: string;
   product_price: number;
+  original_product_price?: number;
+  discount_amount?: number;
   product_images: string[];
   product_status: string;
   est_prod_days_to: number;
@@ -272,7 +279,10 @@ function Page() {
   }
 
   const currentQuantity = getCurrentQuantity()
-  const totalPrice = product ? (product.product_price * currentQuantity) : 0
+  const selectedUnitPrice = selectedVariant?.price ?? product?.product_price ?? 0;
+  const selectedOriginalPrice = selectedVariant?.original_price ?? product?.original_product_price ?? selectedUnitPrice;
+  const selectedDiscount = selectedVariant?.discount_amount ?? product?.discount_amount ?? 0;
+  const totalPrice = selectedUnitPrice * currentQuantity;
 
   const incrementQuantity = () => {
     if (product) {
@@ -429,7 +439,10 @@ function Page() {
                 <span className='text-lg font-medium'>{product.product_name}</span>
 
                 <div className='flex items-center justify-between mt-2'>
-                  <h3 className='font-semibold text-xl'>{formatStoreCurrency(product.product_price)}</h3>
+                  <div>
+                    <h3 className='font-semibold text-xl'>{formatStoreCurrency(selectedUnitPrice)}</h3>
+                    {selectedDiscount > 0 && <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground"><span className="line-through">{formatStoreCurrency(selectedOriginalPrice)}</span><span>-{formatStoreCurrency(selectedDiscount)}</span></p>}
+                  </div>
                   <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>
                     <button type='button' aria-label='Increase quantity' onClick={incrementQuantity} className='p-1 hover:bg-gray-200 rounded'>
                       <PlusIcon className='w-4 h-4' />

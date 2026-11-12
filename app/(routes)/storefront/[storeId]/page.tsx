@@ -1250,9 +1250,13 @@ function RetailProductCard({
           <p className="line-clamp-2 text-base leading-snug text-[#111827]">
             {product.product_name}
           </p>
-          <p className="mt-2 text-sm font-bold text-[#111827]">
-            {formatStoreCurrency(product.product_price)}
-          </p>
+          <div className="mt-2">
+            <p className="text-sm font-bold text-[#111827]">{formatStoreCurrency(product.product_price)}</p>
+            {Number(product.discount_amount || 0) > 0 && <div className="mt-0.5 flex items-center gap-2 text-xs text-[#777]">
+              <span className="line-through">{formatStoreCurrency(product.original_product_price ?? product.product_price + Number(product.discount_amount))}</span>
+              <span>-{formatStoreCurrency(Number(product.discount_amount))}</span>
+            </div>}
+          </div>
           <span className="mt-2 inline-block border-b border-[#D1D5DB] pb-1 text-sm text-[#555]">
             {product.product_quantity === 0 ? "Sold out" : hasVariants ? "Select options" : "View product"}
           </span>
