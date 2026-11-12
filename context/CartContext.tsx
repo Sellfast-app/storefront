@@ -42,6 +42,8 @@ export interface CartProduct {
   description: string
   maxQuantity?: number
   variant?: {
+    name?: string;
+    sku?: string;
     size: string
     color: string
     price?: number

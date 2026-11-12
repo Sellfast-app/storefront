@@ -34,6 +34,8 @@ import 'swiper/css/pagination';
 import 'swiper/css/thumbs';
 
 interface ProductVariant {
+  name?: string;
+  sku?: string;
   size: string;
   quantity: number;
   color: string;
@@ -47,7 +49,7 @@ interface ProductVariant {
 interface Product {
   id: string;
   store_id: string;
-  variants: string;
+  variants: string | ProductVariant[];
   created_at: string;
   updated_at: string;
   product_sku: string;
@@ -234,32 +236,35 @@ function Page() {
   // ─── Variant Derived State ───────────────────────────────────────────────────
 
   const hasVariants = parsedVariants.length > 0;
+  const variantStock = (variant: ProductVariant) => Number(variant.branch_stock ?? variant.quantity ?? 0);
+  const variantAvailable = (variant: ProductVariant) => variant.branch_available !== false && variantStock(variant) > 0;
 
   // Get unique sizes (preserving order)
+  const getVariantOptionLabel = (variant: ProductVariant) => variant.size || variant.name || "Option";
   const uniqueSizes = Array.from(
-    new Map(parsedVariants.map(v => [v.size, v])).keys()
+    new Set(parsedVariants.map(getVariantOptionLabel))
   );
 
   // Get all color variants for the selected size
   const colorsForSelectedSize: ProductVariant[] = selectedSize
-    ? parsedVariants.filter(v => v.size === selectedSize)
+    ? parsedVariants.filter(v => getVariantOptionLabel(v) === selectedSize)
     : [];
 
   // Check if a size has any available stock
   const isSizeAvailable = (size: string) =>
-    parsedVariants.filter(v => v.size === size).some(v => v.quantity > 0);
+    parsedVariants.filter(v => getVariantOptionLabel(v) === size).some(variantAvailable);
 
   // Handle size selection — resets color to first available for that size
   const handleSizeSelect = (size: string) => {
     setSelectedSize(size);
-    const firstAvailable = parsedVariants.find(v => v.size === size && v.quantity > 0)
-      || parsedVariants.find(v => v.size === size);
+    const firstAvailable = parsedVariants.find(v => getVariantOptionLabel(v) === size && variantAvailable(v))
+      || parsedVariants.find(v => getVariantOptionLabel(v) === size);
     setSelectedVariant(firstAvailable || null);
   };
 
   // Handle color selection
   const handleColorSelect = (variant: ProductVariant) => {
-    if (variant.quantity === 0) return;
+    if (!variantAvailable(variant)) return;
     setSelectedVariant(variant);
   };
 
@@ -272,22 +277,36 @@ function Page() {
   const isSearchingOnMobile = searchQuery.trim() !== ''
   const totalReviews = ratingBreakdown.reduce((sum, item) => sum + item.count, 0)
 
+  const getVariantUnitPrice = (variant: ProductVariant) => {
+    const variantPrice = variant.price;
+    return variantPrice !== undefined && variantPrice !== null && Number.isFinite(Number(variantPrice))
+      ? Number(variantPrice)
+      : Number(product?.product_price || 0);
+  };
+
+  const getVariantCartId = (productId: string, variant: ProductVariant) =>
+    `${productId}::variant::${encodeURIComponent([variant.size || variant.name || "", variant.color || ""].join("|").trim().toLowerCase())}`;
+
+  const selectedCartId = product && selectedVariant
+    ? getVariantCartId(product.id, selectedVariant)
+    : product?.id;
+
   const getCurrentQuantity = () => {
-    if (!product) return 0
-    const cartItem = cart.find(item => item.id === product.id)
+    if (!selectedCartId) return 0
+    const cartItem = cart.find(item => item.id === selectedCartId)
     return cartItem ? cartItem.quantity : 0
   }
 
   const currentQuantity = getCurrentQuantity()
-  const selectedUnitPrice = selectedVariant?.price ?? product?.product_price ?? 0;
+  const selectedUnitPrice = selectedVariant ? getVariantUnitPrice(selectedVariant) : Number(product?.product_price || 0);
   const selectedOriginalPrice = selectedVariant?.original_price ?? product?.original_product_price ?? selectedUnitPrice;
   const selectedDiscount = selectedVariant?.discount_amount ?? product?.discount_amount ?? 0;
   const totalPrice = selectedUnitPrice * currentQuantity;
 
   const incrementQuantity = () => {
     if (product) {
-      if (currentQuantity > 0) {
-        updateQuantity(product.id, currentQuantity + 1)
+      if (currentQuantity > 0 && selectedCartId) {
+        updateQuantity(selectedCartId, currentQuantity + 1)
       } else {
         handleAddToCart()
       }
@@ -295,30 +314,35 @@ function Page() {
   }
 
   const decrementQuantity = () => {
-    if (product && currentQuantity > 0) {
-      updateQuantity(product.id, currentQuantity - 1)
+    if (product && selectedCartId && currentQuantity > 0) {
+      updateQuantity(selectedCartId, currentQuantity - 1)
     }
   }
 
   const isAddToCartDisabled =
     currentQuantity > 0 ||
-    (hasVariants && (!selectedVariant || selectedVariant.quantity === 0));
+    (hasVariants && (!selectedVariant || !variantAvailable(selectedVariant)));
 
   const handleAddToCart = (e?: React.MouseEvent, prod?: Product) => {
     if (e) { e.preventDefault(); e.stopPropagation() }
     const productToAdd = prod || product
     if (!productToAdd) return;
     if (hasVariants && !selectedVariant) return;
-    if (hasVariants && selectedVariant && selectedVariant.quantity === 0) return;
+    if (hasVariants && selectedVariant && !variantAvailable(selectedVariant)) return;
+    const cartId = hasVariants && selectedVariant
+      ? getVariantCartId(productToAdd.id, selectedVariant)
+      : productToAdd.id;
 
     addToCart({
-      id: productToAdd.id,
+      id: cartId,
+      originalProductId: productToAdd.id,
+      product_id: productToAdd.id,
       name: productToAdd.product_name,
-      price: productToAdd.product_price,
+      price: hasVariants && selectedVariant ? getVariantUnitPrice(selectedVariant) : Number(productToAdd.product_price || 0),
       image: productToAdd.product_images[0] || Banner,
       description: productToAdd.product_description,
       ...(hasVariants && selectedVariant && {
-        variant: { size: selectedVariant.size, color: selectedVariant.color }
+        variant: { name: selectedVariant.name, size: selectedVariant.size || selectedVariant.name || "", color: selectedVariant.color || "", price: getVariantUnitPrice(selectedVariant) }
       })
     }, 1)
   }
@@ -461,16 +485,18 @@ function Page() {
                     {/* Step 1 — Size */}
                     <div>
                       <p className='text-xs text-gray-500 mb-2'>
-                        Size
+                        Option
                         {selectedSize && <span className='ml-2 font-semibold text-foreground'>{selectedSize}</span>}
                       </p>
                       <div className='flex flex-wrap gap-2'>
                         {uniqueSizes.map((size) => {
                           const available = isSizeAvailable(size);
                           const isSelected = selectedSize === size;
+                          const sizePrices = [...new Set(parsedVariants.filter(variant => getVariantOptionLabel(variant) === size).map(getVariantUnitPrice))].sort((a, b) => a - b);
                           return (
                             <button
                               key={size}
+                              type="button"
                               onClick={() => available && handleSizeSelect(size)}
                               disabled={!available}
                               className={`
@@ -483,7 +509,12 @@ function Page() {
                                 }
                               `}
                             >
-                              {size}
+                              <span className="block">{size}</span>
+                              <span className="mt-1 block text-[11px] font-normal normal-case">
+                                {sizePrices.length > 1
+                                  ? `${formatStoreCurrency(sizePrices[0])} - ${formatStoreCurrency(sizePrices[sizePrices.length - 1])}`
+                                  : formatStoreCurrency(sizePrices[0] ?? Number(product.product_price || 0))}
+                              </span>
                             </button>
                           );
                         })}
@@ -504,23 +535,26 @@ function Page() {
                         <div className='flex flex-wrap gap-3'>
                           {colorsForSelectedSize.map((variant, index) => {
                             const isSelected = selectedVariant === variant;
-                            const outOfStock = variant.quantity === 0;
+                            const outOfStock = !variantAvailable(variant);
                             return (
+                              <div key={`${variant.sku || variant.name || variant.size}-${index}`} className="flex min-w-12 flex-col items-center gap-2">
                               <button
-                                key={index}
+                                type="button"
                                 onClick={() => handleColorSelect(variant)}
                                 disabled={outOfStock}
-                                title={outOfStock ? `${variant.color} (Out of stock)` : variant.color}
+                                title={`${variant.color || variant.name || "Option"} · ${formatStoreCurrency(getVariantUnitPrice(variant))}${outOfStock ? " · Out of stock" : ""}`}
                                 className={`
-                                  relative w-9 h-9 rounded-full transition-all
+                                  relative min-h-9 min-w-9 rounded-md transition-all
                                   ${isSelected
-                                    ? 'ring-2 ring-[var(--store-secondary)] ring-offset-2'
-                                    : 'ring-1 ring-gray-200 dark:ring-gray-700 hover:ring-gray-400'
+                                    ? 'border-2 border-[var(--store-secondary)] bg-[var(--store-secondary)]/10'
+                                    : 'border border-gray-200 dark:border-gray-700 hover:border-gray-400'
                                   }
                                   ${outOfStock ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+                                  ${variant.color ? 'h-9 w-9 rounded-full' : 'px-3 py-2 text-xs'}
                                 `}
-                                style={{ backgroundColor: variant.color }}
+                                style={variant.color ? { backgroundColor: variant.color } : undefined}
                               >
+                                {!variant.color && (variant.name || variant.sku || variant.size || "Option")}
                                 {/* Out of stock slash */}
                                 {outOfStock && (
                                   <span className='absolute inset-0 flex items-center justify-center'>
@@ -528,12 +562,14 @@ function Page() {
                                   </span>
                                 )}
                               </button>
+                              <span className="text-[11px] text-muted-foreground">{formatStoreCurrency(getVariantUnitPrice(variant))}</span>
+                              </div>
                             );
                           })}
                         </div>
 
                         {/* Out of stock warning for selected variant */}
-                        {selectedVariant && selectedVariant.quantity === 0 && (
+                        {selectedVariant && !variantAvailable(selectedVariant) && (
                           <div className='mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg'>
                             <p className='text-xs text-red-600 dark:text-red-400'>
                               ⚠️ This color is out of stock. Please choose another.
@@ -542,9 +578,9 @@ function Page() {
                         )}
 
                         {/* Stock count */}
-                        {selectedVariant && selectedVariant.quantity > 0 && (
+                        {selectedVariant && variantAvailable(selectedVariant) && (
                           <p className='text-xs text-gray-500 mt-2'>
-                            {selectedVariant.quantity} in stock
+                            {variantStock(selectedVariant)} in stock
                           </p>
                         )}
                       </div>

@@ -904,8 +904,8 @@ export default function CheckoutPage() {
         discount: 0,
         name: item.name,
       };
-      if (item.variant && (item.variant.size || item.variant.color)) {
-        orderItem.variant = { size: item.variant.size || "", color: item.variant.color || "" };
+      if (item.variant && (item.variant.size || item.variant.name || item.variant.color)) {
+        orderItem.variant = { size: item.variant.size || item.variant.name || "", color: item.variant.color || "" };
       }
       return orderItem;
     }),

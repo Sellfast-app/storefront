@@ -74,6 +74,7 @@ export default function CartView() {
                   <div className="flex-1 flex flex-col justify-between">
                     <div>
                       <h3 className="font-medium text-sm">{item.name}</h3>
+                      {item.variant && <p className="mt-1 text-xs text-gray-500">{[item.variant.name, item.variant.size, item.variant.color].filter(Boolean).join(" · ")}</p>}
                       <p className="text-xs text-gray-500 mt-1">Few units left</p>
                     </div>
                     <p className="font-semibold">{formatStoreCurrency(item.price)}</p>
