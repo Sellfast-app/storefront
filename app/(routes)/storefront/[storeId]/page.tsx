@@ -59,6 +59,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { formatStoreCurrency, setStoreCurrency } from "@/lib/currency";
+import { getContrastingTextColor } from "@/lib/storefront-theme";
 
 interface StoreDetails {
   id: string;
@@ -88,6 +89,7 @@ interface StoreDetails {
       accent: string;
       primary: string;
       secondary: string;
+      text?: string;
     };
     storefront_announcement?: {
       enabled: boolean;
@@ -285,6 +287,8 @@ function storefrontThemeStyle(storeDetails: StoreDetails): React.CSSProperties {
     "--store-primary": colors?.primary || "#005B14",
     "--store-secondary": colors?.secondary || "#4FCA6A",
     "--store-accent": colors?.accent || "#E8F5E9",
+    "--store-text": colors?.text || "#111827",
+    "--store-button-text": getContrastingTextColor(colors?.primary || "#005B14"),
   } as React.CSSProperties;
 }
 
@@ -493,7 +497,7 @@ function RetailStorefrontFooter({
                 <Button
                   type="submit"
                   disabled={status === "loading"}
-                  className="h-11 w-full shrink-0 rounded-xl bg-[var(--store-secondary)] px-5 text-sm font-semibold text-white hover:brightness-90 sm:w-auto"
+                  className="h-11 w-full shrink-0 rounded-xl bg-[var(--store-primary)] px-5 text-sm font-semibold text-[var(--store-button-text)] hover:brightness-90 sm:w-auto"
                 >
                   {status === "loading" ? "..." : "Join"}
                 </Button>
@@ -734,7 +738,7 @@ function FoodStorefrontFooter({
                 <Button
                   type="submit"
                   disabled={status === "loading"}
-                  className="h-11 w-full shrink-0 rounded-xl bg-[var(--store-secondary)] px-5 text-sm font-semibold text-white hover:brightness-90 sm:w-auto"
+                  className="h-11 w-full shrink-0 rounded-xl bg-[var(--store-primary)] px-5 text-sm font-semibold text-[var(--store-button-text)] hover:brightness-90 sm:w-auto"
                 >
                   {status === "loading" ? "..." : "Join"}
                 </Button>
@@ -914,13 +918,8 @@ function V2RetailStorefront({
   }, [currentPage, totalPages]);
 
   return (
-    <div id="top" data-storefront-theme className="min-h-screen bg-white text-[#111827]" style={storefrontThemeStyle(storeDetails)}>
+    <div id="top" data-storefront-theme className="min-h-screen bg-white text-[var(--store-text)]" style={storefrontThemeStyle(storeDetails)}>
       <StoreAnnouncement storeDetails={storeDetails} />
-      {!storeDetails.metadata?.storefront_announcement?.enabled && (
-        <div className="flex h-10 items-center justify-center px-10 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-white sm:text-xs" style={{ backgroundColor: "var(--store-primary)" }}>
-          {storeDetails.store_name}
-        </div>
-      )}
       <V2StoreHeader
         storeDetails={storeDetails}
         logoUrl={logoUrl}
@@ -1088,7 +1087,7 @@ function V2RetailStorefront({
                             onClick={() => setPriceFilter(value as typeof priceFilter)}
                             className={`rounded-xl px-3 py-2 text-left text-sm transition-colors ${
                               priceFilter === value
-                                ? "bg-[var(--store-primary)] text-white"
+                                ? "bg-[var(--store-primary)] text-[var(--store-button-text)]"
                                 : "bg-[#F9FAFB] text-[#374151] hover:bg-[var(--store-accent)]"
                             }`}
                           >
@@ -1160,7 +1159,7 @@ function V2RetailStorefront({
                               onClick={() => setCurrentPage(page)}
                               className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium ${
                                 currentPage === page
-                                  ? "bg-[var(--store-primary)] text-white"
+                                  ? "bg-[var(--store-primary)] text-[var(--store-button-text)]"
                                   : "border border-[#E5E7EB] text-[#374151] hover:border-[var(--store-primary)]/40"
                               }`}
                             >
@@ -1312,7 +1311,7 @@ function V2FoodStorefront({
     : foodItems.filter((item) => item.category.includes(activeCategory));
 
   return (
-    <div data-storefront-theme className="min-h-screen bg-white text-[#111827]" style={storefrontThemeStyle(storeDetails)}>
+    <div data-storefront-theme className="min-h-screen bg-white text-[var(--store-text)]" style={storefrontThemeStyle(storeDetails)}>
       <StoreAnnouncement storeDetails={storeDetails} />
       <V2StoreHeader
         storeDetails={storeDetails}
@@ -1370,7 +1369,7 @@ function V2FoodStorefront({
                       setFulfillmentMode(mode);
                       setShowLocationModal(true);
                     }}
-                    className={`rounded-full px-5 py-2 capitalize transition ${fulfillmentMode === mode ? "bg-[var(--store-primary)] text-white shadow-sm" : "text-[#71717A]"}`}
+                    className={`rounded-full px-5 py-2 capitalize transition ${fulfillmentMode === mode ? "bg-[var(--store-primary)] text-[var(--store-button-text)] shadow-sm" : "text-[#71717A]"}`}
                   >
                     {mode}
                   </button>
@@ -1560,7 +1559,8 @@ function V2EventStorefront({
   const hasFreeTicket = activeTickets.some((t) => t.type === "free");
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] text-[#111827]">
+    <div data-storefront-theme className="min-h-screen bg-[#F7F7F7] text-[var(--store-text)]" style={storefrontThemeStyle(storeDetails)}>
+      <StoreAnnouncement storeDetails={storeDetails} />
       {/* ── Header ── */}
       <header className="sticky top-0 z-20 border-b border-[#EBEBEB] bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 lg:px-6">

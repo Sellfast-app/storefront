@@ -2,6 +2,7 @@
 import { retailBranchProducts, selectedBranch } from '@/lib/branch-preview';
 import { isMockRetailStorefront } from '@/lib/storefront-mock';
 import { formatStoreCurrency } from '@/lib/currency';
+import { getContrastingTextColor } from '@/lib/storefront-theme';
 
 import React, { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
@@ -125,10 +126,12 @@ function Page() {
     try {
       const rawColors = sessionStorage.getItem(`storefront_theme_${storeId}`);
       if (!rawColors) return;
-      const colors = JSON.parse(rawColors) as { primary?: string; secondary?: string; accent?: string };
+      const colors = JSON.parse(rawColors) as { primary?: string; secondary?: string; accent?: string; text?: string };
       document.documentElement.style.setProperty('--store-primary', colors.primary || '#005B14');
       document.documentElement.style.setProperty('--store-secondary', colors.secondary || '#4FCA6A');
       document.documentElement.style.setProperty('--store-accent', colors.accent || '#E8F5E9');
+      document.documentElement.style.setProperty('--store-text', colors.text || '#111827');
+      document.documentElement.style.setProperty('--store-button-text', getContrastingTextColor(colors.primary || '#005B14'));
     } catch {
       // Keep the storefront default palette if the cached appearance is invalid.
     }
@@ -355,7 +358,7 @@ function Page() {
   }
 
   return (
-    <div className='flex flex-col bg-[#FCFCFC]'>
+    <div data-storefront-theme className='flex flex-col bg-[#FCFCFC] text-[var(--store-text)]'>
       {/* Mobile Header */}
       <div className={`md:hidden p-4 sticky top-0 bg-white dark:bg-background z-10`}>
         <div className='flex items-center justify-between'>

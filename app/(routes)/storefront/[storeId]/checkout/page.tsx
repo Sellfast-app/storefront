@@ -18,6 +18,7 @@ import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { formatStoreCurrency, setStoreCurrency } from '@/lib/currency';
+import { getContrastingTextColor } from '@/lib/storefront-theme';
 import { currentBranchId } from '@/lib/branch-preview';
 import { toast } from 'sonner';
 import StateRegionSelect from '@/components/stateRegionSelect';
@@ -317,13 +318,15 @@ export default function CheckoutPage() {
   const [storeBrand, setStoreBrand] = useState<{
     name: string;
     logo: string | null;
-    colors: { primary: string; secondary: string; accent: string };
-  }>({ name: '', logo: null, colors: { primary: '#005B14', secondary: '#4FCA6A', accent: '#E8F5E9' } });
+    colors: { primary: string; secondary: string; accent: string; text: string };
+  }>({ name: '', logo: null, colors: { primary: '#005B14', secondary: '#4FCA6A', accent: '#E8F5E9', text: '#111827' } });
 
   useEffect(() => {
     document.documentElement.style.setProperty('--store-primary', storeBrand.colors.primary);
     document.documentElement.style.setProperty('--store-secondary', storeBrand.colors.secondary);
     document.documentElement.style.setProperty('--store-accent', storeBrand.colors.accent);
+    document.documentElement.style.setProperty('--store-text', storeBrand.colors.text);
+    document.documentElement.style.setProperty('--store-button-text', getContrastingTextColor(storeBrand.colors.primary));
   }, [storeBrand.colors]);
   const [searchQuery] = useState('');
   const [isEditingAddress, setIsEditingAddress] = useState(false);
@@ -488,7 +491,7 @@ export default function CheckoutPage() {
       setStoreSettingsLoaded(false);
       setStoreSettingsValid(false);
       setStoreSettingsStoreId(null);
-      setStoreBrand({ name: '', logo: null, colors: { primary: '#005B14', secondary: '#4FCA6A', accent: '#E8F5E9' } });
+      setStoreBrand({ name: '', logo: null, colors: { primary: '#005B14', secondary: '#4FCA6A', accent: '#E8F5E9', text: '#111827' } });
       try {
         setIsLoadingModes(true);
         const response = await fetch(`/api/stores/${storeId}`);
@@ -510,6 +513,7 @@ export default function CheckoutPage() {
               primary: storeDetails.metadata?.brand_color?.primary || '#005B14',
               secondary: storeDetails.metadata?.brand_color?.secondary || '#4FCA6A',
               accent: storeDetails.metadata?.brand_color?.accent || '#E8F5E9',
+              text: storeDetails.metadata?.brand_color?.text || '#111827',
             },
           });
           const businessType: string = storeDetails.metadata?.v2?.business_type || storeDetails.business_type || '';
@@ -1505,7 +1509,7 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className='min-h-screen bg-white'>
+    <div data-storefront-theme className='min-h-screen bg-white text-[var(--store-text)]'>
       {/* Mobile Header */}
       <div className='sticky top-0 z-10 border-b bg-white p-4 md:px-8'>
         <div className='flex items-center justify-between'>
@@ -1634,28 +1638,28 @@ export default function CheckoutPage() {
                     {enabledPaymentMethods.paystack && (
                       <button type="button" aria-label="Paystack" aria-pressed={paymentMethod === 'paystack'}
                         onClick={() => setPaymentMethod('paystack')}
-                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'paystack' ? 'border-[var(--store-primary)] bg-[var(--store-accent)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'paystack' ? 'border-[var(--store-primary)] bg-[var(--store-primary)] text-[var(--store-button-text)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
                         <span aria-hidden="true" className="[&>svg]:max-w-full"><PaystackLogo /></span>
                       </button>
                     )}
                     {enabledPaymentMethods.seerbit && (
                       <button type="button" aria-pressed={paymentMethod === 'seerbit'}
                         onClick={() => setPaymentMethod('seerbit')}
-                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'seerbit' ? 'border-[var(--store-primary)] bg-[var(--store-accent)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'seerbit' ? 'border-[var(--store-primary)] bg-[var(--store-primary)] text-[var(--store-button-text)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
                         SeerBit
                       </button>
                     )}
                     {canUseKlump && enabledPaymentMethods.klump && (
                       <button type="button" aria-pressed={paymentMethod === 'klump'}
                         onClick={() => setPaymentMethod('klump')}
-                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'klump' ? 'border-[var(--store-primary)] bg-[var(--store-accent)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'klump' ? 'border-[var(--store-primary)] bg-[var(--store-primary)] text-[var(--store-button-text)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
                         Klump
                       </button>
                     )}
                     {enabledPaymentMethods.crypto && (
                       <button type="button" aria-pressed={paymentMethod === 'crypto'}
                         onClick={() => setPaymentMethod('crypto')}
-                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'crypto' ? 'border-[var(--store-primary)] bg-[var(--store-accent)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
+                        className={`flex min-h-16 min-w-0 items-center justify-center rounded-lg border-2 px-3 py-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--store-primary)] focus-visible:ring-offset-2 ${paymentMethod === 'crypto' ? 'border-[var(--store-primary)] bg-[var(--store-primary)] text-[var(--store-button-text)]' : 'border-[#E5E7EB] bg-white hover:border-[var(--store-primary)]/50'}`}>
                         Crypto
                       </button>
                     )}
@@ -1723,7 +1727,7 @@ export default function CheckoutPage() {
             </CardContent>
             <CardFooter className='pt-4'>
               <Button
-                className='h-14 w-full rounded-none bg-[var(--store-secondary)] text-base hover:brightness-90'
+                className='h-14 w-full rounded-none bg-[var(--store-primary)] text-base text-[var(--store-button-text)] hover:brightness-90'
                 onClick={handleProceedToPayment}
                 disabled={
                   isProcessingPayment ||
