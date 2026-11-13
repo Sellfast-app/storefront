@@ -14,6 +14,23 @@ export default function PaymentCallbackPage() {
       try {
         const provider = searchParams.get('provider')
 
+        if (searchParams.get('kind') === 'ticket') {
+          const reference = searchParams.get('reference') || searchParams.get('trxref') || searchParams.get('paymentReference') || searchParams.get('payment_reference') || ''
+          const storeId = searchParams.get('store_id') || localStorage.getItem('current_store_id') || ''
+          if (!reference) {
+            router.push(`/payment/failed?error=no_reference${storeId ? `&store_id=${storeId}` : ''}`)
+            return
+          }
+          const response = await fetch(`/api/tickets/verify/${encodeURIComponent(reference)}`, { method: 'POST' })
+          const result = await response.json()
+          if (response.ok && result.status === 'success' && result.data?.verified === true) {
+            router.push(`/payment/success?kind=ticket&provider=${encodeURIComponent(provider || '')}&reference=${encodeURIComponent(reference)}${storeId ? `&store_id=${encodeURIComponent(storeId)}` : ''}`)
+          } else {
+            router.push(`/payment/failed?kind=ticket&status=${encodeURIComponent(result.data?.payment_status || 'verification_failed')}&reference=${encodeURIComponent(reference)}${storeId ? `&store_id=${encodeURIComponent(storeId)}` : ''}`)
+          }
+          return
+        }
+
         if (provider === 'klump') {
           const reference = searchParams.get('reference') || localStorage.getItem('payment_reference') || ''
           const storeId = searchParams.get('store_id') || localStorage.getItem('current_store_id') || ''

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { foodBranchProducts, retailBranchProducts, selectedBranch, previewBranches } from "@/lib/branch-preview";
 import { TicketPaymentPreview } from "@/components/ticket-payment-preview";
 import Link from "next/link";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Banner from "@/public/Banner.png";
 import { Input } from "@/components/ui/input";
@@ -25,17 +25,15 @@ import type { StoreAvailabilityEntry } from "@/hooks/useStoreAvailability";
 import { useStoreAvailability } from "@/hooks/useStoreAvailability";
 import { FoodItem } from "@/lib/mockdata";
 import {
-  isMockEventStorefront,
   isMockFoodStorefront,
   isMockRetailStorefront,
-  mockEventStoreDetails,
   mockFoodStoreDetails,
   mockRetailProducts,
   mockRetailStoreDetails,
   mockStorefrontFoodItems,
   mockStoreReviews,
 } from "@/lib/storefront-mock";
-import { Event, getPublishedEvents } from "@/lib/events-data";
+import { Event } from "@/lib/events-data";
 import {
   CalendarDays,
   ChevronLeft,
@@ -75,6 +73,7 @@ interface StoreDetails {
   banner_style?: "portrait" | "carousel";
   banner_images?: string[];
   metadata: {
+    v2?: { business_type?: string; country?: string; currency?: string };
     city: string;
     phone: string;
     state: string;
@@ -159,6 +158,68 @@ const isFoodBusinessType = (businessType?: string) => {
   return normalized.includes("restaurant") || normalized.includes("food");
 };
 
+const isTicketBusinessType = (businessType?: string) => {
+  const normalized = businessType?.toLowerCase() || "";
+  return normalized.includes("ticket") || normalized.includes("event");
+};
+
+interface ApiPublicTicket {
+  id: string;
+  name: string;
+  type: string;
+  price?: number | string | null;
+  quantity?: number | string | null;
+  sold?: number | string | null;
+  orderLimitPerPerson?: number | string | null;
+  tag?: string | null;
+}
+
+interface ApiPublicTicketEvent {
+  id: string;
+  name: string;
+  description?: string | null;
+  cover_image?: string | null;
+  starts_at: string;
+  ends_at: string;
+  location?: string | null;
+  organizer_name?: string | null;
+  tickets?: ApiPublicTicket[];
+}
+
+function mapPublicTicketEvent(value: ApiPublicTicketEvent): Event {
+  const startsAt = new Date(value.starts_at);
+  const endsAt = new Date(value.ends_at);
+  const tickets = value.tickets || [];
+  return {
+    id: String(value.id),
+    name: String(value.name || "Event"),
+    description: String(value.description || ""),
+    coverImage: getImageUrl(value.cover_image || null) || "",
+    startDate: startsAt.toISOString(),
+    endDate: endsAt.toISOString(),
+    startTime: startsAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    endTime: endsAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    location: String(value.location || "Location to be announced"),
+    organizerName: String(value.organizer_name || ""),
+    organizerEmail: "",
+    organizerPhone: "",
+    status: "published",
+    tickets: tickets.map((ticket) => ({
+      id: String(ticket.id),
+      name: String(ticket.name || "Ticket"),
+      type: ticket.type === "invite" ? "invite" : ticket.type === "free" ? "free" : "paid",
+      price: Number(ticket.price || 0),
+      quantity: Number(ticket.quantity || 0),
+      sold: Number(ticket.sold || 0),
+      orderLimitPerPerson: Number(ticket.orderLimitPerPerson || 1),
+      tag: String(ticket.tag || ""),
+    })),
+    totalCapacity: tickets.reduce((total, ticket) => total + Number(ticket.quantity || 0), 0),
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
 // ─── Shared Header ────────────────────────────────────────────────────────────
 
 interface V2TemplateProps {
@@ -190,6 +251,8 @@ interface V2FoodTemplateProps extends V2TemplateProps {
 
 interface V2EventTemplateProps extends V2TemplateProps {
   events: Event[];
+  isLoadingEvents: boolean;
+  eventsError: string | null;
 }
 
 function V2StoreHeader({
@@ -1508,6 +1571,8 @@ function V2EventStorefront({
   showCart,
   logoUrl,
   events,
+  isLoadingEvents,
+  eventsError,
 }: V2EventTemplateProps) {
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(events[0]?.id || "");
@@ -1515,6 +1580,12 @@ function V2EventStorefront({
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [showTicketCheckout, setShowTicketCheckout] = useState(false);
   const [ticketPaymentStep, setTicketPaymentStep] = useState(false);
+  const [ticketPaymentMethods, setTicketPaymentMethods] = useState<Array<{ id: "paystack" | "seerbit"; name?: string }>>([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"paystack" | "seerbit" | "">("");
+  const [ticketCheckoutBusy, setTicketCheckoutBusy] = useState(false);
+  const [ticketCheckoutError, setTicketCheckoutError] = useState("");
+  const [placedTicketOrder, setPlacedTicketOrder] = useState<{ id: string; total: number; currency: string; free: boolean } | null>(null);
+  const ticketCheckoutKey = useRef("");
   const [ticketCustomer, setTicketCustomer] = useState({
     firstName: "",
     lastName: "",
@@ -1535,15 +1606,92 @@ function V2EventStorefront({
     (sum, item) => sum + (item.ticket.price || 0) * item.quantity,
     0
   );
-  const serviceFee = selectedTickets.reduce(
-    (sum, item) => sum + (item.ticket.type === "paid" ? 740 * item.quantity : 0),
-    0
-  );
-  const ticketTotal = ticketSubtotal + serviceFee;
+  const ticketTotal = ticketSubtotal;
   const totalTickets = selectedTickets.reduce((sum, item) => sum + item.quantity, 0);
   const ticketCustomerIsComplete = Object.values(ticketCustomer).every((value) => value.trim().length > 0);
 
+  useEffect(() => {
+    if (events[0] && !events.some((event) => event.id === selectedEventId)) setSelectedEventId(events[0].id);
+  }, [events, selectedEventId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/v2/payment-methods/stores/${encodeURIComponent(storeDetails.id)}`, { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok || result.status !== "success") throw new Error(result.message || "Payment methods are unavailable");
+        const methods = (Array.isArray(result.data) ? result.data : [])
+          .filter((method: { id?: string }) => method.id === "paystack" || method.id === "seerbit") as Array<{ id: "paystack" | "seerbit"; name?: string }>;
+        if (!cancelled) {
+          setTicketPaymentMethods(methods);
+          setSelectedPaymentMethod((current) => current && methods.some((method) => method.id === current) ? current : methods[0]?.id || "");
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) setTicketCheckoutError(error instanceof Error ? error.message : "Payment methods are unavailable");
+      });
+    return () => { cancelled = true; };
+  }, [storeDetails.id]);
+
+  const createTicketOrder = async () => {
+    if (!selectedEvent || !ticketCustomerIsComplete || !totalTickets || ticketCheckoutBusy) return;
+    setTicketCheckoutBusy(true);
+    setTicketCheckoutError("");
+    try {
+      if (!ticketCheckoutKey.current) ticketCheckoutKey.current = crypto.randomUUID();
+      const freeOnly = selectedTickets.every(({ ticket }) => ticket.type === "free");
+      if (!freeOnly && !selectedPaymentMethod) throw new Error("No payment method is currently available for this store.");
+      const source = sessionStorage.getItem(`sales_source_${storeDetails.id}`) || "direct";
+      const response = await fetch("/api/tickets/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          store_id: storeDetails.id,
+          event_id: selectedEvent.id,
+          idempotency_key: ticketCheckoutKey.current,
+          sales_channel: "website",
+          sales_source: source,
+          ...(!freeOnly ? { payment_method: selectedPaymentMethod } : {}),
+          customer: {
+            first_name: ticketCustomer.firstName.trim(),
+            last_name: ticketCustomer.lastName.trim(),
+            email: ticketCustomer.email.trim(),
+            whatsapp: ticketCustomer.whatsapp.trim(),
+          },
+          tickets: selectedTickets.map(({ ticket, quantity }) => ({
+            ticket_type_id: ticket.id,
+            attendees: Array.from({ length: quantity }, () => ({
+              first_name: ticketCustomer.firstName.trim(),
+              last_name: ticketCustomer.lastName.trim(),
+            })),
+          })),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.status !== "success" || !result.data) throw new Error(result.message || "Unable to place ticket order");
+      const order = result.data;
+      if (order.authorization_url) {
+        ticketCheckoutKey.current = "";
+        localStorage.setItem("current_store_id", storeDetails.id);
+        localStorage.setItem("ticket_checkout_email", ticketCustomer.email.trim());
+        window.location.assign(order.authorization_url);
+        return;
+      }
+      if (order.payment_status === "free" && order.order_status === "confirmed") {
+        ticketCheckoutKey.current = "";
+        setPlacedTicketOrder({ id: String(order.order_id), total: Number(order.total_amount || 0), currency: String(order.currency || "NGN"), free: true });
+        return;
+      }
+      throw new Error("The order was created but no payment action was returned. Contact the store before retrying.");
+    } catch (error) {
+      setTicketCheckoutError(error instanceof Error ? error.message : "Unable to place ticket order");
+    } finally {
+      setTicketCheckoutBusy(false);
+    }
+  };
+
   const updateTicketQuantity = (ticketId: string, next: number, limit: number) => {
+    ticketCheckoutKey.current = "";
     setTicketQuantities((cur) => ({
       ...cur,
       [ticketId]: Math.max(0, Math.min(next, limit)),
@@ -1551,6 +1699,7 @@ function V2EventStorefront({
   };
 
   const resetForEvent = (eventId: string) => {
+    ticketCheckoutKey.current = "";
     setSelectedEventId(eventId);
     setTicketQuantities({});
     setShowFullDescription(false);
@@ -1633,6 +1782,11 @@ function V2EventStorefront({
       ) : (
         <main className="mx-auto max-w-6xl px-4 py-6 lg:px-6">
 
+          {isLoadingEvents ? <div className="py-24 text-center text-sm text-[#6B7280]">Loading events...</div>
+            : eventsError ? <div role="alert" className="py-24 text-center text-sm text-red-600">{eventsError}</div>
+              : !events.length ? <div className="py-24 text-center"><Ticket className="mx-auto mb-3 h-8 w-8 text-[#9CA3AF]" /><p className="font-semibold">No published events</p><p className="mt-1 text-sm text-[#6B7280]">Check back later for upcoming events.</p></div>
+                : null}
+
           {selectedEvent && (
             <>
               {/* ── Breadcrumb ── */}
@@ -1650,14 +1804,14 @@ function V2EventStorefront({
 
                   {/* Cover Image */}
                   <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-[#1A1A1A] md:aspect-[2/1]">
-                    <Image
+                    {selectedEvent.coverImage ? <Image
                       src={selectedEvent.coverImage}
                       alt={selectedEvent.name}
                       fill
                       priority
                       className="object-cover"
                       sizes="(max-width: 1024px) 100vw, 60vw"
-                    />
+                    /> : <div className="h-full w-full bg-[#F0F2F0]" aria-label="No event cover image" />}
                     {/* Price badge */}
                     <div className="absolute bottom-4 left-4">
                       <span className="rounded-full bg-white/95 px-3 py-1.5 text-xs font-bold text-[#111827] shadow-sm">
@@ -1841,14 +1995,8 @@ function V2EventStorefront({
                             </span>
                           </div>
                         ))}
-                        {serviceFee > 0 && (
-                          <div className="flex justify-between text-[#9CA3AF]">
-                            <span>Service fee</span>
-                            <span>{formatStoreCurrency(serviceFee)}</span>
-                          </div>
-                        )}
                         <div className="flex justify-between border-t border-[#F0F0F0] pt-2 font-bold text-[#111827]">
-                          <span>Total</span>
+                          <span>Ticket subtotal</span>
                           <span>
                             {ticketTotal === 0 ? "Free" : formatStoreCurrency(ticketTotal)}
                           </span>
@@ -1863,10 +2011,8 @@ function V2EventStorefront({
                     >
                       {totalTickets === 0 ? "Select tickets to continue" : `Continue · ${totalTickets} ticket${totalTickets > 1 ? "s" : ""}`}
                     </Button>
+                    {totalTickets > 0 && <p className="mt-2 text-center text-[10px] text-[#9CA3AF]">Final fees and discounts are calculated at checkout.</p>}
 
-                    <p className="mt-3 text-center text-[10px] text-[#9CA3AF]">
-                      Test checkout · No payment will be collected
-                    </p>
                   </div>
                 </div>
               </div>
@@ -1897,13 +2043,13 @@ function V2EventStorefront({
                           className="group overflow-hidden rounded-2xl border border-[#E8E8E8] bg-white text-left transition-shadow hover:shadow-md"
                         >
                           <div className="relative aspect-[16/9] overflow-hidden bg-[#F3F4F6]">
-                            <Image
+                            {event.coverImage ? <Image
                               src={event.coverImage}
                               alt={event.name}
                               fill
                               className="object-cover transition-transform duration-500 group-hover:scale-105"
                               sizes="(max-width: 640px) 100vw, 33vw"
-                            />
+                            /> : <div className="h-full w-full" aria-label="No event cover image" />}
                           </div>
                           <div className="p-4">
                             <p className="line-clamp-2 text-sm font-semibold leading-snug text-[#111827]">
@@ -1939,7 +2085,7 @@ function V2EventStorefront({
         </main>
       )}
 
-      <Dialog open={showTicketCheckout} onOpenChange={(open) => { setShowTicketCheckout(open); if (!open) setTicketPaymentStep(false); }}>
+      <Dialog open={showTicketCheckout} onOpenChange={(open) => { setShowTicketCheckout(open); if (!open) { setTicketPaymentStep(false); setPlacedTicketOrder(null); setTicketCheckoutError(""); } }}>
         <DialogOverlay className="backdrop-blur-xs" />
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
@@ -1947,19 +2093,22 @@ function V2EventStorefront({
             {!ticketPaymentStep && <p className="text-sm text-[#6B7280]">Enter the ticket holder&apos;s details.</p>}
           </DialogHeader>
 
-          {ticketPaymentStep ? <TicketPaymentPreview
-            booking={{
-              storeId: storeDetails.id, eventId: selectedEvent.id, eventName: selectedEvent.name,
-              eventDate: selectedEvent.startDate, location: selectedEvent.location,
-              customer: ticketCustomer, total: ticketTotal,
-            }}
-            selections={selectedTickets.map(({ ticket, quantity }) => ({ ticketId: ticket.id, name: ticket.name, quantity }))}
-            onBack={() => setTicketPaymentStep(false)}
-          /> : <form
+          {placedTicketOrder ? <div className="space-y-4 py-2">
+            <div className="flex items-start gap-3"><Ticket className="mt-1 h-6 w-6 shrink-0 text-[var(--store-primary)]" /><div><h3 className="text-lg font-semibold">Your order is confirmed</h3><p className="mt-1 text-sm text-[#6B7280]">Your ticket QR code and event details will be sent to {ticketCustomer.email}.</p></div></div>
+            <p className="rounded-md bg-[#F7F7F7] p-3 text-xs text-[#6B7280]">Order reference: <span className="font-mono text-[#111827]">{placedTicketOrder.id}</span></p>
+            <Button className="w-full bg-[var(--store-primary)]" onClick={() => { setShowTicketCheckout(false); setTicketPaymentStep(false); setPlacedTicketOrder(null); }}>Done</Button>
+          </div> : ticketPaymentStep ? <div className="space-y-4 pt-2">
+            <div className="rounded-xl border border-[#E8E8E8] bg-[#F7FFF9] p-4"><p className="text-sm font-semibold">{selectedEvent?.name}</p><div className="mt-3 space-y-2 text-sm text-[#6B7280]">{selectedTickets.map(({ ticket, quantity }) => <div key={ticket.id} className="flex justify-between gap-4"><span>{quantity}× {ticket.name}</span><span>{ticket.type === "free" ? "Free" : formatStoreCurrency((ticket.price || 0) * quantity)}</span></div>)}<div className="flex justify-between border-t border-[#E8E8E8] pt-2 font-semibold text-[#111827]"><span>Ticket subtotal</span><span>{ticketTotal === 0 ? "Free" : formatStoreCurrency(ticketTotal)}</span></div></div><p className="mt-3 text-xs text-[#6B7280]">Final total, including any applicable discounts and fees, is calculated by the server when you place the order.</p></div>
+            {!selectedTickets.every(({ ticket }) => ticket.type === "free") && <div><Label className="mb-2 block text-xs">Payment method</Label><div className="grid grid-cols-2 gap-2">{ticketPaymentMethods.map((method) => <Button key={method.id} type="button" variant={selectedPaymentMethod === method.id ? "default" : "outline"} className={selectedPaymentMethod === method.id ? "bg-[var(--store-primary)]" : ""} onClick={() => setSelectedPaymentMethod(method.id)}>{method.id === "paystack" ? "Paystack" : "SeerBit"}</Button>)}</div>{ticketPaymentMethods.length === 0 && <p className="mt-2 text-xs text-amber-700">No online payment method is available for this store. Contact the store before proceeding.</p>}</div>}
+            {ticketCheckoutError && <p role="alert" className="text-sm text-red-600">{ticketCheckoutError}</p>}
+            <Button className="w-full bg-[var(--store-primary)]" disabled={ticketCheckoutBusy || (!selectedTickets.every(({ ticket }) => ticket.type === "free") && !selectedPaymentMethod)} onClick={createTicketOrder}>{ticketCheckoutBusy ? "Creating order..." : selectedTickets.every(({ ticket }) => ticket.type === "free") ? "Place order" : "Continue to payment"}</Button>
+            <Button variant="ghost" className="w-full" disabled={ticketCheckoutBusy} onClick={() => setTicketPaymentStep(false)}>Back to details</Button>
+          </div> : <form
             className="space-y-4 pt-2"
             onSubmit={(event) => {
               event.preventDefault();
-              if (!ticketCustomerIsComplete || !totalTickets || !isMockEventStorefront(storeDetails.id)) return;
+              if (!ticketCustomerIsComplete || !totalTickets) return;
+              setTicketCheckoutError("");
               setTicketPaymentStep(true);
             }}
           >
@@ -1998,7 +2147,7 @@ function V2EventStorefront({
               <Input type="tel" value={ticketCustomer.whatsapp} onChange={(event) => setTicketCustomer((current) => ({ ...current, whatsapp: event.target.value }))} placeholder="+234 801 234 5678" />
             </div>
             <Button type="submit" className="h-11 w-full rounded-full bg-[var(--store-primary)] text-sm font-semibold hover:brightness-90" disabled={!ticketCustomerIsComplete}>
-              {ticketTotal === 0 ? "Review booking" : "Continue to test payment"}
+              Review order
             </Button>
           </form>}
         </DialogContent>
@@ -2032,6 +2181,9 @@ function Page() {
   const [ratings, setRatings] = useState<ratings>(0);
   const [products, setProducts] = useState<Product[]>([]);
   const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+  const [ticketEvents, setTicketEvents] = useState<Event[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -2046,9 +2198,7 @@ function Page() {
   const { addToCart } = useCart();
   const isMockRetailStore = isMockRetailStorefront(storeId);
   const isMockFoodStore = isMockFoodStorefront(storeId);
-  const isMockEventStore = isMockEventStorefront(storeId);
-  const isMockStore = isMockRetailStore || isMockFoodStore || isMockEventStore;
-  const mockEvents = getPublishedEvents();
+  const isMockStore = isMockRetailStore || isMockFoodStore;
 
   useEffect(() => {
     if (!storeDetails) return;
@@ -2066,23 +2216,13 @@ function Page() {
       setError(null);
       try {
         if (isMockStore) {
-          const details = isMockEventStore
-            ? mockEventStoreDetails
-            : isMockFoodStore
-              ? mockFoodStoreDetails
-              : mockRetailStoreDetails;
+          const details = isMockFoodStore ? mockFoodStoreDetails : mockRetailStoreDetails;
           const branch = previewBranches.find(branch => branch.id === selectedBranch(storeId))!;
           const mockDetails = { ...details, id: storeId, metadata: { ...details.metadata, ...(!isMockEventStore ? { address: branch.address, city: branch.name } : {}) } } as StoreDetails;
           setStoreCurrency(storeId, mockDetails.metadata);
           setStoreDetails(mockDetails);
           setStoreReviews(mockStoreReviews);
-          setListings(
-            isMockEventStore
-              ? mockEvents.length
-              : isMockFoodStore
-                ? mockStorefrontFoodItems.length
-                : mockRetailProducts.length
-          );
+          setListings(isMockFoodStore ? mockStorefrontFoodItems.length : mockRetailProducts.length);
           setRatings(4.8);
           setVendorId(details.vendor_id);
           document.cookie = `vendor_id=${details.vendor_id}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
@@ -2127,11 +2267,41 @@ function Page() {
       }
     };
     fetchStoreData();
-  }, [isMockEventStore, isMockFoodStore, isMockStore, mockEvents.length, storeId]);
+  }, [isMockFoodStore, isMockStore, storeId]);
 
   useEffect(() => {
-    if (!storeId || isMockEventStore || isFoodBusinessType(storeDetails?.business_type)) {
-      if (isMockEventStore) setIsLoadingProducts(false);
+    if (!storeId || !isTicketBusinessType(storeDetails?.metadata?.v2?.business_type || storeDetails?.business_type)) return;
+    let cancelled = false;
+    const loadEvents = async () => {
+      setIsLoadingEvents(true);
+      setEventsError(null);
+      try {
+        const response = await fetch(`/api/tickets/stores/${encodeURIComponent(storeId)}/events`, { cache: "no-store" });
+        const result = await response.json() as { status?: string; message?: string; data?: unknown };
+        if (!response.ok || result.status !== "success" || !Array.isArray(result.data)) {
+          throw new Error(result.message || "Unable to load published events");
+        }
+        const mapped = (result.data as ApiPublicTicketEvent[]).map(mapPublicTicketEvent);
+        if (!cancelled) {
+          setTicketEvents(mapped);
+          setListings(mapped.length);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setTicketEvents([]);
+          setEventsError(error instanceof Error ? error.message : "Unable to load published events");
+        }
+      } finally {
+        if (!cancelled) setIsLoadingEvents(false);
+      }
+    };
+    void loadEvents();
+    return () => { cancelled = true; };
+  }, [storeId, storeDetails?.business_type, storeDetails?.metadata?.v2?.business_type]);
+
+  useEffect(() => {
+    const businessType = storeDetails?.metadata?.v2?.business_type || storeDetails?.business_type;
+    if (!storeId || isFoodBusinessType(businessType) || isTicketBusinessType(businessType)) {
       return;
     }
     const fetchProducts = async () => {
@@ -2157,10 +2327,11 @@ function Page() {
       }
     };
     fetchProducts();
-  }, [isMockEventStore, isMockRetailStore, storeId, storeDetails?.business_type]);
+  }, [isMockRetailStore, storeId, storeDetails?.business_type, storeDetails?.metadata?.v2?.business_type]);
 
   useEffect(() => {
-    if (!storeId || !isFoodBusinessType(storeDetails?.business_type)) return;
+    const businessType = storeDetails?.metadata?.v2?.business_type || storeDetails?.business_type;
+    if (!storeId || !isFoodBusinessType(businessType)) return;
     const fetchFoodItems = async () => {
       setIsLoadingProducts(true);
       try {
@@ -2269,10 +2440,10 @@ function Page() {
     getWhatsAppUrl,
   };
 
-  if (isMockEventStore) {
+  if (isTicketBusinessType(storeDetails.metadata?.v2?.business_type || storeDetails.business_type)) {
     return (
       <>
-        <V2EventStorefront {...sharedProps} events={mockEvents} />
+        <V2EventStorefront {...sharedProps} events={ticketEvents} isLoadingEvents={isLoadingEvents} eventsError={eventsError} />
         <AvailabilityModal isOpen={showAvailabilityModal} storeName={storeDetails.store_name} nextOpening={nextOpening} isManuallyClosed={storeDetails.is_manually_closed} />
       </>
     );

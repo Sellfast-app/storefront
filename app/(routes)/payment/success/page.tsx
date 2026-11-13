@@ -16,12 +16,14 @@ export default function PaymentSuccessPage() {
   const reference = searchParams.get('reference')
   const storeId = searchParams.get('store_id')
   const provider = searchParams.get('provider')
+  const isTicketOrder = searchParams.get('kind') === 'ticket'
   const verification = searchParams.get('verification')
   const status = searchParams.get('status')
   
   const [countdown, setCountdown] = useState(10)
    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [orderDetails, setOrderDetails] = useState<any>(null)
+  const [ticketEmail, setTicketEmail] = useState('')
   const isCouponCoveredOrder =
     status === 'fully_covered_by_coupon' ||
     orderDetails?.paymentStatus === 'fully_covered_by_coupon'
@@ -37,7 +39,11 @@ export default function PaymentSuccessPage() {
       // Clear the pending order after successful payment
       localStorage.removeItem('pending_order')
     }
-  }, [])
+    if (isTicketOrder) {
+      setTicketEmail(localStorage.getItem('ticket_checkout_email') || '')
+      localStorage.removeItem('ticket_checkout_email')
+    }
+  }, [isTicketOrder])
 
   useEffect(() => {
     // Countdown timer
@@ -96,8 +102,11 @@ export default function PaymentSuccessPage() {
                   ? "We're waiting to receive your crypto payment. Your order will be processed as soon as it's confirmed."
                   : provider === 'klump' && verification === 'pending'
                   ? 'Your Klump checkout was completed. Payment verification is pending backend integration.'
-                  : 'Your order has been confirmed and is being processed'}
+                  : isTicketOrder
+                    ? 'Your ticket order is confirmed. The QR ticket and event details have been sent to your checkout email.'
+                    : 'Your order has been confirmed and is being processed'}
               </p>
+              {isTicketOrder && ticketEmail && <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-200">Sent to {ticketEmail}</p>}
             </div>
 
             {/* Order Details */}
