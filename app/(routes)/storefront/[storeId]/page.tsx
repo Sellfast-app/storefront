@@ -2218,7 +2218,7 @@ function Page() {
         if (isMockStore) {
           const details = isMockFoodStore ? mockFoodStoreDetails : mockRetailStoreDetails;
           const branch = previewBranches.find(branch => branch.id === selectedBranch(storeId))!;
-          const mockDetails = { ...details, id: storeId, metadata: { ...details.metadata, ...(!isMockEventStore ? { address: branch.address, city: branch.name } : {}) } } as StoreDetails;
+          const mockDetails = { ...details, id: storeId, metadata: { ...details.metadata, address: branch.address, city: branch.name } } as StoreDetails;
           setStoreCurrency(storeId, mockDetails.metadata);
           setStoreDetails(mockDetails);
           setStoreReviews(mockStoreReviews);
