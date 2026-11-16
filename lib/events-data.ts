@@ -7,6 +7,7 @@ export interface TicketType {
   sold: number;
   orderLimitPerPerson: number;
   tag: string;
+  discount?: { type: "fixed" | "percentage"; value: number; startsAt?: string | null; endsAt?: string | null } | null;
 }
 
 export interface Event {

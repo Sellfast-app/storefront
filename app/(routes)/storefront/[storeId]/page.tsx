@@ -34,6 +34,7 @@ import {
   mockStoreReviews,
 } from "@/lib/storefront-mock";
 import { Event } from "@/lib/events-data";
+import PaystackLogo from "@/components/svgIcons/PaystackLogo";
 import {
   CalendarDays,
   ChevronLeft,
@@ -172,6 +173,7 @@ interface ApiPublicTicket {
   sold?: number | string | null;
   orderLimitPerPerson?: number | string | null;
   tag?: string | null;
+  discount?: { type: "fixed" | "percentage"; value: number; startsAt?: string | null; endsAt?: string | null } | null;
 }
 
 interface ApiPublicTicketEvent {
@@ -213,6 +215,7 @@ function mapPublicTicketEvent(value: ApiPublicTicketEvent): Event {
       sold: Number(ticket.sold || 0),
       orderLimitPerPerson: Number(ticket.orderLimitPerPerson || 1),
       tag: String(ticket.tag || ""),
+      discount: ticket.discount || null,
     })),
     totalCapacity: tickets.reduce((total, ticket) => total + Number(ticket.quantity || 0), 0),
     createdAt: "",
@@ -1584,6 +1587,9 @@ function V2EventStorefront({
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"paystack" | "seerbit" | "">("");
   const [ticketCheckoutBusy, setTicketCheckoutBusy] = useState(false);
   const [ticketCheckoutError, setTicketCheckoutError] = useState("");
+  const [ticketQuote, setTicketQuote] = useState<{ pricing: { original_items_total: number; discount_total: number; discounted_items_total: number; markup_total: number; platform_fee: number; total_amount: number }; currency: string } | null>(null);
+  const [ticketQuoteError, setTicketQuoteError] = useState("");
+  const [ticketQuoteRefresh, setTicketQuoteRefresh] = useState(0);
   const [placedTicketOrder, setPlacedTicketOrder] = useState<{ id: string; total: number; currency: string; free: boolean } | null>(null);
   const ticketCheckoutKey = useRef("");
   const [ticketCustomer, setTicketCustomer] = useState({
@@ -1608,6 +1614,8 @@ function V2EventStorefront({
   );
   const ticketTotal = ticketSubtotal;
   const totalTickets = selectedTickets.reduce((sum, item) => sum + item.quantity, 0);
+  const selectedTicketEventId = selectedEvent?.id || "";
+  const ticketSelectionKey = selectedTickets.map(({ ticket, quantity }) => `${ticket.id}:${quantity}`).join(",");
   const ticketCustomerIsComplete = Object.values(ticketCustomer).every((value) => value.trim().length > 0);
 
   useEffect(() => {
@@ -1632,6 +1640,40 @@ function V2EventStorefront({
       });
     return () => { cancelled = true; };
   }, [storeDetails.id]);
+
+  useEffect(() => {
+    if (!selectedTicketEventId || !ticketSelectionKey) {
+      setTicketQuote(null);
+      setTicketQuoteError("");
+      return;
+    }
+    let cancelled = false;
+    setTicketQuote(null);
+    setTicketQuoteError("");
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/tickets/quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            store_id: storeDetails.id,
+            event_id: selectedTicketEventId,
+            tickets: ticketSelectionKey.split(",").map((selection) => {
+              const [ticket_type_id, quantity] = selection.split(":");
+              return { ticket_type_id, quantity: Number(quantity) };
+            }),
+          }),
+          cache: "no-store",
+        });
+        const result = await response.json();
+        if (!response.ok || result.status !== "success" || !result.data?.pricing) throw new Error(result.message || "Could not calculate ticket total");
+        if (!cancelled) setTicketQuote({ pricing: result.data.pricing, currency: result.data.currency });
+      } catch (error) {
+        if (!cancelled) setTicketQuoteError(error instanceof Error ? error.message : "Could not calculate ticket total");
+      }
+    }, 180);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [selectedTicketEventId, storeDetails.id, ticketSelectionKey, ticketQuoteRefresh]);
 
   const createTicketOrder = async () => {
     if (!selectedEvent || !ticketCustomerIsComplete || !totalTickets || ticketCheckoutBusy) return;
@@ -1712,6 +1754,26 @@ function V2EventStorefront({
   }, Infinity);
 
   const hasFreeTicket = activeTickets.some((t) => t.type === "free");
+
+  const renderTicketPriceBreakdown = () => {
+    const pricing = ticketQuote?.pricing;
+    return <div className="mt-3 space-y-2 text-sm text-[#6B7280]">
+      {selectedTickets.map(({ ticket, quantity }) => <div key={ticket.id} className="flex justify-between gap-4">
+        <span>{quantity}× {ticket.name}</span>
+        <span>{ticket.type === "free" ? "Free" : formatStoreCurrency((ticket.price || 0) * quantity)}</span>
+      </div>)}
+      <div className="flex justify-between border-t border-[#E8E8E8] pt-2"><span>Ticket subtotal</span><span>{formatStoreCurrency(pricing?.original_items_total ?? ticketTotal)}</span></div>
+      {pricing && pricing.discount_total > 0 && <div className="flex justify-between"><span>Ticket discount</span><span>−{formatStoreCurrency(pricing.discount_total)}</span></div>}
+      {pricing && pricing.discount_total > 0 && <div className="flex justify-between"><span>Discounted ticket total</span><span>{formatStoreCurrency(pricing.discounted_items_total)}</span></div>}
+      {pricing && pricing.markup_total > 0 && <div className="flex justify-between"><span>Swiftree markup</span><span>{formatStoreCurrency(pricing.markup_total)}</span></div>}
+      {pricing && pricing.platform_fee > 0 && <div className="flex justify-between"><span>Platform fee</span><span>{formatStoreCurrency(pricing.platform_fee)}</span></div>}
+      <div className="flex justify-between border-t border-[#E8E8E8] pt-2 font-semibold text-[#111827]"><span>Total</span>
+        <span>{pricing ? (pricing.total_amount === 0 ? "Free" : formatStoreCurrency(pricing.total_amount)) : ticketTotal === 0 ? "Free" : formatStoreCurrency(ticketTotal)}</span>
+      </div>
+      {!pricing && ticketQuoteError && <div role="status" className="flex items-center justify-between gap-3 text-xs text-amber-700"><span>{ticketQuoteError}</span><button type="button" className="shrink-0 underline" onClick={() => setTicketQuoteRefresh((value) => value + 1)}>Retry</button></div>}
+      {!pricing && !ticketQuoteError && <p role="status" className="text-xs text-[#6B7280]">Calculating fees and discounts…</p>}
+    </div>;
+  };
 
   return (
     <div data-storefront-theme className="min-h-screen bg-[#F7F7F7] text-[var(--store-text)]" style={storefrontThemeStyle(storeDetails)}>
@@ -2098,10 +2160,10 @@ function V2EventStorefront({
             <p className="rounded-md bg-[#F7F7F7] p-3 text-xs text-[#6B7280]">Order reference: <span className="font-mono text-[#111827]">{placedTicketOrder.id}</span></p>
             <Button className="w-full bg-[var(--store-primary)]" onClick={() => { setShowTicketCheckout(false); setTicketPaymentStep(false); setPlacedTicketOrder(null); }}>Done</Button>
           </div> : ticketPaymentStep ? <div className="space-y-4 pt-2">
-            <div className="rounded-xl border border-[#E8E8E8] bg-[#F7FFF9] p-4"><p className="text-sm font-semibold">{selectedEvent?.name}</p><div className="mt-3 space-y-2 text-sm text-[#6B7280]">{selectedTickets.map(({ ticket, quantity }) => <div key={ticket.id} className="flex justify-between gap-4"><span>{quantity}× {ticket.name}</span><span>{ticket.type === "free" ? "Free" : formatStoreCurrency((ticket.price || 0) * quantity)}</span></div>)}<div className="flex justify-between border-t border-[#E8E8E8] pt-2 font-semibold text-[#111827]"><span>Ticket subtotal</span><span>{ticketTotal === 0 ? "Free" : formatStoreCurrency(ticketTotal)}</span></div></div><p className="mt-3 text-xs text-[#6B7280]">Final total, including any applicable discounts and fees, is calculated by the server when you place the order.</p></div>
-            {!selectedTickets.every(({ ticket }) => ticket.type === "free") && <div><Label className="mb-2 block text-xs">Payment method</Label><div className="grid grid-cols-2 gap-2">{ticketPaymentMethods.map((method) => <Button key={method.id} type="button" variant={selectedPaymentMethod === method.id ? "default" : "outline"} className={selectedPaymentMethod === method.id ? "bg-[var(--store-primary)]" : ""} onClick={() => setSelectedPaymentMethod(method.id)}>{method.id === "paystack" ? "Paystack" : "SeerBit"}</Button>)}</div>{ticketPaymentMethods.length === 0 && <p className="mt-2 text-xs text-amber-700">No online payment method is available for this store. Contact the store before proceeding.</p>}</div>}
+            <div className="rounded-xl border border-[#E8E8E8] bg-[#F7FFF9] p-4"><p className="text-sm font-semibold">{selectedEvent?.name}</p>{renderTicketPriceBreakdown()}</div>
+            {!selectedTickets.every(({ ticket }) => ticket.type === "free") && <div><Label className="mb-2 block text-xs">Payment method</Label><div className="grid grid-cols-2 gap-2">{ticketPaymentMethods.map((method) => <Button key={method.id} type="button" variant={selectedPaymentMethod === method.id ? "default" : "outline"} className={selectedPaymentMethod === method.id ? "bg-[var(--store-primary)]" : ""} onClick={() => setSelectedPaymentMethod(method.id)}>{method.id === "paystack" ? <span aria-hidden="true" className="[&>svg]:h-6 [&>svg]:w-auto"><PaystackLogo /></span> : "SeerBit"}</Button>)}</div>{ticketPaymentMethods.length === 0 && <p className="mt-2 text-xs text-amber-700">No online payment method is available for this store. Contact the store before proceeding.</p>}</div>}
             {ticketCheckoutError && <p role="alert" className="text-sm text-red-600">{ticketCheckoutError}</p>}
-            <Button className="w-full bg-[var(--store-primary)]" disabled={ticketCheckoutBusy || (!selectedTickets.every(({ ticket }) => ticket.type === "free") && !selectedPaymentMethod)} onClick={createTicketOrder}>{ticketCheckoutBusy ? "Creating order..." : selectedTickets.every(({ ticket }) => ticket.type === "free") ? "Place order" : "Continue to payment"}</Button>
+            <Button className="w-full bg-[var(--store-primary)]" disabled={ticketCheckoutBusy || !ticketQuote || (!selectedTickets.every(({ ticket }) => ticket.type === "free") && !selectedPaymentMethod)} onClick={createTicketOrder}>{ticketCheckoutBusy ? "Creating order..." : !ticketQuote ? "Confirming total..." : selectedTickets.every(({ ticket }) => ticket.type === "free") ? "Place order" : "Continue to payment"}</Button>
             <Button variant="ghost" className="w-full" disabled={ticketCheckoutBusy} onClick={() => setTicketPaymentStep(false)}>Back to details</Button>
           </div> : <form
             className="space-y-4 pt-2"
@@ -2114,18 +2176,7 @@ function V2EventStorefront({
           >
             <div className="rounded-xl border border-[#E8E8E8] bg-[#F7FFF9] p-4">
               <p className="text-sm font-semibold">{selectedEvent?.name}</p>
-              <div className="mt-3 space-y-2 text-sm text-[#6B7280]">
-                {selectedTickets.map(({ ticket, quantity }) => (
-                  <div key={ticket.id} className="flex justify-between gap-4">
-                    <span>{quantity}× {ticket.name}</span>
-                    <span>{ticket.type === "free" ? "Free" : formatStoreCurrency((ticket.price || 0) * quantity)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between border-t border-[#E8E8E8] pt-2 font-semibold text-[#111827]">
-                  <span>Total</span>
-                  <span>{ticketTotal === 0 ? "Free" : formatStoreCurrency(ticketTotal)}</span>
-                </div>
-              </div>
+              {renderTicketPriceBreakdown()}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
