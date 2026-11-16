@@ -158,6 +158,7 @@ interface CheckoutPricing {
   base_items_total: number;
   markup_total: number;
   platform_fee: number;
+  coupon_discount?: number;
   currency?: string;
 }
 
@@ -190,6 +191,7 @@ interface AppliedCoupon {
   startDate?: string;
   expiryDate?: string;
   usageLimit?: number;
+  free_delivery?: boolean;
 }
 
 interface StorePaymentMethod {
@@ -406,13 +408,13 @@ export default function CheckoutPage() {
   const baseItemsTotal = checkoutPricing?.base_items_total ?? itemsTotal;
   const markupTotal = checkoutPricing?.markup_total ?? 0;
   const platformFee = checkoutPricing?.platform_fee ?? 0;
-  const couponDiscount = appliedCoupon ? Math.min(baseItemsTotal, appliedCoupon.amount) : 0;
+  const couponDiscount = appliedCoupon ? Math.min(baseItemsTotal, checkoutPricing?.coupon_discount ?? appliedCoupon.amount) : 0;
   const remainingItemsTotal = Math.max(baseItemsTotal - couponDiscount, 0);
-  const deliveryFee = appliedCoupon ? 0 : selectedQuote?.fee || selectedVendorDeliveryRate?.rate || 0;
+  const deliveryFee = appliedCoupon?.free_delivery ? 0 : selectedQuote?.fee || selectedVendorDeliveryRate?.rate || 0;
   const total = remainingItemsTotal + markupTotal + platformFee + deliveryFee;
   const isZeroBalanceOrder = appliedCoupon !== null && total === 0;
   const orderPayloadItemsTotal = isZeroBalanceOrder ? itemsTotal : remainingItemsTotal + markupTotal;
-  const hasCouponVendorDelivery = appliedCoupon !== null && deliveryMethod === 'vendor';
+  const hasCouponVendorDelivery = Boolean(appliedCoupon?.free_delivery && deliveryMethod === 'vendor');
 
   // Food orders must be quoted first because the backend returns the orderKey used to create the order.
   const needsQuote =
@@ -784,6 +786,7 @@ export default function CheckoutPage() {
       startDate: result.data.startDate,
       expiryDate: result.data.expiryDate,
       usageLimit: result.data.usageLimit,
+      free_delivery: Boolean(result.data.free_delivery),
     };
   };
 
@@ -795,26 +798,22 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!isFoodStore) {
-      toast.error('Coupon not approved for this storefront.');
-      return;
-    }
-
-    if (!enabledFulfillmentModes.includes('vendor')) {
-      toast.error('Coupon requires Vendor Delivery, which is not available for this storefront.');
-      return;
-    }
-
     setIsApplyingCoupon(true);
 
     try {
       const coupon = await validateCouponCode(normalizedCode);
-      const previewResponse = await fetch('/api/orders/food/quote', {
+      const selectedMethod = coupon.free_delivery ? 'vendor' : deliveryMethod || enabledFulfillmentModes[0];
+      if (coupon.free_delivery && !enabledFulfillmentModes.includes('vendor')) {
+        throw new Error('Coupon requires Vendor Delivery, which is not available for this storefront.');
+      }
+      if (!selectedMethod) throw new Error('Select a delivery method before applying this coupon.');
+      const isFoodOrder = isFood;
+      const previewResponse = await fetch(isFoodOrder ? '/api/orders/food/quote' : '/api/orders/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...buildFoodPayload(),
-          delivery_method: 'vendor',
+          ...(isFoodOrder ? buildFoodPayload() : buildBasePayload()),
+          delivery_method: selectedMethod,
           coupon_code: coupon.code,
         }),
       });
@@ -825,11 +824,14 @@ export default function CheckoutPage() {
 
       setAppliedCoupon(coupon);
       setCouponCode(coupon.code);
-      setDeliveryMethod('vendor');
-      setSelectedQuote({ fee: 0, rate_card_id: null, name: 'Vendor Delivery' });
+      setDeliveryMethod(selectedMethod as DeliveryMethodType);
+      if (coupon.free_delivery) setSelectedQuote({ fee: 0, rate_card_id: null, name: 'Vendor Delivery' });
       setCheckoutPricing(previewResult.data.pricing);
-      setDeliveryQuote(null);
-      setIsEditingDelivery(false);
+      if (coupon.free_delivery) {
+        setSelectedVendorDeliveryRate(null);
+        setDeliveryQuote(null);
+        setIsEditingDelivery(false);
+      }
       toast.success(`Coupon applied successfully. ${formatStoreCurrency(coupon.amount)} has been applied to your order.`);
     } catch (error) {
       setAppliedCoupon(null);
@@ -916,7 +918,7 @@ export default function CheckoutPage() {
     ...cryptoOptionField(),
     delivery_method: deliveryMethod,
     delivery_fee: deliveryFee,
-    ...(selectedVendorDeliveryRate && !appliedCoupon && {
+    ...(selectedVendorDeliveryRate && !appliedCoupon?.free_delivery && {
       delivery_rate: {
         id: selectedVendorDeliveryRate.id,
         location: selectedVendorDeliveryRate.location,
@@ -932,8 +934,8 @@ export default function CheckoutPage() {
         applied_discount: couponDiscount,
         unused_value: Math.max(appliedCoupon.amount - couponDiscount, 0),
         remaining_item_balance: remainingItemsTotal,
-        free_delivery: true,
-        required_delivery_method: 'vendor',
+        free_delivery: Boolean(appliedCoupon.free_delivery),
+        ...(appliedCoupon.free_delivery ? { required_delivery_method: 'vendor' } : {}),
       },
     }),
     customer_info: getCustomerInfo(),
@@ -953,7 +955,7 @@ export default function CheckoutPage() {
     ...cryptoOptionField(),
     delivery_method: deliveryMethod, // sends 'relay' or 'pickup' as-is to backend
     delivery_fee: deliveryFee,
-    ...(selectedVendorDeliveryRate && !appliedCoupon && {
+    ...(selectedVendorDeliveryRate && !appliedCoupon?.free_delivery && {
       delivery_rate: {
         id: selectedVendorDeliveryRate.id,
         location: selectedVendorDeliveryRate.location,
@@ -969,8 +971,8 @@ export default function CheckoutPage() {
         applied_discount: couponDiscount,
         unused_value: Math.max(appliedCoupon.amount - couponDiscount, 0),
         remaining_item_balance: remainingItemsTotal,
-        free_delivery: true,
-        required_delivery_method: 'vendor',
+        free_delivery: Boolean(appliedCoupon.free_delivery),
+        ...(appliedCoupon.free_delivery ? { required_delivery_method: 'vendor' } : {}),
       },
     }),
     customer_info: getCustomerInfo(),
@@ -1433,7 +1435,7 @@ export default function CheckoutPage() {
           <RadioGroup
           value={deliveryMethod ?? undefined}
           onValueChange={(value) => {
-            if (appliedCoupon && value !== 'vendor') {
+            if (appliedCoupon?.free_delivery && value !== 'vendor') {
               toast.error('This coupon requires Vendor Delivery.');
               return;
             }
