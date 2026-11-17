@@ -3,6 +3,8 @@ export interface TicketType {
   name: string;
   type: "free" | "paid" | "invite";
   price?: number;
+  originalPrice?: number;
+  imageUrl?: string | null;
   quantity: number;
   sold: number;
   orderLimitPerPerson: number;

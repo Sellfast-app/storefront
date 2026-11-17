@@ -137,6 +137,22 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
     return 0;
   })();
 
+  const originalBasePrice = (() => {
+    if (!item) return 0;
+    if (item.type === "Simple") return Number(selectedPortion?.base_price ?? selectedPortion?.price ?? 0);
+    if (item.type === "Customizable") {
+      const serving = item.servingTypePricing?.find((entry) => entry.servingType === selectedServingType);
+      const addOnTotal = Object.values(selectedAddOns).flat().reduce((sum, option) => sum + option.price * (option.quantity || 0), 0);
+      return Number(serving?.base_price ?? serving?.price ?? 0) + addOnTotal;
+    }
+    if (item.type === "Bundle") {
+      const bundle = item.bundleConfig[0];
+      const addOnTotal = Object.values(selectedAddOns).flat().reduce((sum, option) => sum + option.price * (option.quantity || 0), 0);
+      return Number(bundle?.base_price ?? bundle?.price ?? 0) + addOnTotal;
+    }
+    return 0;
+  })();
+
   const totalPrice = basePrice * quantity;
   const isReadyToAdd = (() => {
     if (isUnavailable) return false;
@@ -278,6 +294,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
               <h2 className="mt-1 text-2xl font-bold text-[#111827]">{item.name}</h2>
               {item.description && <p className="mt-2 text-sm leading-6 text-[#71717A]">{item.description}</p>}
               <p className="mt-3 text-lg font-bold text-[#111827]">From {formatStoreCurrency(basePrice)}</p>
+              {originalBasePrice > basePrice && <p className="text-sm text-[#71717A] line-through">{formatStoreCurrency(originalBasePrice)}</p>}
             </div>
 
             {/* Portion selection for Simple items */}
@@ -297,7 +314,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                           {p.startPrepTime}–{p.endPrepTime} mins
                         </span>
                       </div>
-                      <span className="font-semibold text-[#111827]">{formatStoreCurrency(p.price)}</span>
+                      <span className="flex flex-col items-end"><span className="font-semibold text-[#111827]">{formatStoreCurrency(p.price)}</span>{p.discount_amount ? <span className="text-xs text-[#71717A] line-through">{formatStoreCurrency(p.base_price ?? p.price)}</span> : null}</span>
                     </button>
                   ))}
                 </div>
@@ -319,7 +336,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                         className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${isSelected ? "border-[var(--store-primary)] bg-[var(--store-primary)]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
                       >
                         <span className="font-medium capitalize">{type}</span>
-                        <span className="font-semibold text-[#111827]">{formatStoreCurrency(price)}</span>
+                        <span className="flex flex-col items-end"><span className="font-semibold text-[#111827]">{formatStoreCurrency(price)}</span>{item.servingTypePricing?.find((entry) => entry.servingType === type)?.discount_amount ? <span className="text-xs text-[#71717A] line-through">{formatStoreCurrency(item.servingTypePricing?.find((entry) => entry.servingType === type)?.base_price ?? price)}</span> : null}</span>
                       </button>
                     );
                   })}

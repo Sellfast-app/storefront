@@ -25,6 +25,8 @@ export interface Portion {
   productUid: string;
   name: string;
   price: number;
+  base_price?: number;
+  discount_amount?: number;
   startPrepTime: number;
   endPrepTime: number;
   servingType: string;
@@ -37,6 +39,8 @@ export interface BundleConfig {
   productUid: string;
   name: string;
   price: number;
+  base_price?: number;
+  discount_amount?: number;
   category: string;
   maxCount: number;
 }
@@ -44,6 +48,8 @@ export interface BundleConfig {
 export interface ServingTypePricing {
   servingType: string;
   price: number;
+  base_price?: number;
+  discount_amount?: number;
 }
 
 export interface FoodItem {
@@ -65,6 +71,8 @@ export interface FoodItem {
   portion: Portion[];
   bundleConfig: BundleConfig[];
   servingTypePricing?: ServingTypePricing[];
+  discount_type?: "fixed" | "percentage" | null;
+  discount_value?: number | string | null;
 }
 
 export interface FoodApiResponse {

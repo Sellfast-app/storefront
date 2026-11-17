@@ -169,6 +169,8 @@ interface ApiPublicTicket {
   name: string;
   type: string;
   price?: number | string | null;
+  currentPrice?: number | string | null;
+  imageUrl?: string | null;
   quantity?: number | string | null;
   sold?: number | string | null;
   orderLimitPerPerson?: number | string | null;
@@ -210,7 +212,9 @@ function mapPublicTicketEvent(value: ApiPublicTicketEvent): Event {
       id: String(ticket.id),
       name: String(ticket.name || "Ticket"),
       type: ticket.type === "invite" ? "invite" : ticket.type === "free" ? "free" : "paid",
-      price: Number(ticket.price || 0),
+      price: Number(ticket.currentPrice ?? ticket.price ?? 0),
+      originalPrice: Number(ticket.price || 0) > Number(ticket.currentPrice ?? ticket.price ?? 0) ? Number(ticket.price) : undefined,
+      imageUrl: getImageUrl(ticket.imageUrl || null),
       quantity: Number(ticket.quantity || 0),
       sold: Number(ticket.sold || 0),
       orderLimitPerPerson: Number(ticket.orderLimitPerPerson || 1),
@@ -2003,10 +2007,18 @@ function V2EventStorefront({
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
+                                {ticket.imageUrl && (
+                                  <div className="relative mb-3 h-24 w-full overflow-hidden rounded-lg bg-[#F3F4F6]">
+                                    <Image src={ticket.imageUrl} alt={`${ticket.name} ticket artwork`} fill className="object-cover" sizes="(max-width: 768px) 100vw, 400px" />
+                                  </div>
+                                )}
                                 <p className="text-sm font-semibold text-[#111827]">{ticket.name}</p>
                                 <p className="mt-0.5 text-base font-bold text-[var(--store-primary)]">
                                   {ticket.type === "free" ? "Free" : formatStoreCurrency(ticket.price || 0)}
                                 </p>
+                                {ticket.originalPrice != null && ticket.originalPrice > Number(ticket.price || 0) && (
+                                  <p className="mt-0.5 text-xs text-[#6B7280] line-through">{formatStoreCurrency(ticket.originalPrice)}</p>
+                                )}
                                 {isSoldOut && (
                                   <p className="mt-1 text-xs font-medium text-red-500">Sold out</p>
                                 )}

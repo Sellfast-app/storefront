@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { FoodItem } from "@/lib/mockdata";
-import { getFoodCardPrice } from "@/lib/foodPricing";
+import { getFoodCardPriceDetails } from "@/lib/foodPricing";
 import { formatStoreCurrency } from "@/lib/currency";
 import FoodItemModal from "./FoodItemModal";
 
@@ -15,7 +15,7 @@ interface FoodProductGridProps {
 
 function FoodCard({ item }: { item: FoodItem }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const price = getFoodCardPrice(item);
+  const price = getFoodCardPriceDetails(item);
   const isUnavailable = item.status === "Out of Stock";
 
   return (
@@ -62,8 +62,11 @@ function FoodCard({ item }: { item: FoodItem }) {
           <div className="mt-2 flex items-baseline gap-1.5">
             <span className="text-xs text-[#71717A]">From</span>
             <span className="text-sm font-bold text-[#111827] sm:text-base">
-              {price === null ? "-" : formatStoreCurrency(price)}
+              {price.price === null ? "-" : formatStoreCurrency(price.price)}
             </span>
+            {price.originalPrice != null && price.price != null && price.originalPrice > price.price && (
+              <span className="text-xs text-[#71717A] line-through">{formatStoreCurrency(price.originalPrice)}</span>
+            )}
           </div>
         </div>
       </article>
