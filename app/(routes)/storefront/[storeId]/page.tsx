@@ -1364,23 +1364,25 @@ function V2FoodStorefront({
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryCity, setDeliveryCity] = useState("");
-  const categories = Array.from(
-    new Set(
-      foodItems
-        .flatMap((item) =>
-          Array.isArray(item.category)
-            ? item.category
-            : item.category
-              ? [item.category as string]
-              : []
-        )
-        .filter(Boolean)
-    )
-  );
+  const getFoodCollections = (item: FoodItem) =>
+    (Array.isArray(item.category) ? item.category : [item.category])
+      .filter((name): name is string => typeof name === "string")
+      .map((name) => name.trim())
+      .filter(Boolean);
+  const categoriesByKey = new Map<string, string>();
+  foodItems.forEach((item) => {
+    getFoodCollections(item).forEach((name) => {
+      const key = name.toLocaleLowerCase();
+      if (!categoriesByKey.has(key)) categoriesByKey.set(key, name);
+    });
+  });
+  const categories = Array.from(categoriesByKey.values());
 
   const visibleItems = activeCategory === "All meals"
     ? foodItems
-    : foodItems.filter((item) => item.category.includes(activeCategory));
+    : foodItems.filter((item) =>
+        getFoodCollections(item).some((name) => name.toLocaleLowerCase() === activeCategory.toLocaleLowerCase())
+      );
 
   return (
     <div data-storefront-theme className="min-h-screen bg-white text-[var(--store-text)]" style={storefrontThemeStyle(storeDetails)}>
