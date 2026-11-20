@@ -51,7 +51,6 @@ import {
   Ticket,
   Truck,
   Twitter,
-  UserRound,
   X,
   Users,
   ArrowRight,
@@ -315,9 +314,6 @@ function V2StoreHeader({
           >
             {showMobileSearch ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
           </button>
-          <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-[#E5E7EB]">
-            <UserRound className="h-4 w-4" />
-          </Button>
           <CartButton onClick={toggleCart} />
         </div>
       </div>

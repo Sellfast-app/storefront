@@ -18,7 +18,6 @@ import {
   Search,
   Store,
   Twitter,
-  UserRound,
   X,
 } from "lucide-react";
 
@@ -133,9 +132,6 @@ function StoreInfoHeader({
           >
             {showMobileSearch ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
           </button>
-          <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-[#E5E7EB]">
-            <UserRound className="h-4 w-4" />
-          </Button>
           <CartButton onClick={goToStore} />
         </div>
       </div>
