@@ -144,10 +144,11 @@ function Page() {
           setFood(result.data);
           // Auto-select first portion for Simple items
           if (result.data.type === "Simple" && result.data.portion?.length > 0) {
-            setSelectedPortion(result.data.portion[0]);
+            setSelectedPortion(result.data.portion.find((portion: Portion) => (portion.branch_stock ?? portion.stockQuantity) == null || Number(portion.branch_stock ?? portion.stockQuantity) > 0) || result.data.portion[0]);
           }
           if (result.data.type === "Customizable") {
             const firstServingType =
+              result.data.servingTypePricing?.find((entry: { stockQuantity?: number | null; branch_stock?: number | null }) => (entry.branch_stock ?? entry.stockQuantity) == null || Number(entry.branch_stock ?? entry.stockQuantity) > 0)?.servingType ||
               result.data.servingTypePricing?.[0]?.servingType ||
               result.data.servingType?.[0] ||
               "";
@@ -258,16 +259,21 @@ function Page() {
   })();
 
   const totalPrice = basePrice * quantity;
+  const selectedOptionStock = !food ? undefined : food.type === "Simple"
+    ? selectedPortion?.branch_stock ?? selectedPortion?.stockQuantity
+    : food.type === "Customizable"
+      ? (() => { const option = food.servingTypePricing?.find((entry) => entry.servingType === selectedServingType); return option?.branch_stock ?? option?.stockQuantity; })()
+      : food.bundleConfig[0]?.branch_stock ?? food.bundleConfig[0]?.stockQuantity;
   const bundleMaxQuantity =
-    food?.type === "Bundle" && food.bundleConfig.length > 0
-      ? Math.min(...food.bundleConfig.map((bundle) => bundle.maxCount))
+    selectedOptionStock != null
+      ? Math.max(0, Number(selectedOptionStock))
       : null;
 
   // ── Validation ───────────────────────────────────────────────────────────
 
   const isReadyToAdd = (() => {
     if (!food) return false;
-    if (food.status === "Out of Stock") return false;
+    if (food.status === "Out of Stock" || (selectedOptionStock != null && Number(selectedOptionStock) <= 0)) return false;
     if (food.type === "Simple") return !!selectedPortion;
     if (food.type === "Customizable") {
       if (!selectedServingType) return false;
@@ -309,24 +315,15 @@ function Page() {
     const item = cart.find((c) => c.id === id);
     return item?.quantity || 0;
   })();
-  const currentBundleCartQty =
-    food?.type === "Bundle"
-      ? cart
-          .filter(item => item.foodSelection?.productUid === food.uid)
-          .reduce((total, item) => total + item.quantity, 0)
-      : 0;
   const remainingBundleQuantity =
     bundleMaxQuantity === null
       ? null
-      : Math.max(0, bundleMaxQuantity - currentBundleCartQty);
+      : Math.max(0, bundleMaxQuantity - currentCartQty);
 
   const handleAddToCart = () => {
     if (!food || !isReadyToAdd) return;
 
-    const quantityToAdd =
-      remainingBundleQuantity === null
-        ? quantity
-        : Math.min(quantity, remainingBundleQuantity);
+    const quantityToAdd = remainingBundleQuantity === null ? quantity : Math.min(quantity, remainingBundleQuantity);
 
     if (quantityToAdd <= 0) return;
 
@@ -434,7 +431,7 @@ function Page() {
     );
   }
 
-  const isUnavailable = food.status === "Out of Stock";
+  const isUnavailable = food.status === "Out of Stock" || (selectedOptionStock != null && Number(selectedOptionStock) <= 0);
 
   return (
     <div className="flex flex-col bg-[#FCFCFC]">
@@ -561,7 +558,8 @@ function Page() {
                       {food.portion.map((p) => (
                         <button
                           key={p.uid}
-                          onClick={() => setSelectedPortion(p)}
+                          onClick={() => { if ((p.branch_stock ?? p.stockQuantity) == null || Number(p.branch_stock ?? p.stockQuantity) > 0) setSelectedPortion(p); }}
+                          disabled={(p.branch_stock ?? p.stockQuantity) != null && Number(p.branch_stock ?? p.stockQuantity) <= 0}
                           className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition-all ${
                             selectedPortion?.uid === p.uid
                               ? "border-[#4FCA6A] bg-[#4FCA6A]/5"
@@ -569,7 +567,7 @@ function Page() {
                           }`}
                         >
                           <div className="flex flex-col items-start">
-                            <span className="font-medium">{p.name}</span>
+                            <span className="font-medium">{p.name}{(p.branch_stock ?? p.stockQuantity) != null && Number(p.branch_stock ?? p.stockQuantity) <= 0 ? " · Sold out" : ""}</span>
                             <span className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                               <Clock className="w-3 h-3" />
                               {p.startPrepTime}–{p.endPrepTime} mins · {p.servingPerServingType} {p.servingType}
@@ -596,18 +594,22 @@ function Page() {
                               (entry) => entry.servingType === type
                             )?.price || 0;
                             const isSelected = selectedServingType === type;
+                            const serving = food.servingTypePricing?.find((entry) => entry.servingType === type);
+                            const servingStock = serving?.branch_stock ?? serving?.stockQuantity;
+                            const soldOut = servingStock != null && Number(servingStock) <= 0;
 
                             return (
                               <button
                                 key={type}
-                                onClick={() => setSelectedServingType(type)}
+                                onClick={() => { if (!soldOut) setSelectedServingType(type); }}
+                                disabled={soldOut}
                                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm transition-all ${
                                   isSelected
                                     ? "border-[#4FCA6A] bg-[#4FCA6A]/5"
                                     : "border-gray-100 hover:border-gray-200"
                                 }`}
                               >
-                                <span className="font-medium capitalize">{type}</span>
+                                <span className="font-medium capitalize">{type}{soldOut ? " · Sold out" : ""}</span>
                                 <span className="font-semibold text-[#4FCA6A]">
                                   {formatStoreCurrency(price)}
                                 </span>
@@ -850,7 +852,7 @@ function Page() {
                         disabled={!isReadyToAdd || remainingBundleQuantity === 0}
                       >
                         {remainingBundleQuantity === 0
-                          ? `Bundle Limit Reached (${currentBundleCartQty})`
+                          ? `Stock Limit Reached (${currentCartQty})`
                           : currentCartQty > 0
                           ? `In Cart (${currentCartQty})`
                           : "Add to Cart"}

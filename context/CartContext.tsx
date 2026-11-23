@@ -105,19 +105,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addToCart = (product: CartProduct, quantity: number = 1) => {
     setCart(prevCart => {
-      const productUid = product.foodSelection?.productUid;
-      const currentProductQuantity = productUid
-        ? prevCart
-            .filter(item => item.foodSelection?.productUid === productUid)
-            .reduce((total, item) => total + item.quantity, 0)
-        : 0;
+      const existingItem = prevCart.find(item => item.id === product.id);
+      const currentQuantity = existingItem?.quantity || 0;
       const allowedQuantity = product.maxQuantity !== undefined
-        ? Math.min(quantity, Math.max(0, product.maxQuantity - currentProductQuantity))
+        ? Math.min(quantity, Math.max(0, product.maxQuantity - currentQuantity))
         : quantity;
 
       if (allowedQuantity <= 0) return prevCart;
 
-      const existingItem = prevCart.find(item => item.id === product.id);
       if (existingItem) {
         const newQty = existingItem.quantity + allowedQuantity;
         if (newQty <= 0) return prevCart.filter(item => item.id !== product.id);
@@ -140,19 +135,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       prevCart.map(item => {
         if (item.id !== productId) return item;
 
-        const productUid = item.foodSelection?.productUid;
-        const otherProductQuantity =
-          productUid && item.maxQuantity !== undefined
-            ? prevCart
-                .filter(
-                  cartItem =>
-                    cartItem.id !== productId &&
-                    cartItem.foodSelection?.productUid === productUid
-                )
-                .reduce((total, cartItem) => total + cartItem.quantity, 0)
-            : 0;
         const nextQuantity = item.maxQuantity !== undefined
-          ? Math.min(quantity, Math.max(0, item.maxQuantity - otherProductQuantity))
+          ? Math.min(quantity, item.maxQuantity)
           : quantity;
 
         return { ...item, quantity: nextQuantity };

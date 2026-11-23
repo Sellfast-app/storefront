@@ -31,6 +31,10 @@ export interface Portion {
   endPrepTime: number;
   servingType: string;
   servingPerServingType: number;
+  stockQuantity?: number | null;
+  lowStockThreshold?: number | null;
+  branch_stock?: number | null;
+  branch_available?: boolean;
 }
 
 export interface BundleConfig {
@@ -43,6 +47,10 @@ export interface BundleConfig {
   discount_amount?: number;
   category: string;
   maxCount: number;
+  stockQuantity?: number | null;
+  lowStockThreshold?: number | null;
+  branch_stock?: number | null;
+  branch_available?: boolean;
 }
 
 export interface ServingTypePricing {
@@ -50,6 +58,10 @@ export interface ServingTypePricing {
   price: number;
   base_price?: number;
   discount_amount?: number;
+  stockQuantity?: number | null;
+  lowStockThreshold?: number | null;
+  branch_stock?: number | null;
+  branch_available?: boolean;
 }
 
 export interface FoodItem {

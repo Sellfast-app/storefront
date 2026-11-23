@@ -49,10 +49,11 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
       setSelectedAddOns({});
 
       if (item.type === "Simple" && item.portion.length > 0) {
-        setSelectedPortion(item.portion[0]);
+        setSelectedPortion(item.portion.find(portion => (portion.branch_stock ?? portion.stockQuantity) == null || Number(portion.branch_stock ?? portion.stockQuantity) > 0) || item.portion[0]);
       }
       if (item.type === "Customizable") {
         const firstServingType =
+          item.servingTypePricing?.find(entry => (entry.branch_stock ?? entry.stockQuantity) == null || Number(entry.branch_stock ?? entry.stockQuantity) > 0)?.servingType ||
           item.servingTypePricing?.[0]?.servingType ||
           item.servingType?.[0] ||
           "";
@@ -61,10 +62,20 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
     }
   }, [item]);
 
+  const selectedOptionStock = !item ? undefined : item.type === "Simple"
+    ? selectedPortion?.branch_stock ?? selectedPortion?.stockQuantity
+    : item.type === "Customizable"
+      ? (() => { const option = item.servingTypePricing?.find(entry => entry.servingType === selectedServingType); return option?.branch_stock ?? option?.stockQuantity; })()
+      : item.bundleConfig[0]?.branch_stock ?? item.bundleConfig[0]?.stockQuantity;
+  const isUnavailable = !item || item.status === "Out of Stock" || (selectedOptionStock != null && Number(selectedOptionStock) <= 0);
+  const maxAvailableQuantity = selectedOptionStock == null ? undefined : Math.max(0, Number(selectedOptionStock));
+
+  useEffect(() => {
+    if (maxAvailableQuantity !== undefined) setQuantity(current => Math.max(1, Math.min(current, maxAvailableQuantity || 1)));
+  }, [maxAvailableQuantity]);
+
   // Only render when open is true - prevents flash on page load
   if (!open || !item) return null;
-
-  const isUnavailable = item.status === "Out of Stock";
 
   const getAddOnQuantity = (groupUid: string, optionUid: string) =>
     (selectedAddOns[groupUid] || []).find((o) => o.uid === optionUid)?.quantity || 0;
@@ -240,6 +251,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
       price: basePrice,
       image: item.product_images[0] || Banner,
       description: item.description,
+      ...(maxAvailableQuantity !== undefined ? { maxQuantity: maxAvailableQuantity } : {}),
       foodSelection,
     };
 
@@ -305,13 +317,14 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                   {item.portion.map((p) => (
                     <button
                       key={p.uid}
-                      onClick={() => setSelectedPortion(p)}
+                      onClick={() => { if ((p.branch_stock ?? p.stockQuantity) == null || Number(p.branch_stock ?? p.stockQuantity) > 0) setSelectedPortion(p); }}
+                      disabled={(p.branch_stock ?? p.stockQuantity) != null && Number(p.branch_stock ?? p.stockQuantity) <= 0}
                       className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${selectedPortion?.uid === p.uid ? "border-[var(--store-primary)] bg-[var(--store-primary)]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
                     >
                       <div className="flex flex-col items-start">
                         <span className="font-medium">{p.name}</span>
                         <span className="mt-0.5 flex items-center gap-1 text-xs text-gray-400">
-                          {p.startPrepTime}–{p.endPrepTime} mins
+                          {(p.branch_stock ?? p.stockQuantity) != null && Number(p.branch_stock ?? p.stockQuantity) <= 0 ? "Sold out" : `${p.startPrepTime}–${p.endPrepTime} mins`}
                         </span>
                       </div>
                       <span className="flex flex-col items-end"><span className="font-semibold text-[#111827]">{formatStoreCurrency(p.price)}</span>{p.discount_amount ? <span className="text-xs text-[#71717A] line-through">{formatStoreCurrency(p.base_price ?? p.price)}</span> : null}</span>
@@ -328,14 +341,18 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                 <div className="space-y-2">
                   {item.servingType.map((type) => {
                     const price = item.servingTypePricing?.find((entry) => entry.servingType === type)?.price || 0;
+                    const serving = item.servingTypePricing?.find((entry) => entry.servingType === type);
                     const isSelected = selectedServingType === type;
+                    const servingStock = serving?.branch_stock ?? serving?.stockQuantity;
+                    const soldOut = servingStock != null && Number(servingStock) <= 0;
                     return (
                       <button
                         key={type}
-                        onClick={() => setSelectedServingType(type)}
+                        onClick={() => { if (!soldOut) setSelectedServingType(type); }}
+                        disabled={soldOut}
                         className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-sm transition-all ${isSelected ? "border-[var(--store-primary)] bg-[var(--store-primary)]/5" : "border-[#ECECEC] hover:border-[#C9D4CA]"}`}
                       >
-                        <span className="font-medium capitalize">{type}</span>
+                        <span className="font-medium capitalize">{type}{soldOut ? " · Sold out" : ""}</span>
                         <span className="flex flex-col items-end"><span className="font-semibold text-[#111827]">{formatStoreCurrency(price)}</span>{item.servingTypePricing?.find((entry) => entry.servingType === type)?.discount_amount ? <span className="text-xs text-[#71717A] line-through">{formatStoreCurrency(item.servingTypePricing?.find((entry) => entry.servingType === type)?.base_price ?? price)}</span> : null}</span>
                       </button>
                     );
@@ -439,7 +456,8 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
                   </button>
                   <span className="px-4 bg-card h-full flex items-center">{quantity}</span>
                   <button
-                    onClick={() => setQuantity((q) => q + 1)}
+                    onClick={() => setQuantity((q) => Math.min(maxAvailableQuantity ?? Number.MAX_SAFE_INTEGER, q + 1))}
+                    disabled={maxAvailableQuantity !== undefined && quantity >= maxAvailableQuantity}
                     className="p-1 hover:bg-gray-200 rounded"
                     aria-label="Increase quantity"
                   >
