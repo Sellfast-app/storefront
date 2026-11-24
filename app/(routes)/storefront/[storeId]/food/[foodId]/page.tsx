@@ -17,7 +17,7 @@ import CartView from "@/components/CartView";
 import { useCart } from "@/context/CartContext";
 import { PlusIcon, Clock, Flame, Leaf, ChevronLeft, ChevronRight, CreditCard, MessageCircle, Truck } from "lucide-react";
 import MinusIcon from "@/components/svgIcons/MinusIcon";
-import { AddOnGroup, AddOnOption, FoodItem, Portion } from "@/lib/mockdata";
+import { AddOnGroup, AddOnOption, BundleConfig, FoodItem, Portion } from "@/lib/mockdata";
 import { getFoodCardPrice } from "@/lib/foodPricing";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatStoreCurrency } from "@/lib/currency";
@@ -125,6 +125,7 @@ function Page() {
   // ── Selection state ──────────────────────────────────────────────────────
   const [selectedPortion, setSelectedPortion] = useState<Portion | null>(null);
   const [selectedServingType, setSelectedServingType] = useState("");
+  const [selectedBundle, setSelectedBundle] = useState<BundleConfig | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<SelectedAddOns>({});
   const [quantity, setQuantity] = useState(1);
 
@@ -142,6 +143,7 @@ function Page() {
         const result = await response.json();
         if (result.status === "success" && result.data) {
           setFood(result.data);
+          if (result.data.type === "Bundle") setSelectedBundle(result.data.bundleConfig?.[0] || null);
           // Auto-select first portion for Simple items
           if (result.data.type === "Simple" && result.data.portion?.length > 0) {
             setSelectedPortion(result.data.portion.find((portion: Portion) => (portion.branch_stock ?? portion.stockQuantity) == null || Number(portion.branch_stock ?? portion.stockQuantity) > 0) || result.data.portion[0]);
@@ -249,7 +251,7 @@ function Page() {
       return servingTypePrice + addOnTotal;
     }
     if (food.type === "Bundle") {
-      const bundleTotal = food.bundleConfig.reduce((sum, b) => sum + b.price, 0);
+      const bundleTotal = selectedBundle?.price || 0;
       const addOnTotal = Object.values(selectedAddOns)
         .flat()
         .reduce((sum, o) => sum + (o.price * o.quantity), 0);
@@ -263,7 +265,7 @@ function Page() {
     ? selectedPortion?.branch_stock ?? selectedPortion?.stockQuantity
     : food.type === "Customizable"
       ? (() => { const option = food.servingTypePricing?.find((entry) => entry.servingType === selectedServingType); return option?.branch_stock ?? option?.stockQuantity; })()
-      : food.bundleConfig[0]?.branch_stock ?? food.bundleConfig[0]?.stockQuantity;
+      : selectedBundle?.branch_stock ?? selectedBundle?.stockQuantity;
   const bundleMaxQuantity =
     selectedOptionStock != null
       ? Math.max(0, Number(selectedOptionStock))
@@ -281,7 +283,7 @@ function Page() {
         .filter((g) => g.isRequired)
         .every((g) => (selectedAddOns[g.uid] || []).length > 0);
     }
-    return true;
+    return food.bundleConfig.length > 0 && !!selectedBundle;
   })();
 
   // ── Cart ─────────────────────────────────────────────────────────────────
@@ -305,7 +307,7 @@ function Page() {
         .map((o) => `${o.uid}:${o.quantity}`)
         .sort()
         .join("-");
-      return `${food.uid}-${addOnKey}`;
+      return `${food.uid}-${selectedBundle?.uid || ""}-${addOnKey}`;
     }
     return food.uid;
   };
@@ -338,6 +340,8 @@ function Page() {
       ? `${food.name} (${selectedServingType}) + ${addOnNames}`
       : food.type === "Customizable" && selectedServingType
       ? `${food.name} (${selectedServingType})`
+      : food.type === "Bundle" && selectedBundle
+      ? `${food.name} (${selectedBundle.name})${addOnNames ? ` + ${addOnNames}` : ""}`
       : addOnNames
       ? `${food.name} + ${addOnNames}`
       : food.name;
@@ -358,8 +362,8 @@ function Page() {
             addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: o.quantity })),
           })),
       }),
-      ...(food.type === "Bundle" && food.bundleConfig.length > 0 && {
-        bundleConfig: { uid: food.bundleConfig[0].uid, quantity: 1 },
+      ...(food.type === "Bundle" && selectedBundle && {
+        bundleConfig: { uid: selectedBundle.uid, name: selectedBundle.name, quantity: 1 },
         addOnGroup: Object.entries(selectedAddOns)
           .filter(([, options]) => options.length > 0)
           .map(([groupUid, options]) => ({
@@ -716,12 +720,14 @@ function Page() {
                 {food.type === "Bundle" && food.bundleConfig.length > 0 && (
                   <div className="space-y-5">
                     <div>
-                      <h3 className="text-sm font-semibold mb-2">Bundle Includes</h3>
+                      <h3 className="text-sm font-semibold mb-2">Choose a bundle</h3>
                       <div className="space-y-2">
                         {food.bundleConfig.map((bundle) => (
-                          <div
+                          <button type="button"
                             key={bundle.uid}
-                            className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-100 bg-gray-50"
+                            onClick={() => setSelectedBundle(bundle)}
+                            disabled={(bundle.branch_stock ?? bundle.stockQuantity) != null && Number(bundle.branch_stock ?? bundle.stockQuantity) <= 0}
+                            className={`flex w-full items-center justify-between px-4 py-3 rounded-xl border text-left disabled:opacity-50 ${selectedBundle?.uid === bundle.uid ? "border-[var(--store-primary)] bg-[var(--store-primary)]/5" : "border-gray-100 bg-gray-50"}`}
                           >
                             <div className="flex flex-col">
                               <span className="text-sm font-medium">{bundle.name}</span>
@@ -730,7 +736,7 @@ function Page() {
                             <span className="text-sm font-semibold text-[#4FCA6A]">
                               {formatStoreCurrency(bundle.price)}
                             </span>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>

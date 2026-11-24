@@ -22,6 +22,7 @@ export interface FoodAddOnGroupSelection {
 export interface FoodBundleConfigSelection {
   uid: string;
   quantity: number;
+  name?: string;
 }
 
 export interface FoodSelection {

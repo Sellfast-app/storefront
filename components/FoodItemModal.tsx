@@ -26,6 +26,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [selectedPortion, setSelectedPortion] = useState<Portion | null>(null);
   const [selectedServingType, setSelectedServingType] = useState("");
+  const [selectedBundle, setSelectedBundle] = useState<FoodItem["bundleConfig"][number] | null>(null);
   const [selectedAddOns, setSelectedAddOns] = useState<Record<string, SelectedAddOnOption[]>>({});
 
   // Lock body scroll when modal is open
@@ -46,6 +47,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
       setQuantity(1);
       setSelectedPortion(null);
       setSelectedServingType("");
+      setSelectedBundle(null);
       setSelectedAddOns({});
 
       if (item.type === "Simple" && item.portion.length > 0) {
@@ -59,6 +61,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
           "";
         setSelectedServingType(firstServingType);
       }
+      if (item.type === "Bundle") setSelectedBundle(item.bundleConfig[0] || null);
     }
   }, [item]);
 
@@ -66,7 +69,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
     ? selectedPortion?.branch_stock ?? selectedPortion?.stockQuantity
     : item.type === "Customizable"
       ? (() => { const option = item.servingTypePricing?.find(entry => entry.servingType === selectedServingType); return option?.branch_stock ?? option?.stockQuantity; })()
-      : item.bundleConfig[0]?.branch_stock ?? item.bundleConfig[0]?.stockQuantity;
+      : selectedBundle?.branch_stock ?? selectedBundle?.stockQuantity;
   const isUnavailable = !item || item.status === "Out of Stock" || (selectedOptionStock != null && Number(selectedOptionStock) <= 0);
   const maxAvailableQuantity = selectedOptionStock == null ? undefined : Math.max(0, Number(selectedOptionStock));
 
@@ -139,7 +142,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
       return servingTypePrice + addOnTotal;
     }
     if (item.type === "Bundle") {
-      const bundleTotal = item.bundleConfig.reduce((sum, b) => sum + b.price, 0);
+      const bundleTotal = selectedBundle?.price || 0;
       const addOnTotal = Object.values(selectedAddOns)
         .flat()
         .reduce((sum, o) => sum + o.price * (o.quantity || 0), 0);
@@ -157,7 +160,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
       return Number(serving?.base_price ?? serving?.price ?? 0) + addOnTotal;
     }
     if (item.type === "Bundle") {
-      const bundle = item.bundleConfig[0];
+      const bundle = selectedBundle;
       const addOnTotal = Object.values(selectedAddOns).flat().reduce((sum, option) => sum + option.price * (option.quantity || 0), 0);
       return Number(bundle?.base_price ?? bundle?.price ?? 0) + addOnTotal;
     }
@@ -174,7 +177,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
         .filter((group) => group.isRequired)
         .every((group) => (selectedAddOns[group.uid] || []).length > 0);
     }
-    return true;
+    return item.bundleConfig.length > 0 && !!selectedBundle;
   })();
 
   const cartId = (() => {
@@ -193,7 +196,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
         .map((option) => `${option.uid}:${option.quantity}`)
         .sort()
         .join("-");
-      return `${item.uid}-${addOnKey}`;
+      return `${item.uid}-${selectedBundle?.uid || ""}-${addOnKey}`;
     }
     return item.uid;
   })();
@@ -220,7 +223,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
         }));
     }
     if (item.type === "Bundle" && item.bundleConfig.length > 0) {
-      foodSelection.bundleConfig = { uid: item.bundleConfig[0].uid, quantity: 1 };
+      foodSelection.bundleConfig = { uid: selectedBundle!.uid, name: selectedBundle!.name, quantity: 1 };
       foodSelection.addOnGroup = Object.entries(selectedAddOns)
         .filter(([, options]) => options.length > 0)
         .map(([groupUid, options]) => ({
@@ -238,6 +241,8 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
       ? `${item.name} (${selectedPortion.name})`
       : item.type === "Customizable"
         ? item.name
+        : item.type === "Bundle" && selectedBundle
+          ? `${item.name} (${selectedBundle.name})${addOnNames ? ` + ${addOnNames}` : ""}`
           : addOnNames
             ? `${item.name} + ${addOnNames}`
             : item.name;
@@ -307,6 +312,21 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
               <p className="mt-3 text-lg font-bold text-[#111827]">From {formatStoreCurrency(basePrice)}</p>
               {originalBasePrice > basePrice && <p className="text-sm text-[#71717A] line-through">{formatStoreCurrency(originalBasePrice)}</p>}
             </div>
+
+            {/* Portion selection for Simple items */}
+            {item.type === "Bundle" && (
+              <div>
+                <h3 className="mb-3 text-base font-semibold">Choose a bundle</h3>
+                <div className="space-y-2">
+                  {item.bundleConfig.map(bundle => (
+                    <button key={bundle.uid} type="button" onClick={() => setSelectedBundle(bundle)} disabled={(bundle.branch_stock ?? bundle.stockQuantity) != null && Number(bundle.branch_stock ?? bundle.stockQuantity) <= 0} className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm ${(selectedBundle?.uid === bundle.uid) ? "border-[var(--store-primary)] bg-[var(--store-primary)]/5" : "border-[#ECECEC]"}`}>
+                      <span><span className="block font-medium">{bundle.name}</span><span className="text-xs text-gray-500">{bundle.category}</span></span>
+                      <span className="font-semibold">{formatStoreCurrency(bundle.price)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Portion selection for Simple items */}
             {(item.type === "Simple" && item.portion.length > 0) && (
