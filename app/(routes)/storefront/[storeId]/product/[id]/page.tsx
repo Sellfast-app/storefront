@@ -240,7 +240,7 @@ function Page() {
   const variantAvailable = (variant: ProductVariant) => variant.branch_available !== false && variantStock(variant) > 0;
 
   // Get unique sizes (preserving order)
-  const getVariantOptionLabel = (variant: ProductVariant) => variant.size || variant.name || "Option";
+  const getVariantOptionLabel = (variant: ProductVariant) => variant.size || variant.name || "";
   const uniqueSizes = Array.from(
     new Set(parsedVariants.map(getVariantOptionLabel))
   );
@@ -485,8 +485,7 @@ function Page() {
                     {/* Step 1 — Size */}
                     <div>
                       <p className='text-xs text-gray-500 mb-2'>
-                        Option
-                        {selectedSize && <span className='ml-2 font-semibold text-foreground'>{selectedSize}</span>}
+                        <span className='font-semibold text-foreground'>{selectedVariant?.name || selectedSize}</span>
                       </p>
                       <div className='flex flex-wrap gap-2'>
                         {uniqueSizes.map((size) => {
@@ -542,7 +541,7 @@ function Page() {
                                 type="button"
                                 onClick={() => handleColorSelect(variant)}
                                 disabled={outOfStock}
-                                title={`${variant.color || variant.name || "Option"} · ${formatStoreCurrency(getVariantUnitPrice(variant))}${outOfStock ? " · Out of stock" : ""}`}
+                                title={`${variant.color || variant.name || variant.size || "Select option"} · ${formatStoreCurrency(getVariantUnitPrice(variant))}${outOfStock ? " · Out of stock" : ""}`}
                                 className={`
                                   relative min-h-9 min-w-9 rounded-md transition-all
                                   ${isSelected
@@ -554,7 +553,7 @@ function Page() {
                                 `}
                                 style={variant.color ? { backgroundColor: variant.color } : undefined}
                               >
-                                {!variant.color && (variant.name || variant.sku || variant.size || "Option")}
+                                {!variant.color && (variant.name || variant.sku || variant.size || "Select")}
                                 {/* Out of stock slash */}
                                 {outOfStock && (
                                   <span className='absolute inset-0 flex items-center justify-center'>
