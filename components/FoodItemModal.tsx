@@ -211,11 +211,12 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
     }
     if (item.type === "Customizable") {
       foodSelection.servingType = selectedServingType;
+      foodSelection.servingLabel = selectedServingType;
       foodSelection.addOnGroup = Object.entries(selectedAddOns)
         .filter(([, options]) => options.length > 0)
         .map(([groupUid, options]) => ({
           uid: groupUid,
-          addOnGroupOption: options.map((o) => ({ uid: o.uid, quantity: o.quantity || 0 })),
+          addOnGroupOption: options.map((o) => ({ uid: o.uid, name: o.name, quantity: o.quantity || 0 })),
         }));
     }
     if (item.type === "Bundle" && item.bundleConfig.length > 0) {
@@ -235,10 +236,8 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
 
     const cartName = item.type === "Simple" && selectedPortion
       ? `${item.name} (${selectedPortion.name})`
-      : item.type === "Customizable" && selectedServingType && addOnNames
-        ? `${item.name} (${selectedServingType}) + ${addOnNames}`
-        : item.type === "Customizable" && selectedServingType
-          ? `${item.name} (${selectedServingType})`
+      : item.type === "Customizable"
+        ? item.name
           : addOnNames
             ? `${item.name} + ${addOnNames}`
             : item.name;

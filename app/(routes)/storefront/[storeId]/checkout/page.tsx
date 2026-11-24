@@ -1534,6 +1534,14 @@ export default function CheckoutPage() {
                     <Image src={item.image} alt={item.name} width={72} height={84} className='h-20 w-16 shrink-0 object-cover' />
                     <div className='min-w-0 flex-1'>
                       <p className='break-words text-sm font-medium leading-5'>{item.name}</p>
+                      {item.foodSelection?.type === 'Customizable' && (
+                        <div className='mt-1 space-y-0.5 text-xs text-gray-500'>
+                          <p>Serving: {item.foodSelection.servingLabel || item.foodSelection.servingType || 'Selected'} × {item.quantity}</p>
+                          {item.foodSelection.addOnGroup?.flatMap(group => group.addOnGroupOption).length ? (
+                            <p>Add-ons: {item.foodSelection.addOnGroup.flatMap(group => group.addOnGroupOption).map(option => `${option.name || 'Option'} × ${option.quantity}`).join(', ')}</p>
+                          ) : null}
+                        </div>
+                      )}
                       <div className='mt-2 inline-flex items-center border'>
                         <button type='button' aria-label={`Decrease ${item.name} quantity`} className='flex h-8 w-8 items-center justify-center' disabled={item.quantity <= 1 || isProcessingPayment} onClick={() => updateCheckoutQuantity(item.id, item.quantity - 1)}><Minus className='h-3.5 w-3.5' /></button>
                         <span className='flex h-8 min-w-8 items-center justify-center border-x text-sm'>{item.quantity}</span>
