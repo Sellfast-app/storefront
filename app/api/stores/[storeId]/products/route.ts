@@ -19,6 +19,7 @@ export async function GET(
   const minPrice = searchParams.get("minPrice") || "0";
   const maxPrice = searchParams.get("maxPrice") || "1000000";
   const search = searchParams.get("search") || "";
+  const branchId = searchParams.get("branch_id") || "";
 
   try {
     // Build query string
@@ -31,6 +32,7 @@ export async function GET(
       minPrice,
       maxPrice,
       ...(search && { search }),
+      ...(branchId && { branch_id: branchId }),
     });
 
     // Use the global endpoint that doesn't require auth
@@ -41,7 +43,7 @@ export async function GET(
         headers: {
           "Content-Type": "application/json",
         },
-        next: { revalidate: 60 },
+        cache: "no-store",
       }
     );
 

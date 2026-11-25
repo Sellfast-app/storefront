@@ -19,7 +19,7 @@ import { useParams } from 'next/navigation';
 import { getCartVariantLabel, useCart } from '@/context/CartContext';
 import { formatStoreCurrency, setStoreCurrency } from '@/lib/currency';
 import { getContrastingTextColor } from '@/lib/storefront-theme';
-import { currentBranchId } from '@/lib/branch-preview';
+import { currentBranchId, currentBranchSelection } from '@/lib/branch-preview';
 import { toast } from 'sonner';
 import StateRegionSelect from '@/components/stateRegionSelect';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -1286,6 +1286,10 @@ export default function CheckoutPage() {
   };
 
   const handleProceedToPayment = async () => {
+    if (currentBranchSelection(storeId) === 'all') {
+      toast.error('Select a branch before continuing to checkout.');
+      return;
+    }
     if (!validateCheckout()) return;
     if (!isZeroBalanceOrder && (!enabledPaymentMethods[paymentMethod] || isLoadingPaymentMethods)) {
       toast.error('Select an available payment method before continuing.');

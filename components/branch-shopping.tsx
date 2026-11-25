@@ -32,19 +32,27 @@ export default function BranchShopping({ children }: { children: React.ReactNode
               });
         if (cancelled) return;
         setBranches(options);
-        if (!options.length) { setReady(true); return; }
+        localStorage.setItem("swiftree:active-store-id", storeId);
+        if (!options.length) {
+          localStorage.removeItem(branchKey(storeId));
+          setReady(true);
+          return;
+        }
         const remembered = localStorage.getItem(branchKey(storeId));
         const requested = new URLSearchParams(window.location.search).get("branch");
         const includes = (id: string | null): id is string => Boolean(id && options.some(option => option.id === id));
         const fallback = options.find(option => option.is_default_online)?.id || options[0].id;
-        const current = includes(remembered) ? remembered : fallback;
-        const target = includes(requested) ? requested : includes(remembered) ? remembered : fallback;
+        const supportsAllLocations = options.length > 1;
+        const isSelection = (id: string | null): id is string => id === "all" && supportsAllLocations || includes(id);
+        const defaultSelection = supportsAllLocations ? "all" : fallback;
+        const current = isSelection(remembered) ? remembered : defaultSelection;
+        const target = isSelection(requested) ? requested : isSelection(remembered) ? remembered : defaultSelection;
         const chosen = cart.length > 0 ? current : target;
         localStorage.setItem(branchKey(storeId), chosen);
         setBranch(chosen);
         setError("");
         setReady(true);
-        if (cart.length > 0 && includes(requested) && requested !== current) setPending(requested);
+        if (cart.length > 0 && isSelection(requested) && requested !== current) setPending(requested);
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "Unable to load branch selection");
@@ -84,22 +92,24 @@ export default function BranchShopping({ children }: { children: React.ReactNode
         <select id="shopping-branch" value={branch} className="min-w-0 max-w-full cursor-pointer rounded-md border bg-white px-3 py-2 text-base"
           onChange={event => {
             const next = event.target.value;
-            if (!branches.some(option => option.id === next) || next === branch) return;
+            const validNext = next === "all" ? branches.length > 1 : branches.some(option => option.id === next);
+            if (!validNext || next === branch) return;
             try {
               if (!hydrated) return;
               if (cart.length) setPending(next); else switchBranch(next);
             } catch { setError("Unable to read your cart. Reload before switching branches."); }
           }}>
+          {branches.length > 1 && <option value="all">All locations</option>}
           {branches.map(option => <option key={option.id} value={option.id}>{option.name} · {option.address}</option>)}
         </select>
-        {branches.length > 1 && <span className="basis-full pl-6 text-xs text-gray-600">Choose a branch to see its products, prices, and availability.</span>}
+        {branches.length > 1 && <span className="basis-full pl-6 text-xs text-gray-600">{branch === "all" ? "Showing products available across your locations. Select a branch to see its exact prices and add items to your cart." : "Showing products, prices, and availability for this branch."}</span>}
         {error && <p role="alert" className="text-red-600">{error}</p>}
       </div>
     </div>
     {children}
     <Dialog open={!!pending} onOpenChange={open => { if (!open) setPending(null); }}>
       <DialogContent><DialogHeader><DialogTitle>Switch branch?</DialogTitle></DialogHeader>
-        <p className="text-sm text-gray-600">Your cart contains items from {branches.find(item => item.id === branch)?.name}. Switching to {branches.find(item => item.id === pending)?.name} will clear your cart because prices and availability may differ.</p>
+        <p className="text-sm text-gray-600">Your cart contains items from {branch === "all" ? "All locations" : branches.find(item => item.id === branch)?.name}. Switching to {pending === "all" ? "All locations" : branches.find(item => item.id === pending)?.name} will clear your cart because prices and availability may differ.</p>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={() => setPending(null)}>Keep current branch</Button>
           <Button className="bg-[#005B14] text-white" onClick={() => { if (pending) switchBranch(pending); }}>Clear cart and switch</Button>

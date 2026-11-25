@@ -16,6 +16,7 @@ export async function GET(
 ) {
   try {
     const { storeId } = await params;
+    const branchId = request.nextUrl.searchParams.get("branch_id");
 
     if (!storeId) {
       return NextResponse.json(
@@ -62,7 +63,7 @@ export async function GET(
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/products/food/global/${storeId}`,
+        `${API_BASE_URL}/api/products/food/global/${storeId}${branchId ? `?branch_id=${encodeURIComponent(branchId)}` : ""}`,
         {
           method: "GET",
           headers,

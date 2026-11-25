@@ -8,17 +8,18 @@ export async function GET(
 ) {
   // Await the params Promise
   const { storeId, productId } = await params
+  const branchId = request.nextUrl.searchParams.get('branch_id')
 
   try {
     // Fetch all products and find the specific one
     const response = await fetch(
-      `${API_BASE_URL}/api/products/store/global/${storeId}?page=1&pageSize=100`,
+      `${API_BASE_URL}/api/products/store/global/${storeId}?page=1&pageSize=100${branchId ? `&branch_id=${encodeURIComponent(branchId)}` : ''}`,
       {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        next: { revalidate: 60 }
+        cache: "no-store",
       }
     )
 

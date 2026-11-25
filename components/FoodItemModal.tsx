@@ -259,8 +259,7 @@ function FoodItemModal({ item, open, onOpenChange }: FoodItemModalProps) {
       foodSelection,
     };
 
-    addToCart(cartProduct, quantity);
-    onOpenChange(false);
+    if (addToCart(cartProduct, quantity)) onOpenChange(false);
   };
 
   return (

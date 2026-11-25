@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { StaticImageData } from 'next/image'
+import { toast } from 'sonner'
 
 export interface FoodPortionSelection {
   uid: string;
@@ -69,7 +70,7 @@ interface CartItem extends CartProduct {
 interface CartContextType {
   cart: CartItem[]
   hydrated: boolean
-  addToCart: (product: CartProduct, quantity?: number) => void
+  addToCart: (product: CartProduct, quantity?: number) => boolean
   removeFromCart: (productId: number | string) => void
   updateQuantity: (productId: number | string, quantity: number) => void
   clearCart: () => void
@@ -84,6 +85,13 @@ const getCartKey = () => {
   if (typeof window === 'undefined') return 'swiftree_cart';
   const match = window.location.pathname.match(/\/storefront\/([^/]+)/);
   return match ? `swiftree_cart_${match[1]}` : 'swiftree_cart';
+};
+
+const requiresBranchSelection = () => {
+  if (typeof window === 'undefined') return false;
+  const routeStoreId = window.location.pathname.match(/\/storefront\/([^/]+)/)?.[1];
+  const storeId = routeStoreId || localStorage.getItem('swiftree:active-store-id');
+  return Boolean(storeId && localStorage.getItem(`swiftree:branch:${storeId}`) === 'all');
 };
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -115,6 +123,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cart, hydrated]);
 
   const addToCart = (product: CartProduct, quantity: number = 1) => {
+    if (requiresBranchSelection()) {
+      toast.error('Select a branch before adding items to your cart.');
+      return false;
+    }
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.id === product.id);
       const currentQuantity = existingItem?.quantity || 0;
@@ -134,6 +146,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return [...prevCart, { ...product, quantity: allowedQuantity }];
       }
     });
+    return true;
   };
 
   const removeFromCart = (productId: number | string) => {

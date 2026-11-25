@@ -1,5 +1,5 @@
 "use client";
-import { retailBranchProducts, selectedBranch } from '@/lib/branch-preview';
+import { currentBranchSelection, retailBranchProducts, selectedBranch } from '@/lib/branch-preview';
 import { isMockRetailStorefront } from '@/lib/storefront-mock';
 import { formatStoreCurrency } from '@/lib/currency';
 import { getContrastingTextColor } from '@/lib/storefront-theme';
@@ -44,6 +44,7 @@ interface ProductVariant {
   discount_amount?: number;
   branch_available?: boolean;
   branch_stock?: number | null;
+  branch_price_varies?: boolean;
 }
 
 interface Product {
@@ -463,7 +464,8 @@ function Page() {
 
                 <div className='flex items-center justify-between mt-2'>
                   <div>
-                    <h3 className='font-semibold text-xl'>{formatStoreCurrency(selectedUnitPrice)}</h3>
+                    <h3 className='font-semibold text-xl'>{selectedVariant?.branch_price_varies && <span className='mr-1 text-sm font-normal text-gray-500'>From</span>}{formatStoreCurrency(selectedUnitPrice)}</h3>
+                    {currentBranchSelection(storeId) === 'all' && <p className='mt-1 text-xs text-gray-500'>Starting price across locations. Select a branch above for its exact price and availability.</p>}
                     {selectedDiscount > 0 && <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground"><span className="line-through">{formatStoreCurrency(selectedOriginalPrice)}</span><span>-{formatStoreCurrency(selectedDiscount)}</span></p>}
                   </div>
                   <div className='flex items-center h-full justify-between text-xs border rounded-xl p-1 bg-[#E0E0E0]'>

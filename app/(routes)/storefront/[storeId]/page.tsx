@@ -2,7 +2,7 @@
 "use client";
 
 import Image from "next/image";
-import { foodBranchProducts, retailBranchProducts, selectedBranch, previewBranches } from "@/lib/branch-preview";
+import { currentBranchSelection, foodBranchProducts, retailBranchProducts, selectedBranch, previewBranches } from "@/lib/branch-preview";
 import { TicketPaymentPreview } from "@/components/ticket-payment-preview";
 import Link from "next/link";
 import React, { useState, useEffect, useRef } from "react";
@@ -140,6 +140,9 @@ interface Product {
   product_quantity: number;
   est_prod_days_from: number;
   product_description: string;
+  branch_price_min?: number;
+  branch_price_max?: number;
+  branch_price_varies?: boolean;
 }
 
 type ratings = string | number;
@@ -1319,7 +1322,7 @@ function RetailProductCard({
             {product.product_name}
           </p>
           <div className="mt-2">
-            <p className="text-sm font-bold text-[#111827]">{formatStoreCurrency(product.product_price)}</p>
+            <p className="text-sm font-bold text-[#111827]">{product.branch_price_varies && <span className="mr-1 font-normal text-[#6B7280]">From</span>}{formatStoreCurrency(product.product_price)}</p>
             {Number(product.discount_amount || 0) > 0 && <div className="mt-0.5 flex items-center gap-2 text-xs text-[#777]">
               <span className="line-through">{formatStoreCurrency(product.original_product_price ?? product.product_price + Number(product.discount_amount))}</span>
               <span>-{formatStoreCurrency(Number(product.discount_amount))}</span>
@@ -2374,11 +2377,13 @@ function Page() {
         const queryParams = new URLSearchParams({
           page: "1", pageSize: "50", status: "", sort: "created_at", dir: "desc",
         });
+        const branchSelection = currentBranchSelection(storeId);
+        if (branchSelection) queryParams.set("branch_id", branchSelection);
         const response = await fetch(`/api/stores/${storeId}/products?${queryParams.toString()}`);
         if (!response.ok) throw new Error("Failed to fetch products");
         const result = await response.json();
         if (result.status === "success" && result.data) {
-          setProducts(result.data.items || []);
+          setProducts((result.data.items || []).filter((product: Product & { branch_available?: boolean }) => product.branch_available !== false));
         }
       } catch (err) {
         console.error("Error fetching products:", err);
@@ -2399,11 +2404,13 @@ function Page() {
           setFoodItems(foodBranchProducts(selectedBranch(storeId)).map((item) => ({ ...item, storeId })));
           return;
         }
-        const response = await fetch(`/api/stores/${storeId}/food`, { cache: "no-store" });
+        const branchSelection = currentBranchSelection(storeId);
+        const branchQuery = branchSelection ? `?branch_id=${encodeURIComponent(branchSelection)}` : "";
+        const response = await fetch(`/api/stores/${storeId}/food${branchQuery}`, { cache: "no-store" });
         if (!response.ok) throw new Error("Failed to fetch food items");
         const result = await response.json();
         if (result.status === "success" && result.data) {
-          setFoodItems(result.data);
+          setFoodItems(result.data.filter((item: FoodItem & { branch_available?: boolean }) => item.branch_available !== false));
         }
       } catch (err) {
         console.error("Error fetching food items:", err);
