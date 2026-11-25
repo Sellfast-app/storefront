@@ -16,7 +16,7 @@ import Script from 'next/script';
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
-import { useCart } from '@/context/CartContext';
+import { getCartVariantLabel, useCart } from '@/context/CartContext';
 import { formatStoreCurrency, setStoreCurrency } from '@/lib/currency';
 import { getContrastingTextColor } from '@/lib/storefront-theme';
 import { currentBranchId } from '@/lib/branch-preview';
@@ -907,7 +907,12 @@ export default function CheckoutPage() {
         name: item.name,
       };
       if (item.variant && (item.variant.size || item.variant.name || item.variant.color)) {
-        orderItem.variant = { size: item.variant.size || item.variant.name || "", color: item.variant.color || "" };
+        orderItem.variant = {
+          name: item.variant.name || "",
+          size: item.variant.size || item.variant.name || "",
+          color: item.variant.color || "",
+          sku: item.variant.sku || "",
+        };
       }
       return orderItem;
     }),
@@ -1534,6 +1539,7 @@ export default function CheckoutPage() {
                     <Image src={item.image} alt={item.name} width={72} height={84} className='h-20 w-16 shrink-0 object-cover' />
                     <div className='min-w-0 flex-1'>
                       <p className='break-words text-sm font-medium leading-5'>{item.name}</p>
+                      {item.variant && <p className='mt-1 text-xs text-gray-500'>Selected option: {getCartVariantLabel(item.variant)}</p>}
                       {item.foodSelection?.type === 'Customizable' && (
                         <div className='mt-1 space-y-0.5 text-xs text-gray-500'>
                           <p>Serving: {item.foodSelection.servingLabel || item.foodSelection.servingType || 'Selected'} × {item.quantity}</p>

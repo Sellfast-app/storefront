@@ -213,12 +213,11 @@ function Page() {
 
         if (Array.isArray(variants) && variants.length > 0) {
           setParsedVariants(variants);
-          // Auto-select first unique size
-          const firstSize = variants[0].size;
+          const available = (variant: ProductVariant) => variant.branch_available !== false && Number(variant.branch_stock ?? variant.quantity ?? 0) > 0;
+          const firstVariant = variants.find(available) || variants[0];
+          const firstSize = firstVariant.size;
           setSelectedSize(firstSize);
-          // Auto-select first color for that size
-          const firstVariant = variants.find((v: ProductVariant) => v.size === firstSize);
-          setSelectedVariant(firstVariant || null);
+          setSelectedVariant(variants.find((v: ProductVariant) => v.size === firstSize && available(v)) || firstVariant);
         } else {
           setParsedVariants([]);
           setSelectedSize(null);
@@ -285,7 +284,7 @@ function Page() {
   };
 
   const getVariantCartId = (productId: string, variant: ProductVariant) =>
-    `${productId}::variant::${encodeURIComponent([variant.size || variant.name || "", variant.color || ""].join("|").trim().toLowerCase())}`;
+    `${productId}::variant::${encodeURIComponent((variant.sku || [variant.size || variant.name || "", variant.color || ""].join("|")).trim().toLowerCase())}`;
 
   const selectedCartId = product && selectedVariant
     ? getVariantCartId(product.id, selectedVariant)

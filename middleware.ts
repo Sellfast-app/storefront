@@ -36,6 +36,11 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/public/")
     ) return NextResponse.next();
 
+    // Store-ID routes are already unambiguous and must not depend on custom-domain lookup.
+    if (pathname === "/storefront" || pathname.startsWith("/storefront/")) {
+      return NextResponse.next();
+    }
+
     try {
       const response = await fetch(
         `${API_BASE_URL.replace(/\/+$/, "")}/api/stores/resolve-domain/${encodeURIComponent(hostname)}`,
@@ -47,7 +52,6 @@ export async function middleware(request: NextRequest) {
       if (payload?.status !== "success" || typeof storeId !== "string") {
         return new NextResponse("Store not found", { status: 404 });
       }
-      if (pathname === "/storefront" || pathname.startsWith("/storefront/")) return NextResponse.next();
       const destination = request.nextUrl.clone();
       destination.pathname = `/storefront/${storeId}${pathname === "/" ? "" : pathname}`;
       return NextResponse.rewrite(destination);

@@ -7,7 +7,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { PlusIcon, Trash2 } from 'lucide-react'
 import MinusIcon from '@/components/svgIcons/MinusIcon'
-import { useCart } from '@/context/CartContext'
+import { getCartVariantLabel, useCart } from '@/context/CartContext'
 import { formatStoreCurrency } from '@/lib/currency'
 import TrashIcon from './svgIcons/TrashIcon'
 import SpeedafIcon from './svgIcons/SpeedafIcon'
@@ -82,7 +82,7 @@ export default function CartView() {
                           ) : null}
                         </div>
                       )}
-                      {item.variant && <p className="mt-1 text-xs text-gray-500">{[item.variant.name, item.variant.size, item.variant.color].filter(Boolean).join(" · ")}</p>}
+                      {item.variant && <p className="mt-1 text-xs text-gray-500">Selected option: {getCartVariantLabel(item.variant)}</p>}
                       <p className="text-xs text-gray-500 mt-1">Few units left</p>
                     </div>
                     <p className="font-semibold">{formatStoreCurrency(item.price)}</p>

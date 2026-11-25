@@ -55,12 +55,20 @@ export interface CartProduct {
   foodSelection?: FoodSelection
 }
 
+export function getCartVariantLabel(variant?: CartProduct["variant"]) {
+  if (!variant) return "";
+  const name = variant.name?.trim();
+  if (name) return name;
+  return [variant.size, variant.color].map(value => value?.trim()).filter(Boolean).join(" / ");
+}
+
 interface CartItem extends CartProduct {
   quantity: number
 }
 
 interface CartContextType {
   cart: CartItem[]
+  hydrated: boolean
   addToCart: (product: CartProduct, quantity?: number) => void
   removeFromCart: (productId: number | string) => void
   updateQuantity: (productId: number | string, quantity: number) => void
@@ -166,7 +174,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   return (
     <CartContext.Provider value={{
-      cart, addToCart, removeFromCart, updateQuantity,
+      cart, hydrated, addToCart, removeFromCart, updateQuantity,
       clearCart, getCartTotal, getCartItemCount, isFoodCart
     }}>
       {children}

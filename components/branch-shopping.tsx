@@ -11,13 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 export default function BranchShopping({ children }: { children: React.ReactNode }) {
   const { storeId } = useParams<{ storeId: string }>();
   const isDemoStore = supportsBranches(storeId);
-  const { clearCart, cart } = useCart();
+  const { clearCart, cart, hydrated } = useCart();
   const [ready, setReady] = useState(false);
   const [branches, setBranches] = useState<Array<{ id: string; name: string; address: string; is_default_online?: boolean }>>([]);
   const [branch, setBranch] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
+    if (!hydrated) return;
     let cancelled = false;
     const initialize = async () => {
       try {
@@ -32,19 +33,18 @@ export default function BranchShopping({ children }: { children: React.ReactNode
         if (cancelled) return;
         setBranches(options);
         if (!options.length) { setReady(true); return; }
-      const remembered = localStorage.getItem(branchKey(storeId));
-      const requested = new URLSearchParams(window.location.search).get("branch");
+        const remembered = localStorage.getItem(branchKey(storeId));
+        const requested = new URLSearchParams(window.location.search).get("branch");
         const includes = (id: string | null): id is string => Boolean(id && options.some(option => option.id === id));
         const fallback = options.find(option => option.is_default_online)?.id || options[0].id;
         const current = includes(remembered) ? remembered : fallback;
         const target = includes(requested) ? requested : includes(remembered) ? remembered : fallback;
-      const stored = JSON.parse(localStorage.getItem("swiftree_cart_" + storeId) || "[]");
-      const hasCart = Array.isArray(stored) && stored.length > 0;
-      const chosen = hasCart ? current : target;
-      localStorage.setItem(branchKey(storeId), chosen);
-      setBranch(chosen);
-        if (hasCart && includes(requested) && requested !== current) setPending(requested);
-      setReady(true);
+        const chosen = cart.length > 0 ? current : target;
+        localStorage.setItem(branchKey(storeId), chosen);
+        setBranch(chosen);
+        setError("");
+        setReady(true);
+        if (cart.length > 0 && includes(requested) && requested !== current) setPending(requested);
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "Unable to load branch selection");
@@ -54,15 +54,23 @@ export default function BranchShopping({ children }: { children: React.ReactNode
     };
     void initialize();
     return () => { cancelled = true; };
-  }, [storeId, isDemoStore]);
+  }, [storeId, isDemoStore, hydrated, cart.length]);
   const switchBranch = (next: string) => {
     try {
       localStorage.setItem(branchKey(storeId), next);
       clearCart();
+      // Clear both supported cart keys so branch switches from custom-domain roots
+      // cannot rehydrate the previous branch's cart on the destination route.
+      localStorage.removeItem("swiftree_cart_" + storeId);
+      if (!window.location.pathname.match(/\/storefront\/[^/]+/)) {
+        localStorage.removeItem("swiftree_cart");
+      }
       sessionStorage.removeItem("checkout_draft_" + storeId);
       // Discard branch-specific product snapshots and delivery/coupon state on navigation.
       Object.keys(sessionStorage).filter(key => key.startsWith("storefront_product_" + storeId + "_") || key === "storefront_products_" + storeId).forEach(key => sessionStorage.removeItem(key));
-      window.location.assign("/storefront/" + storeId + "?branch=" + encodeURIComponent(next));
+      const url = new URL("/storefront/" + encodeURIComponent(storeId), window.location.origin);
+      url.searchParams.set("branch", next);
+      window.location.assign(url.toString());
     } catch { setError("Unable to switch branch. Please try again."); }
   };
   if (!ready) return <div className="p-6"><div className="h-16 animate-pulse bg-gray-100" aria-label="Loading branch" /></div>;
@@ -73,11 +81,12 @@ export default function BranchShopping({ children }: { children: React.ReactNode
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 text-sm">
         <MapPin className="h-4 w-4 shrink-0 text-[#005B14]" />
         <label htmlFor="shopping-branch">Shopping from</label>
-        <select id="shopping-branch" value={branch} className="min-w-0 max-w-full rounded-md border px-3 py-2 text-base"
+        <select id="shopping-branch" value={branch} className="min-w-0 max-w-full cursor-pointer rounded-md border bg-white px-3 py-2 text-base"
           onChange={event => {
             const next = event.target.value;
             if (!branches.some(option => option.id === next) || next === branch) return;
             try {
+              if (!hydrated) return;
               if (cart.length) setPending(next); else switchBranch(next);
             } catch { setError("Unable to read your cart. Reload before switching branches."); }
           }}>
